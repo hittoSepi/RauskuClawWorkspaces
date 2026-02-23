@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -18,9 +19,19 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public class DockerContainersViewModel : INotifyPropertyChanged
     {
+        private static readonly string[] ExpectedContainers =
+        {
+            "rauskuclaw-api",
+            "rauskuclaw-worker",
+            "rauskuclaw-ollama",
+            "rauskuclaw-ui",
+            "rauskuclaw-ui-v2"
+        };
+
         private readonly DockerService _dockerService;
         private ObservableCollection<ContainerItemViewModel> _containers;
         private bool _isLoading;
+        private string _statusText = "Docker disconnected";
         private string _selectedContainerLogs = "";
         private string _selectedContainerName = "";
         private bool _showLogs;
@@ -40,6 +51,17 @@ namespace RauskuClaw.GUI.ViewModels
         {
             get => _isLoading;
             set { _isLoading = value; OnPropertyChanged(); }
+        }
+
+        public string StatusText
+        {
+            get => _statusText;
+            private set
+            {
+                if (_statusText == value) return;
+                _statusText = value;
+                OnPropertyChanged();
+            }
         }
 
         public string SelectedContainerLogs
@@ -70,11 +92,17 @@ namespace RauskuClaw.GUI.ViewModels
             if (_workspace == null || !_workspace.IsRunning)
             {
                 _dockerService.Disconnect();
+                if (_workspace != null)
+                {
+                    _workspace.DockerAvailable = false;
+                    _workspace.DockerContainerCount = -1;
+                }
                 _ = RunOnUiAsync(() => _containers.Clear());
+                StatusText = "VM is not running";
                 return;
             }
 
-            _ = EnsureConnectedSafeAsync();
+            _ = RefreshSafeAsync();
         }
 
         public async Task RefreshAsync()
@@ -86,10 +114,18 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 await EnsureConnectedAsync();
                 var containers = await _dockerService.GetContainersAsync();
+                var merged = MergeExpectedContainers(containers);
+                var health = EvaluateExpectedContainerHealth(merged);
+                if (_workspace != null)
+                {
+                    _workspace.DockerAvailable = true;
+                    _workspace.DockerContainerCount = health.RunningExpected;
+                }
+                StatusText = health.StatusText;
                 await RunOnUiAsync(() =>
                 {
                     _containers.Clear();
-                    foreach (var container in containers)
+                    foreach (var container in merged)
                     {
                         _containers.Add(new ContainerItemViewModel(
                             container,
@@ -109,8 +145,14 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                if (_workspace != null)
+                {
+                    _workspace.DockerAvailable = false;
+                    _workspace.DockerContainerCount = -1;
+                }
+                StatusText = $"Docker unavailable: {ex.Message}";
                 await RunOnUiAsync(() => _containers.Clear());
             }
             finally
@@ -162,6 +204,18 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        private async Task RefreshSafeAsync()
+        {
+            try
+            {
+                await RefreshAsync();
+            }
+            catch
+            {
+                // RefreshAsync already translates failures into UI state.
+            }
+        }
+
         private static Task RunOnUiAsync(Action action)
         {
             var dispatcher = Application.Current?.Dispatcher;
@@ -203,6 +257,91 @@ namespace RauskuClaw.GUI.ViewModels
                 _workspace.Ports?.Ssh ?? 2222,
                 _workspace.Username,
                 _workspace.SshPrivateKeyPath);
+
+            if (!_dockerService.IsConnected)
+            {
+                throw new InvalidOperationException("SSH connection for Docker is not available yet.");
+            }
+        }
+
+        private static List<DockerService.ContainerInfo> MergeExpectedContainers(List<DockerService.ContainerInfo> runningContainers)
+        {
+            var byName = runningContainers
+                .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+                .ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
+
+            var merged = new List<DockerService.ContainerInfo>();
+            foreach (var expected in ExpectedContainers)
+            {
+                if (byName.TryGetValue(expected, out var existing))
+                {
+                    merged.Add(existing);
+                }
+                else
+                {
+                    merged.Add(new DockerService.ContainerInfo
+                    {
+                        Id = "-",
+                        Name = expected,
+                        Status = "Missing",
+                        Ports = "-",
+                        IsRunning = false
+                    });
+                }
+            }
+
+            // Show unexpected extra containers below expected stack services.
+            foreach (var extra in runningContainers.Where(c => !ExpectedContainers.Contains(c.Name, StringComparer.OrdinalIgnoreCase)))
+            {
+                merged.Add(extra);
+            }
+
+            return merged;
+        }
+
+        private static (int RunningExpected, string StatusText) EvaluateExpectedContainerHealth(List<DockerService.ContainerInfo> merged)
+        {
+            var expected = merged
+                .Where(c => ExpectedContainers.Contains(c.Name, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+            var runningExpected = expected.Count(c => c.IsRunning);
+            var missing = expected
+                .Where(c => string.Equals(c.Status, "Missing", StringComparison.OrdinalIgnoreCase))
+                .Select(c => c.Name)
+                .ToList();
+            var unhealthy = expected
+                .Where(c => c.Status.Contains("unhealthy", StringComparison.OrdinalIgnoreCase))
+                .Select(c => c.Name)
+                .ToList();
+            var healthStarting = expected
+                .Where(c =>
+                    c.Status.Contains("health: starting", StringComparison.OrdinalIgnoreCase)
+                    || c.Status.Contains("(starting)", StringComparison.OrdinalIgnoreCase))
+                .Select(c => c.Name)
+                .ToList();
+
+            if (missing.Count > 0)
+            {
+                return (runningExpected, $"Docker missing: {string.Join(", ", missing)}");
+            }
+
+            if (unhealthy.Count > 0)
+            {
+                return (runningExpected, $"Docker unhealthy: {string.Join(", ", unhealthy)}");
+            }
+
+            if (healthStarting.Count > 0)
+            {
+                return (runningExpected, $"Docker warmup: {string.Join(", ", healthStarting)}");
+            }
+
+            if (runningExpected < ExpectedContainers.Length)
+            {
+                return (runningExpected, $"Docker partial ({runningExpected}/{ExpectedContainers.Length} expected running)");
+            }
+
+            return (runningExpected, $"Docker healthy ({runningExpected}/{ExpectedContainers.Length} expected running)");
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -242,8 +381,8 @@ namespace RauskuClaw.GUI.ViewModels
         public string Ports { get; }
         public bool IsRunning { get; }
 
-        public ICommand RestartCommand => new RelayCommand(async () => await _restartAction());
-        public ICommand ShowLogsCommand => new RelayCommand(async () => await _showLogsAction());
+        public ICommand RestartCommand => new RelayCommand(async () => await _restartAction(), () => IsRunning);
+        public ICommand ShowLogsCommand => new RelayCommand(async () => await _showLogsAction(), () => IsRunning);
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

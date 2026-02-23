@@ -2,11 +2,14 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Win32;
 using RauskuClaw.Models;
 using Renci.SshNet;
+using Renci.SshNet.Common;
 
 namespace RauskuClaw.GUI.ViewModels
 {
@@ -22,6 +25,7 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _isVmRunning;
         private Workspace? _workspace;
         private SshClient? _sshClient;
+        private readonly object _sshLock = new();
 
         public SshTerminalViewModel()
         {
@@ -113,8 +117,12 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Run(() =>
                 {
                     var keyFile = new PrivateKeyFile(workspace.SshPrivateKeyPath);
-                    _sshClient = new SshClient("127.0.0.1", sshPort, workspace.Username, keyFile);
-                    _sshClient.Connect();
+                    var client = new SshClient("127.0.0.1", sshPort, workspace.Username, keyFile);
+                    client.Connect();
+                    lock (_sshLock)
+                    {
+                        _sshClient = client;
+                    }
                 });
 
                 ConnectionInfo = $"Connected to {workspace.Name} ({workspace.Username}@127.0.0.1:{sshPort})";
@@ -134,17 +142,27 @@ namespace RauskuClaw.GUI.ViewModels
 
         public void Disconnect()
         {
+            SshClient? clientToDispose = null;
+            var wasConnected = false;
             try
             {
-                if (_sshClient != null)
+                lock (_sshLock)
                 {
-                    if (_sshClient.IsConnected)
-                    {
-                        _sshClient.Disconnect();
-                    }
-
-                    _sshClient.Dispose();
+                    clientToDispose = _sshClient;
+                    _sshClient = null;
                 }
+
+                if (clientToDispose != null && clientToDispose.IsConnected)
+                {
+                    wasConnected = true;
+                    clientToDispose.Disconnect();
+                }
+                else if (IsConnected)
+                {
+                    wasConnected = true;
+                }
+
+                clientToDispose?.Dispose();
             }
             catch
             {
@@ -152,12 +170,15 @@ namespace RauskuClaw.GUI.ViewModels
             }
             finally
             {
-                _sshClient = null;
+                clientToDispose = null;
             }
 
             IsConnected = false;
             ConnectionInfo = IsVmRunning ? "SSH disconnected" : "VM is not running";
-            TerminalOutput += "\n--- Disconnected ---\n";
+            if (wasConnected)
+            {
+                TerminalOutput += "\n--- Disconnected ---\n";
+            }
         }
 
         public async Task ExecuteCommandAsync()
@@ -177,17 +198,26 @@ namespace RauskuClaw.GUI.ViewModels
 
             try
             {
-                if (_sshClient == null || !_sshClient.IsConnected)
+                SshClient sshClient;
+                lock (_sshLock)
                 {
-                    throw new InvalidOperationException("SSH session is not connected.");
+                    if (_sshClient == null || !_sshClient.IsConnected)
+                    {
+                        throw new InvalidOperationException("SSH session is not connected.");
+                    }
+
+                    sshClient = _sshClient;
                 }
 
                 var (result, error, exitStatus) = await Task.Run(() =>
                 {
-                    var cmd = _sshClient.CreateCommand(command);
+                    var cmd = sshClient.CreateCommand(command);
                     var output = cmd.Execute();
                     return (output, cmd.Error, cmd.ExitStatus);
                 });
+
+                result = NormalizeTerminalText(result);
+                error = NormalizeTerminalText(error);
 
                 if (!string.IsNullOrWhiteSpace(result))
                 {
@@ -203,6 +233,26 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     TerminalOutput += $"[exit {exitStatus}]\n";
                 }
+            }
+            catch (InvalidOperationException ex)
+            {
+                TerminalOutput += $"Error: {ex.Message}\n";
+            }
+            catch (SshConnectionException)
+            {
+                HandleSshConnectionLost();
+            }
+            catch (SshException)
+            {
+                HandleSshConnectionLost();
+            }
+            catch (SocketException)
+            {
+                HandleSshConnectionLost();
+            }
+            catch (IOException)
+            {
+                HandleSshConnectionLost();
             }
             catch (Exception ex)
             {
@@ -318,6 +368,115 @@ namespace RauskuClaw.GUI.ViewModels
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void HandleSshConnectionLost()
+        {
+            if (IsVmRunning)
+            {
+                TerminalOutput += "SSH connection was interrupted. Retry shortly.\n";
+            }
+            else
+            {
+                TerminalOutput += "SSH connection closed because VM is stopping/stopped.\n";
+            }
+
+            Disconnect();
+        }
+
+        private static string NormalizeTerminalText(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var clean = StripAnsi(text)
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+
+            var sb = new StringBuilder(clean.Length);
+            foreach (var ch in clean)
+            {
+                if (ch == '\n' || ch == '\t' || !char.IsControl(ch))
+                {
+                    sb.Append(ch);
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        private static string StripAnsi(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder(input.Length);
+            for (var i = 0; i < input.Length; i++)
+            {
+                var ch = input[i];
+                if (ch != '\u001B')
+                {
+                    sb.Append(ch);
+                    continue;
+                }
+
+                if (i + 1 >= input.Length)
+                {
+                    break;
+                }
+
+                var next = input[i + 1];
+
+                // CSI: ESC [ ... final
+                if (next == '[')
+                {
+                    i += 2;
+                    while (i < input.Length)
+                    {
+                        var c = input[i];
+                        if (c >= '@' && c <= '~')
+                        {
+                            break;
+                        }
+
+                        i++;
+                    }
+
+                    continue;
+                }
+
+                // OSC: ESC ] ... BEL or ESC \
+                if (next == ']')
+                {
+                    i += 2;
+                    while (i < input.Length)
+                    {
+                        if (input[i] == '\a')
+                        {
+                            break;
+                        }
+
+                        if (input[i] == '\u001B' && i + 1 < input.Length && input[i + 1] == '\\')
+                        {
+                            i++;
+                            break;
+                        }
+
+                        i++;
+                    }
+
+                    continue;
+                }
+
+                // Any other ESC sequence: skip the next char.
+                i++;
+            }
+
+            return sb.ToString();
         }
     }
 }

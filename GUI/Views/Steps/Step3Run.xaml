@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -34,7 +35,38 @@
                    Padding="0"
                    Margin="0,0,0,8"/>
 
-        <ItemsControl Grid.Row="3" ItemsSource="{Binding SetupStages}" Margin="0,0,0,8">
+        <Border Grid.Row="3"
+                Visibility="{Binding HasAccessInfo, Converter={StaticResource BoolToVisibilityConverter}}"
+                Background="#101B2D"
+                BorderBrush="#1F6FEB"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="10"
+                Margin="0,0,0,8">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock Text="Access Info"
+                               Foreground="#E6EAF2"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <Button Content="Copy"
+                            Command="{Binding CopyAccessInfoCommand}"
+                            DockPanel.Dock="Right"
+                            Padding="8,2"
+                            Margin="8,0,0,0"
+                            Background="#2A3240"
+                            Foreground="#E6EAF2"
+                            BorderThickness="0"
+                            Cursor="Hand"/>
+                </DockPanel>
+                <TextBlock Text="{Binding AccessInfo}"
+                           Style="{StaticResource MutedTextBlock}"
+                           Padding="0"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <ItemsControl Grid.Row="4" ItemsSource="{Binding SetupStages}" Margin="0,0,0,8">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="0,0,0,6">
@@ -51,8 +83,10 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBox Grid.Row="4"
+        <TextBox Grid.Row="5"
+                 x:Name="RunLogTextBox"
                  Text="{Binding RunLog, Mode=OneWay}"
+                 TextChanged="RunLogTextBox_OnTextChanged"
                  IsReadOnly="True"
                  AcceptsReturn="True"
                  Height="220"

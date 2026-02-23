@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -25,6 +26,8 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public class MainViewModel : INotifyPropertyChanged
     {
+        private const int MaxWarmupRetryAttempts = 18;
+        private static readonly TimeSpan WarmupRetryInterval = TimeSpan.FromSeconds(12);
         private readonly WorkspaceService _workspaceService;
         private readonly QemuProcessManager _qemuManager;
         private readonly QmpClient _qmpClient;
@@ -42,6 +45,7 @@ namespace RauskuClaw.GUI.ViewModels
         private SerialConsoleViewModel? _serialConsole;
         private DockerContainersViewModel? _dockerContainers;
         private SshTerminalViewModel? _sshTerminal;
+        private SftpFilesViewModel? _sftpFiles;
         private SettingsViewModel? _settingsViewModel;
         private string _vmLog = "";
         private string _inlineNotice = "";
@@ -91,6 +95,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_serialConsole != null) _serialConsole.SetWorkspace(value);
                 if (_dockerContainers != null) _dockerContainers.SetWorkspace(value);
                 if (_sshTerminal != null) _sshTerminal.SetWorkspace(value);
+                if (_sftpFiles != null) _sftpFiles.SetWorkspace(value);
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -166,6 +171,20 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_sshTerminal != null)
                 {
                     _sshTerminal.SetWorkspace(SelectedWorkspace);
+                }
+                OnPropertyChanged();
+            }
+        }
+
+        public SftpFilesViewModel? SftpFiles
+        {
+            get => _sftpFiles;
+            set
+            {
+                _sftpFiles = value;
+                if (_sftpFiles != null)
+                {
+                    _sftpFiles.SetWorkspace(SelectedWorkspace);
                 }
                 OnPropertyChanged();
             }
@@ -278,6 +297,11 @@ namespace RauskuClaw.GUI.ViewModels
                         "VM Start Failed",
                         $"Workspace '{SelectedWorkspace.Name}' failed to start.\n\n{result.Message}");
                 }
+                _sftpFiles?.SetWorkspace(SelectedWorkspace);
+            }
+            else
+            {
+                _sftpFiles?.SetWorkspace(SelectedWorkspace);
             }
         }
 
@@ -346,6 +370,8 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     progressWindow.UpdateStatus("Restart complete.");
                 }
+
+                _sftpFiles?.SetWorkspace(workspace);
             }
             finally
             {
@@ -434,6 +460,8 @@ namespace RauskuClaw.GUI.ViewModels
             CancellationToken ct)
         {
             var bootSignalSeen = false;
+            var repoPending = false;
+            CancellationTokenSource? serialDiagCts = null;
             _workspaceBootSignals[workspace.Id] = false;
             workspace.Status = VmStatus.Starting;
             ReportStage(progress, "qemu", "in_progress", $"Starting VM: {workspace.Name}...");
@@ -474,6 +502,11 @@ namespace RauskuClaw.GUI.ViewModels
                         bootSignalSeen = true;
                         _workspaceBootSignals[workspace.Id] = true;
                         AppendLog("Serial port is reachable.");
+                        if (progress != null)
+                        {
+                            serialDiagCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                            _ = CaptureSerialDiagnosticsAsync(workspace.Ports.Serial, progress, serialDiagCts.Token);
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -522,19 +555,103 @@ namespace RauskuClaw.GUI.ViewModels
                 }
                 else
                 {
-                    var updateCheck = await RunSshCommandAsync(
-                        workspace,
-                        $"test -d '{EscapeSingleQuotes(workspace.RepoTargetDir)}' && echo ok",
-                        ct);
+                    var updateCheck = await WaitForRepositoryReadyAsync(workspace, ct);
                     if (!updateCheck.Success)
                     {
-                        ReportStage(progress, "updates", "failed", "Repository verification failed.");
-                        workspace.Status = VmStatus.Error;
-                        workspace.IsRunning = false;
-                        TryKillTrackedProcess(workspace, force: true);
-                        return (false, updateCheck.Message);
+                        var nonFatalRepoNotReady =
+                            updateCheck.Message.Contains("exit 7", StringComparison.OrdinalIgnoreCase)
+                            || updateCheck.Message.Contains("Repository not ready after wait window", StringComparison.OrdinalIgnoreCase);
+
+                        if (nonFatalRepoNotReady)
+                        {
+                            repoPending = true;
+                            ReportStage(progress, "updates", "success", "Repository not ready yet; continuing startup.");
+                            var cloudInitTail = await RunSshCommandAsync(
+                                workspace,
+                                "tail -n 80 /var/log/cloud-init-output.log 2>/dev/null || tail -n 80 /var/log/cloud-init.log 2>/dev/null || journalctl -u cloud-final --no-pager -n 80 2>/dev/null || true",
+                                ct);
+                            if (cloudInitTail.Success && !string.IsNullOrWhiteSpace(cloudInitTail.Message))
+                            {
+                                AppendLog("cloud-init tail (latest):");
+                                AppendLog(cloudInitTail.Message);
+                            }
+                            AppendLog($"Repository check deferred: {updateCheck.Message}");
+                        }
+                        else
+                        {
+                            ReportStage(progress, "updates", "failed", "Repository verification failed.");
+                            workspace.Status = VmStatus.Error;
+                            workspace.IsRunning = false;
+                            TryKillTrackedProcess(workspace, force: true);
+                            return (false, updateCheck.Message);
+                        }
                     }
-                    ReportStage(progress, "updates", "success", "Repository looks available.");
+                    else
+                    {
+                        ReportStage(progress, "updates", "success", "Repository looks available.");
+                    }
+                }
+
+                var startupWarnings = new List<string>();
+
+                ReportStage(progress, "env", "in_progress", "Validating runtime .env inside VM...");
+                if (allowDegradedStartup)
+                {
+                    ReportStage(progress, "env", "success", "Skipped for now (SSH warming up).");
+                }
+                else
+                {
+                    var envCheck = await RunSshCommandAsync(
+                        workspace,
+                        $"if [ -f '{EscapeSingleQuotes(workspace.RepoTargetDir)}/.env' ] && grep -q '^API_KEY=' '{EscapeSingleQuotes(workspace.RepoTargetDir)}/.env' && grep -q '^API_TOKEN=' '{EscapeSingleQuotes(workspace.RepoTargetDir)}/.env'; then echo env-ok; else exit 9; fi",
+                        ct);
+                    if (!envCheck.Success)
+                    {
+                        ReportStage(progress, "env", "failed", "Runtime .env missing or incomplete.");
+                        startupWarnings.Add("Env check failed");
+                    }
+                    else
+                    {
+                        ReportStage(progress, "env", "success", "Runtime .env is ready.");
+                    }
+                }
+
+                ReportStage(progress, "docker", "in_progress", "Checking Docker stack services...");
+                if (allowDegradedStartup)
+                {
+                    ReportStage(progress, "docker", "success", "Skipped for now (SSH warming up).");
+                }
+                else
+                {
+                    var dockerCheck = await WaitForDockerStackReadyAsync(workspace, progress, ct);
+                    if (!dockerCheck.Success)
+                    {
+                        ReportStage(progress, "docker", "failed", dockerCheck.Message);
+                        startupWarnings.Add("Docker not fully ready");
+                    }
+                    else
+                    {
+                        ReportStage(progress, "docker", "success", dockerCheck.Message);
+                    }
+                }
+
+                ReportStage(progress, "api", "in_progress", $"Waiting for API on 127.0.0.1:{workspace.Ports?.Api ?? 3011}...");
+                var apiReady = await WaitApiAsync(workspace, ct);
+                if (!apiReady.Success)
+                {
+                    ReportStage(progress, "api", "failed", apiReady.Message);
+                    startupWarnings.Add("API not reachable");
+                }
+                else
+                {
+                    ReportStage(progress, "api", "success", apiReady.Message);
+                }
+
+                if (serialDiagCts != null)
+                {
+                    serialDiagCts.Cancel();
+                    serialDiagCts.Dispose();
+                    serialDiagCts = null;
                 }
 
                 ReportStage(progress, "webui", "in_progress", $"Waiting for WebUI on 127.0.0.1:{workspace.HostWebPort}...");
@@ -548,6 +665,8 @@ namespace RauskuClaw.GUI.ViewModels
                     return (false, webPortReady.Message);
                 }
                 ReportStage(progress, "webui", "success", webPortReady.Message);
+                TriggerWebUiRefreshSequence(workspace);
+                TriggerDockerRefreshSequence(workspace);
 
                 ReportStage(progress, "connection", "in_progress", "Running SSH connection test...");
                 if (allowDegradedStartup)
@@ -583,12 +702,25 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     workspace.Status = VmStatus.WarmingUp;
                     _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                    TriggerWebUiRefreshSequence(workspace);
+                    TriggerDockerRefreshSequence(workspace);
                     StartWarmupRetry(workspace);
                     return (true, "Workspace is running. SSH is still warming up; try SSH/Docker tabs again in a moment.");
                 }
 
                 workspace.Status = VmStatus.Running;
                 _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                TriggerWebUiRefreshSequence(workspace);
+                TriggerDockerRefreshSequence(workspace);
+                if (startupWarnings.Count > 0)
+                {
+                    return (true, $"Workspace started with warnings: {string.Join(", ", startupWarnings)}. See wizard stages/VM logs.");
+                }
+                if (repoPending)
+                {
+                    return (true, "Workspace started, but repository setup is still pending. See VM Logs / Serial Console.");
+                }
+
                 return (true, "Workspace is ready.");
             }
             catch (OperationCanceledException)
@@ -610,6 +742,11 @@ namespace RauskuClaw.GUI.ViewModels
             }
             finally
             {
+                if (serialDiagCts != null)
+                {
+                    serialDiagCts.Cancel();
+                    serialDiagCts.Dispose();
+                }
                 _workspaceBootSignals[workspace.Id] = bootSignalSeen;
             }
         }
@@ -617,6 +754,12 @@ namespace RauskuClaw.GUI.ViewModels
         private void ReportStage(IProgress<string>? progress, string stage, string state, string message)
         {
             progress?.Report($"@stage|{stage}|{state}|{message}");
+            AppendLog(message);
+        }
+
+        private void ReportLog(IProgress<string>? progress, string message)
+        {
+            progress?.Report($"@log|{message}");
             AppendLog(message);
         }
 
@@ -650,17 +793,35 @@ namespace RauskuClaw.GUI.ViewModels
                                 return (true, result.Result?.Trim() ?? string.Empty);
                             }
 
-                            return (false, string.IsNullOrWhiteSpace(result.Error)
-                                ? $"SSH command failed with exit {result.ExitStatus}"
-                                : result.Error.Trim());
+                            if (!string.IsNullOrWhiteSpace(result.Error))
+                            {
+                                return (false, result.Error.Trim());
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(result.Result))
+                            {
+                                return (false, result.Result.Trim());
+                            }
+
+                            return (false, $"SSH command failed with exit {result.ExitStatus}");
                         }
-                        catch (Exception ex) when (ex is SocketException || ex is SshConnectionException || ex is SshOperationTimeoutException)
+                        catch (Exception ex) when (ex is SocketException
+                            || ex is SshConnectionException
+                            || ex is SshOperationTimeoutException
+                            || ex is SshException
+                            || ex is IOException
+                            || ex is ObjectDisposedException)
                         {
+                            if (ct.IsCancellationRequested)
+                            {
+                                return (false, "SSH command cancelled.");
+                            }
+
                             lastTransientError = ex;
                             if (attempt < maxAttempts)
                             {
                                 var delayMs = 400 * attempt;
-                                Thread.Sleep(delayMs);
+                                ct.WaitHandle.WaitOne(delayMs);
                                 continue;
                             }
                         }
@@ -669,6 +830,10 @@ namespace RauskuClaw.GUI.ViewModels
                     var message = lastTransientError?.Message ?? "SSH command failed after retries.";
                     return (false, $"SSH transient error: {message}");
                 }, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return (false, "SSH command cancelled.");
             }
             catch (Exception ex)
             {
@@ -713,6 +878,156 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        private async Task<(bool Success, string Message)> WaitApiAsync(Workspace workspace, CancellationToken ct)
+        {
+            var apiPort = workspace.Ports?.Api ?? 3011;
+            try
+            {
+                await NetWait.WaitTcpAsync("127.0.0.1", apiPort, TimeSpan.FromSeconds(40), ct);
+                return (true, $"API is reachable on 127.0.0.1:{apiPort}.");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return (false, $"API port did not become reachable (127.0.0.1:{apiPort}).");
+            }
+        }
+
+        private async Task<(bool Success, string Message)> CheckDockerStackReadinessAsync(Workspace workspace, CancellationToken ct)
+        {
+            var expected = new[]
+            {
+                "rauskuclaw-api",
+                "rauskuclaw-worker",
+                "rauskuclaw-ollama",
+                "rauskuclaw-ui",
+                "rauskuclaw-ui-v2"
+            };
+
+            var dockerPs = await RunSshCommandAsync(
+                workspace,
+                "if docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then " +
+                "DOCKER='docker'; " +
+                "elif sudo -n docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then " +
+                "DOCKER='sudo -n docker'; " +
+                "else echo 'docker-unavailable'; exit 19; fi; " +
+                "$DOCKER ps --format '{{.Names}}|{{.Status}}' | grep -E '^rauskuclaw-(api|worker|ollama|ui|ui-v2)\\|' || true",
+                ct);
+            if (!dockerPs.Success)
+            {
+                return (false, $"Docker stack check failed: {dockerPs.Message}");
+            }
+
+            var statusesByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var lines = dockerPs.Message
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var rawLine in lines)
+            {
+                var idx = rawLine.IndexOf('|');
+                if (idx <= 0 || idx >= rawLine.Length - 1)
+                {
+                    continue;
+                }
+
+                var name = rawLine[..idx].Trim();
+                var status = rawLine[(idx + 1)..].Trim();
+                if (name.Length == 0 || status.Length == 0)
+                {
+                    continue;
+                }
+
+                statusesByName[name] = status;
+            }
+
+            var missing = new List<string>();
+            var notRunning = new List<string>();
+            var healthStarting = new List<string>();
+            var unhealthy = new List<string>();
+            var runningCount = 0;
+
+            foreach (var container in expected)
+            {
+                if (!statusesByName.TryGetValue(container, out var status))
+                {
+                    missing.Add(container);
+                    continue;
+                }
+
+                if (!status.StartsWith("Up", StringComparison.OrdinalIgnoreCase))
+                {
+                    notRunning.Add($"{container} ({status})");
+                    continue;
+                }
+
+                runningCount++;
+                if (status.Contains("unhealthy", StringComparison.OrdinalIgnoreCase))
+                {
+                    unhealthy.Add(container);
+                    continue;
+                }
+
+                if (status.Contains("health: starting", StringComparison.OrdinalIgnoreCase)
+                    || status.Contains("(starting)", StringComparison.OrdinalIgnoreCase))
+                {
+                    healthStarting.Add(container);
+                }
+            }
+
+            if (missing.Count > 0)
+            {
+                return (false, $"Docker missing containers: {string.Join(", ", missing)}.");
+            }
+
+            if (notRunning.Count > 0)
+            {
+                return (false, $"Docker containers not running: {string.Join(", ", notRunning)}.");
+            }
+
+            if (unhealthy.Count > 0)
+            {
+                return (false, $"Docker unhealthy containers: {string.Join(", ", unhealthy)}.");
+            }
+
+            if (healthStarting.Count > 0)
+            {
+                return (false, $"Docker health checks still starting: {string.Join(", ", healthStarting)}.");
+            }
+
+            return (true, $"Docker stack is running and healthy ({runningCount}/{expected.Length} expected containers).");
+        }
+
+        private async Task<(bool Success, string Message)> WaitForDockerStackReadyAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
+        {
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(45);
+            var attempt = 0;
+            var lastMessage = "Docker stack is not ready yet.";
+
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                attempt++;
+
+                var check = await CheckDockerStackReadinessAsync(workspace, ct);
+                if (check.Success)
+                {
+                    return check;
+                }
+
+                lastMessage = check.Message;
+                if (attempt == 1 || attempt % 3 == 0)
+                {
+                    ReportLog(progress, $"Docker warmup: {lastMessage}");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            }
+
+            return (false, $"Docker stack did not become healthy in time: {lastMessage}");
+        }
+
         private async Task<(bool Success, string Message)> WaitForSshReadyAsync(Workspace workspace, CancellationToken ct)
         {
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(35);
@@ -738,6 +1053,249 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (false, $"SSH became reachable but command channel did not stabilize: {lastError?.Message ?? "timeout"}");
+        }
+
+        private async Task<(bool Success, string Message)> WaitForRepositoryReadyAsync(Workspace workspace, CancellationToken ct)
+        {
+            var escapedRepoDir = EscapeSingleQuotes(workspace.RepoTargetDir);
+
+            // Wait for cloud-init final stage when available; ignore if command is missing.
+            _ = await RunSshCommandAsync(workspace, "cloud-init status --wait >/dev/null 2>&1 || true", ct);
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(180);
+            var attempt = 0;
+            var lastMessage = "Repository path not ready yet.";
+            var lastCloudInit = "unknown";
+
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                attempt++;
+
+                var probe = await RunSshCommandAsync(
+                    workspace,
+                    $"if [ -d '{escapedRepoDir}/.git' ] || [ -d '{escapedRepoDir}' ]; then echo repo-ok; else exit 7; fi",
+                    ct);
+
+                if (probe.Success)
+                {
+                    return (true, "Repository looks available.");
+                }
+
+                lastMessage = probe.Message;
+                if (attempt % 3 == 0)
+                {
+                    var cloudInit = await RunSshCommandAsync(
+                        workspace,
+                        "cloud-init status --long 2>/dev/null || cloud-init status 2>/dev/null || true",
+                        ct);
+                    if (cloudInit.Success && !string.IsNullOrWhiteSpace(cloudInit.Message))
+                    {
+                        lastCloudInit = cloudInit.Message.Replace("\r", " ").Replace("\n", " ").Trim();
+                    }
+                }
+                var delayMs = Math.Min(5000, 1200 + (attempt * 350));
+                await Task.Delay(delayMs, ct);
+            }
+
+            return (false, $"Repository not ready after wait window: {lastMessage} | cloud-init: {lastCloudInit}");
+        }
+
+        private async Task CaptureSerialDiagnosticsAsync(int serialPort, IProgress<string>? progress, CancellationToken ct)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                await client.ConnectAsync("127.0.0.1", serialPort, ct);
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: false);
+
+                var sb = new StringBuilder();
+                var buffer = new char[1024];
+                var lastPartialFlushUtc = DateTime.UtcNow;
+                while (!ct.IsCancellationRequested)
+                {
+                    var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
+                    if (read <= 0)
+                    {
+                        break;
+                    }
+
+                    sb.Append(buffer, 0, read);
+                    while (true)
+                    {
+                        var delimiterIndex = IndexOfLineDelimiter(sb);
+                        if (delimiterIndex < 0)
+                        {
+                            break;
+                        }
+
+                        var line = sb.ToString(0, delimiterIndex).Trim('\r', '\n', ' ', '\t');
+                        var consume = delimiterIndex + 1;
+                        while (consume < sb.Length && (sb[consume] == '\r' || sb[consume] == '\n'))
+                        {
+                            consume++;
+                        }
+                        sb.Remove(0, consume);
+
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            continue;
+                        }
+
+                        var normalized = NormalizeSerialLine(line);
+                        if (!string.IsNullOrWhiteSpace(normalized))
+                        {
+                            ReportLog(progress, $"[serial] {normalized}");
+                        }
+                        lastPartialFlushUtc = DateTime.UtcNow;
+                    }
+
+                    // Some boot/progress output uses carriage-return updates without full newlines.
+                    if (sb.Length > 320 && DateTime.UtcNow - lastPartialFlushUtc > TimeSpan.FromSeconds(2))
+                    {
+                        var partial = sb.ToString().Trim('\r', '\n', ' ', '\t');
+                        if (!string.IsNullOrWhiteSpace(partial))
+                        {
+                            var normalizedPartial = NormalizeSerialLine(partial);
+                            if (!string.IsNullOrWhiteSpace(normalizedPartial))
+                            {
+                                ReportLog(progress, $"[serial] {normalizedPartial}");
+                            }
+                        }
+                        sb.Clear();
+                        lastPartialFlushUtc = DateTime.UtcNow;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal on startup phase exit.
+            }
+            catch (Exception ex)
+            {
+                ReportLog(progress, $"[serial] diagnostics capture stopped: {ex.Message}");
+            }
+        }
+
+        private static int IndexOfLineDelimiter(StringBuilder sb)
+        {
+            for (var i = 0; i < sb.Length; i++)
+            {
+                if (sb[i] == '\n' || sb[i] == '\r')
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static string NormalizeSerialLine(string line)
+        {
+            line = StripAnsi(line).Trim();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return string.Empty;
+            }
+
+            // Drop qemu terminal-query noise like "+q6E616D65".
+            if (line.Length > 3 && line[0] == '+' && line[1] == 'q' && IsHex(line.AsSpan(2)))
+            {
+                return string.Empty;
+            }
+
+            if (line.Length <= 360)
+            {
+                return line;
+            }
+
+            return line[..360] + "...";
+        }
+
+        private static bool IsHex(ReadOnlySpan<char> value)
+        {
+            for (var i = 0; i < value.Length; i++)
+            {
+                var c = value[i];
+                var isHex = (c >= '0' && c <= '9')
+                    || (c >= 'a' && c <= 'f')
+                    || (c >= 'A' && c <= 'F');
+                if (!isHex)
+                {
+                    return false;
+                }
+            }
+
+            return value.Length > 0;
+        }
+
+        private static string StripAnsi(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder(input.Length);
+            for (var i = 0; i < input.Length; i++)
+            {
+                var ch = input[i];
+                if (ch != '\u001B')
+                {
+                    sb.Append(ch);
+                    continue;
+                }
+
+                if (i + 1 >= input.Length)
+                {
+                    break;
+                }
+
+                var next = input[i + 1];
+
+                // CSI: ESC [ ... final
+                if (next == '[')
+                {
+                    i += 2;
+                    while (i < input.Length)
+                    {
+                        var c = input[i];
+                        if (c >= '@' && c <= '~')
+                        {
+                            break;
+                        }
+                        i++;
+                    }
+                    continue;
+                }
+
+                // OSC: ESC ] ... BEL or ESC \
+                if (next == ']')
+                {
+                    i += 2;
+                    while (i < input.Length)
+                    {
+                        if (input[i] == '\a')
+                        {
+                            break;
+                        }
+
+                        if (input[i] == '\u001B' && i + 1 < input.Length && input[i + 1] == '\\')
+                        {
+                            i++;
+                            break;
+                        }
+                        i++;
+                    }
+                    continue;
+                }
+
+                // Other ESC-prefixed controls: skip ESC + one char
+                i++;
+            }
+
+            return sb.ToString();
         }
 
         private static string EscapeSingleQuotes(string value) => (value ?? string.Empty).Replace("'", "'\\''");
@@ -827,23 +1385,39 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 try
                 {
+                    var attempts = 0;
                     while (!cts.IsCancellationRequested && workspace.IsRunning)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(12), cts.Token);
+                        if (attempts >= MaxWarmupRetryAttempts)
+                        {
+                            workspace.Status = VmStatus.WarmingUpTimeout;
+                            _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                            AppendLog($"Warmup retry timeout for '{workspace.Name}'. SSH did not stabilize.");
+                            SetInlineNotice($"'{workspace.Name}' is running, but SSH did not stabilize. Check Serial Console / VM Logs.");
+                            break;
+                        }
+
+                        await Task.Delay(WarmupRetryInterval, cts.Token);
                         if (cts.IsCancellationRequested || !workspace.IsRunning)
                         {
                             break;
                         }
 
+                        attempts++;
                         var probe = await RunSshCommandAsync(workspace, "echo warmup-ready", cts.Token);
                         if (!probe.Success)
                         {
-                            AppendLog($"Warmup retry: SSH still not ready for '{workspace.Name}'.");
+                            if (!string.Equals(probe.Message, "SSH command cancelled.", StringComparison.OrdinalIgnoreCase))
+                            {
+                                AppendLog($"Warmup retry: SSH still not ready for '{workspace.Name}' ({probe.Message}).");
+                            }
                             continue;
                         }
 
                         workspace.Status = VmStatus.Running;
                         _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                        TriggerWebUiRefreshSequence(workspace);
+                        TriggerDockerRefreshSequence(workspace);
                         AppendLog($"Warmup complete: SSH stabilized for '{workspace.Name}'.");
                         SetInlineNotice($"'{workspace.Name}' is fully ready. SSH stabilized and tools connected.");
                         ScheduleWorkspaceClientsAutoConnect(workspace, includeSshAndDocker: true);
@@ -884,6 +1458,92 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        private void TriggerWebUiRefreshSequence(Workspace workspace)
+        {
+            if (_webUi == null)
+            {
+                return;
+            }
+
+            var targetWorkspaceId = workspace.Id;
+            _ = Task.Run(async () =>
+            {
+                var delaysMs = new[] { 400, 2200, 5500 };
+                foreach (var delay in delaysMs)
+                {
+                    try
+                    {
+                        await Task.Delay(delay);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            if (_webUi == null || SelectedWorkspace?.Id != targetWorkspaceId || !workspace.IsRunning)
+                            {
+                                return;
+                            }
+
+                            _webUi.HardRefresh();
+                        });
+                    }
+                    catch
+                    {
+                        // Best effort UI refresh.
+                    }
+                }
+            });
+        }
+
+        private void TriggerDockerRefreshSequence(Workspace workspace)
+        {
+            if (_dockerContainers == null)
+            {
+                return;
+            }
+
+            var targetWorkspaceId = workspace.Id;
+            _ = Task.Run(async () =>
+            {
+                var delaysMs = new[] { 1800, 4500, 9000, 15000 };
+                foreach (var delay in delaysMs)
+                {
+                    try
+                    {
+                        await Task.Delay(delay);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+
+                    if (_dockerContainers == null || SelectedWorkspace?.Id != targetWorkspaceId || !workspace.IsRunning)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        await _dockerContainers.RefreshAsync();
+                    }
+                    catch
+                    {
+                        // Best-effort retries; refresh method already handles UI state.
+                    }
+
+                    if (workspace.DockerAvailable)
+                    {
+                        break;
+                    }
+                }
+            });
+        }
+
         private async Task<bool> StopWorkspaceInternalAsync(Workspace workspace, VmActionProgressWindow? progressWindow, bool showStopFailedDialog)
         {
             if (workspace.Ports == null)
@@ -913,6 +1573,7 @@ namespace RauskuClaw.GUI.ViewModels
                 _serialConsole?.Disconnect();
                 _sshTerminal?.Disconnect();
                 _dockerContainers?.SetWorkspace(workspace);
+                _sftpFiles?.SetWorkspace(workspace);
                 return true;
             }
             catch (Exception ex)
@@ -931,6 +1592,7 @@ namespace RauskuClaw.GUI.ViewModels
                     _serialConsole?.Disconnect();
                     _sshTerminal?.Disconnect();
                     _dockerContainers?.SetWorkspace(workspace);
+                    _sftpFiles?.SetWorkspace(workspace);
                     return true;
                 }
 
@@ -986,6 +1648,7 @@ namespace RauskuClaw.GUI.ViewModels
             _workspaceProcesses.Clear();
             _serialConsole?.Disconnect();
             _sshTerminal?.Disconnect();
+            _sftpFiles?.Disconnect();
         }
 
         private void TryDeleteFile(string path)
@@ -1042,6 +1705,10 @@ namespace RauskuClaw.GUI.ViewModels
         {
             if (e.PropertyName == nameof(Workspace.IsRunning) || e.PropertyName == nameof(Workspace.Status))
             {
+                if (SelectedWorkspace != null)
+                {
+                    _sftpFiles?.SetWorkspace(SelectedWorkspace);
+                }
                 CommandManager.InvalidateRequerySuggested();
             }
         }

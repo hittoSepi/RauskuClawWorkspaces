@@ -10,6 +10,7 @@
             <!-- Toolbar -->
             <DockPanel DockPanel.Dock="Top">
                 <TextBlock Text="Docker Containers" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
+                <TextBlock Text="{Binding StatusText}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
                 <Button Content="Refresh" Command="{Binding RefreshCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8"/>
             </DockPanel>
 

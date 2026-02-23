@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Renci.SshNet;
@@ -13,6 +14,7 @@ namespace RauskuClaw.Services
     public class DockerService
     {
         private SshClient? _ssh;
+        private string _dockerCommand = "docker";
         private const string DockerPsCommand = "docker ps --format '{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}'";
         public bool IsConnected => _ssh?.IsConnected == true;
 
@@ -30,20 +32,39 @@ namespace RauskuClaw.Services
         /// </summary>
         public async Task ConnectAsync(string host, int port, string username, string keyFilePath)
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
+                Disconnect();
+                var client = default(SshClient);
                 try
                 {
-                    Disconnect();
                     var keyFile = new PrivateKeyFile(keyFilePath);
                     var key = new[] { keyFile };
-                    _ssh = new SshClient(host, port, username, key);
-                    _ssh.Connect();
+                    client = new SshClient(host, port, username, key);
+                    client.Connect();
+                    _ssh = client;
+
+                    _dockerCommand = await DetectDockerCommandAsync();
                 }
-                catch (Exception ex) when (ex is SocketException || ex is SshConnectionException || ex is SshOperationTimeoutException)
+                catch (Exception ex) when (ex is SocketException
+                    || ex is SshConnectionException
+                    || ex is SshOperationTimeoutException
+                    || ex is SshException
+                    || ex is IOException
+                    || ex is ObjectDisposedException
+                    || ex is NullReferenceException
+                    || ex is InvalidOperationException)
                 {
-                    // Connection can race with VM stop/restart; keep it non-fatal for UI callers.
+                    try
+                    {
+                        client?.Dispose();
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup.
+                    }
                     Disconnect();
+                    throw new InvalidOperationException($"Docker SSH connect failed: {ex.Message}", ex);
                 }
             });
         }
@@ -56,7 +77,7 @@ namespace RauskuClaw.Services
             if (!IsConnected)
                 return new List<ContainerInfo>();
 
-            var result = await Task.Run(() => _ssh!.RunCommand(DockerPsCommand));
+            var result = await RunCommandAsync(DockerPsCommand);
             var containers = new List<ContainerInfo>();
 
             if (string.IsNullOrWhiteSpace(result.Result))
@@ -89,7 +110,7 @@ namespace RauskuClaw.Services
             if (!IsConnected)
                 return "";
 
-            var result = await Task.Run(() => _ssh!.RunCommand($"docker logs --tail {tail} {containerName}"));
+            var result = await RunCommandAsync($"docker logs --tail {tail} {containerName}");
             return result.Result ?? "";
         }
 
@@ -101,7 +122,7 @@ namespace RauskuClaw.Services
             if (!IsConnected)
                 return;
 
-            await Task.Run(() => _ssh!.RunCommand($"docker restart {containerName}"));
+            _ = await RunCommandAsync($"docker restart {containerName}");
         }
 
         /// <summary>
@@ -112,7 +133,7 @@ namespace RauskuClaw.Services
             if (!IsConnected)
                 return;
 
-            await Task.Run(() => _ssh!.RunCommand($"docker stop {containerName}"));
+            _ = await RunCommandAsync($"docker stop {containerName}");
         }
 
         /// <summary>
@@ -123,7 +144,7 @@ namespace RauskuClaw.Services
             if (!IsConnected)
                 return;
 
-            await Task.Run(() => _ssh!.RunCommand($"docker start {containerName}"));
+            _ = await RunCommandAsync($"docker start {containerName}");
         }
 
         /// <summary>
@@ -134,8 +155,92 @@ namespace RauskuClaw.Services
             if (!IsConnected)
                 return "";
 
-            var result = await Task.Run(() => _ssh!.RunCommand($"docker exec {containerName} {command}"));
+            var result = await RunCommandAsync($"docker exec {containerName} {command}");
             return result.Result ?? "";
+        }
+
+        private async Task<SshCommand> RunCommandAsync(string command)
+        {
+            if (!IsConnected)
+            {
+                throw new InvalidOperationException("SSH is not connected.");
+            }
+
+            try
+            {
+                var effectiveCommand = RewriteDockerCommand(command);
+                var result = await Task.Run(() => _ssh!.RunCommand(effectiveCommand));
+                if (result.ExitStatus != 0)
+                {
+                    var error = string.IsNullOrWhiteSpace(result.Error)
+                        ? result.Result?.Trim()
+                        : result.Error.Trim();
+                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(error)
+                        ? $"Docker command failed with exit {result.ExitStatus}."
+                        : error);
+                }
+
+                return result;
+            }
+            catch (Exception ex) when (ex is SocketException
+                || ex is SshConnectionException
+                || ex is SshOperationTimeoutException
+                || ex is SshException
+                || ex is IOException
+                || ex is ObjectDisposedException)
+            {
+                Disconnect();
+                throw new InvalidOperationException("Docker SSH connection failed.", ex);
+            }
+        }
+
+        private string RewriteDockerCommand(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command))
+            {
+                return command;
+            }
+
+            if (command.StartsWith("docker ", StringComparison.Ordinal))
+            {
+                return _dockerCommand + command["docker".Length..];
+            }
+
+            return command;
+        }
+
+        private async Task<string> DetectDockerCommandAsync()
+        {
+            if (!IsConnected)
+            {
+                throw new InvalidOperationException("SSH is not connected.");
+            }
+
+            if (await ProbeDockerCommandAsync("docker"))
+            {
+                return "docker";
+            }
+
+            if (await ProbeDockerCommandAsync("sudo -n docker"))
+            {
+                return "sudo -n docker";
+            }
+
+            throw new InvalidOperationException("Docker CLI is not available or docker daemon is not reachable.");
+        }
+
+        private async Task<bool> ProbeDockerCommandAsync(string dockerBinary)
+        {
+            try
+            {
+                var cmd = $"{dockerBinary} version --format '{{.Server.Version}}'";
+                var result = await Task.Run(() => _ssh!.RunCommand(cmd));
+                return result.ExitStatus == 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public void Disconnect()

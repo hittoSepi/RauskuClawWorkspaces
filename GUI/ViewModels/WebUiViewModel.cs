@@ -36,7 +36,7 @@ namespace RauskuClaw.GUI.ViewModels
                 IsVmRunning = value?.IsRunning ?? false;
                 if (IsVmRunning && value != null)
                 {
-                    CurrentUrl = $"http://127.0.0.1:{value.HostWebPort}/";
+                    CurrentUrl = BuildWorkspaceUrl(value.HostWebPort);
                 }
             }
         }
@@ -80,8 +80,16 @@ namespace RauskuClaw.GUI.ViewModels
         {
             GoBackCommand = new RelayCommand(() => { /* WebView2 navigation */ });
             GoForwardCommand = new RelayCommand(() => { /* WebView2 navigation */ });
-            RefreshCommand = new RelayCommand(() => { /* WebView2 refresh */ });
-            NavigateCommand = new RelayCommand(() => { /* Navigate to CurrentUrl */ });
+            RefreshCommand = new RelayCommand(HardRefresh);
+            NavigateCommand = new RelayCommand(() =>
+            {
+                if (_workspace == null || !IsVmRunning)
+                {
+                    return;
+                }
+
+                CurrentUrl = BuildWorkspaceUrl(_workspace.HostWebPort);
+            });
         }
 
         // Inject API key into localStorage/sessionStorage for the Vue3 UI
@@ -103,14 +111,36 @@ namespace RauskuClaw.GUI.ViewModels
                 IsVmRunning = _workspace.IsRunning;
                 if (IsVmRunning)
                 {
-                    CurrentUrl = $"http://127.0.0.1:{_workspace.HostWebPort}/";
+                    CurrentUrl = BuildWorkspaceUrl(_workspace.HostWebPort);
                 }
             }
 
             if (e.PropertyName == nameof(Workspace.HostWebPort) && _workspace.IsRunning)
             {
-                CurrentUrl = $"http://127.0.0.1:{_workspace.HostWebPort}/";
+                CurrentUrl = BuildWorkspaceUrl(_workspace.HostWebPort);
             }
+        }
+
+        public void HardRefresh()
+        {
+            if (_workspace == null || !IsVmRunning)
+            {
+                return;
+            }
+
+            var baseUrl = BuildWorkspaceUrl(_workspace.HostWebPort);
+            CurrentUrl = AddRefreshNonce(baseUrl);
+        }
+
+        private static string BuildWorkspaceUrl(int hostWebPort)
+        {
+            return $"http://127.0.0.1:{hostWebPort}/";
+        }
+
+        private static string AddRefreshNonce(string url)
+        {
+            var separator = url.Contains('?') ? "&" : "?";
+            return $"{url}{separator}rc_refresh={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

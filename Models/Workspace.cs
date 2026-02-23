@@ -15,6 +15,8 @@ namespace RauskuClaw.Models
         private VmStatus _status = VmStatus.Stopped;
         private PortAllocation? _ports;
         private DateTime? _lastRun;
+        private int _dockerContainerCount = -1;
+        private bool _dockerAvailable;
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
@@ -61,13 +63,52 @@ namespace RauskuClaw.Models
         public bool IsRunning
         {
             get => _isRunning;
-            set { _isRunning = value; OnPropertyChanged(); OnPropertyChanged(nameof(ApiUrl)); OnPropertyChanged(nameof(WebUiUrl)); OnPropertyChanged(nameof(SshUrl)); OnPropertyChanged(nameof(DockerStatus)); }
+            set
+            {
+                if (_isRunning == value) return;
+                _isRunning = value;
+                if (!_isRunning)
+                {
+                    _dockerAvailable = false;
+                    _dockerContainerCount = -1;
+                }
+
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ApiUrl));
+                OnPropertyChanged(nameof(WebUiUrl));
+                OnPropertyChanged(nameof(SshUrl));
+                OnPropertyChanged(nameof(DockerStatus));
+            }
         }
 
         public VmStatus Status
         {
             get => _status;
-            set { _status = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(StatusColor)); }
+            set { _status = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(StatusColor)); OnPropertyChanged(nameof(DockerStatus)); }
+        }
+
+        public int DockerContainerCount
+        {
+            get => _dockerContainerCount;
+            set
+            {
+                if (_dockerContainerCount == value) return;
+                _dockerContainerCount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DockerStatus));
+            }
+        }
+
+        public bool DockerAvailable
+        {
+            get => _dockerAvailable;
+            set
+            {
+                if (_dockerAvailable == value) return;
+                _dockerAvailable = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DockerStatus));
+            }
         }
 
         public string StatusText => Status switch
@@ -75,6 +116,7 @@ namespace RauskuClaw.Models
             VmStatus.Stopped => "Stopped",
             VmStatus.Starting => "Starting...",
             VmStatus.WarmingUp => "Running (SSH warming up)",
+            VmStatus.WarmingUpTimeout => "Running (SSH warmup timeout)",
             VmStatus.Running => "Running",
             VmStatus.Stopping => "Stopping...",
             VmStatus.Error => "Error",
@@ -86,6 +128,7 @@ namespace RauskuClaw.Models
             VmStatus.Stopped => "#6A7382",
             VmStatus.Starting => "#D29922",
             VmStatus.WarmingUp => "#D29922",
+            VmStatus.WarmingUpTimeout => "#DA3633",
             VmStatus.Running => "#2EA043",
             VmStatus.Stopping => "#D29922",
             VmStatus.Error => "#DA3633",
@@ -95,7 +138,39 @@ namespace RauskuClaw.Models
         public string ApiUrl => IsRunning && Ports != null ? $"http://127.0.0.1:{Ports.Api}" : "Not available";
         public string WebUiUrl => IsRunning ? $"http://127.0.0.1:{HostWebPort}/" : "Not available";
         public string SshUrl => IsRunning && Ports != null ? $"ssh -p {Ports.Ssh} {Username}@127.0.0.1" : "Not available";
-        public string DockerStatus => IsRunning ? "Running (5 containers)" : "Stopped";
+        public string DockerStatus
+        {
+            get
+            {
+                if (!IsRunning)
+                {
+                    return "Stopped";
+                }
+
+                if (Status == VmStatus.Starting || Status == VmStatus.WarmingUp)
+                {
+                    return "Starting...";
+                }
+
+                if (Status == VmStatus.WarmingUpTimeout)
+                {
+                    return "SSH warmup timeout";
+                }
+
+                if (!DockerAvailable)
+                {
+                    return "Unavailable";
+                }
+
+                if (DockerContainerCount < 0)
+                {
+                    return "Running";
+                }
+
+                var suffix = DockerContainerCount == 1 ? "" : "s";
+                return $"Running ({DockerContainerCount} container{suffix})";
+            }
+        }
 
         public bool CanStart => !IsRunning;
         public bool CanStop => IsRunning;

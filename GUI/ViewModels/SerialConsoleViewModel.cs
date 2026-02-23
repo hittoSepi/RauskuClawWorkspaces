@@ -28,6 +28,7 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _autoScroll = true;
         private bool _isPaused;
         private bool _pendingResetAfterPause;
+        private bool _isViewerAttached;
         private bool _isConnected;
         private string _connectionInfo = "Disconnected";
         private Models.Workspace? _workspace;
@@ -111,6 +112,25 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand CopyCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand TogglePauseCommand { get; }
+
+        public void SetViewerAttached(bool attached)
+        {
+            if (_isViewerAttached == attached)
+            {
+                return;
+            }
+
+            _isViewerAttached = attached;
+            _flushTimer.Interval = _isViewerAttached
+                ? TimeSpan.FromMilliseconds(120)
+                : TimeSpan.FromMilliseconds(650);
+
+            if (_isViewerAttached)
+            {
+                SerialOutput = _serialBuffer.ToString();
+                SerialOutputReset?.Invoke(this, SerialOutput);
+            }
+        }
 
         public async Task ConnectAsync(string host = "127.0.0.1", int port = 5555)
         {

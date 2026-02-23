@@ -136,6 +136,27 @@
                                            Foreground="#F8D58B"
                                            FontWeight="SemiBold"/>
                             </Border>
+                            <Border Margin="10,0,0,0"
+                                    Padding="8,2"
+                                    CornerRadius="10"
+                                    Background="#4A1F24"
+                                    BorderBrush="#DA3633"
+                                    BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedWorkspace.Status}" Value="{x:Static models:VmStatus.WarmingUpTimeout}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="SSH warmup timeout"
+                                           FontSize="11"
+                                           Foreground="#FF9B9B"
+                                           FontWeight="SemiBold"/>
+                            </Border>
                         </StackPanel>
                         <TextBlock Text="{Binding InlineNotice}"
                                    FontSize="11"
@@ -236,6 +257,15 @@
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
                                 <views:SshTerminal/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Header="SFTP" Padding="16,8">
+                    <ContentControl Content="{Binding SftpFiles}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:SftpFiles/>
                             </DataTemplate>
                         </ContentControl.ContentTemplate>
                     </ContentControl>

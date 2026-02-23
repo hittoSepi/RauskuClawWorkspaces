@@ -227,6 +227,10 @@ The `Step0Template.xaml` provides a visual template selector that can be integra
 3. **Template Import/Export** - No way to import/export templates as files
 4. **Template Preview** - No way to preview all settings before selecting
 
+## TODO
+
+- Workspace templates are not yet fully active in the current main wizard/workspace creation flow; complete end-to-end integration and enable by default when stable.
+
 ## Next Steps
 
 Future enhancements:

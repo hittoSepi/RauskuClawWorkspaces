@@ -6,105 +6,118 @@
 
 ## Overview
 
-This update finalized the workspace creation flow, stabilized VM control UX, and replaced SSH/Docker placeholders with real SSH.NET runtime behavior.
+This update finalized workspace creation flow, stabilized VM control UX, and replaced SSH/Docker placeholders with real runtime behavior.
 
 ## Changes Implemented
 
 1. Wizard is now the real `+ New Workspace` flow
 - `MainViewModel.NewWorkspaceCommand` opens `WizardWindow` instead of creating a test workspace.
-- Wizard `Start Workspace` returns `CreatedWorkspace`, which is added to workspace list, persisted, and started immediately.\n- Wizard start now waits for SSH readiness and shows success/fail notification.
+- Wizard `Start Workspace` returns `CreatedWorkspace`, which is added to the workspace list, persisted, and started immediately.
+- Wizard startup now waits for readiness checks and reports success/failure in the wizard.
 
 2. Wizard window UX improvements
-- Wizard opens as owner-centered child dialog (`CenterOwner`, no taskbar entry).
-- Native title bar removed; custom title bar with close button added.
-- Custom close button hover/pressed styling fixed.
-- Window height changed to content-driven (`SizeToContent=Height`, `MinHeight=560`).
-- Wizard now has a dedicated startup progress step (Step 4) with ready/fail reporting.
-- Step 4 includes stage indicator flow: `Seed`, `QEMU`, `SSH`, `Updates`, `WebUI`, `Connection Test`, `Done`.
-- Wizard no longer auto-closes on success; user closes it after reviewing final status.
+- Wizard opens owner-centered (`CenterOwner`) as a child dialog with no taskbar entry.
+- Native title bar removed and replaced with custom title bar and close button.
+- Wizard height changed to content-driven (`SizeToContent=Height`, `MinHeight=560`).
+- Startup progress is shown on Step 4 with stage indicators.
+- Step 4 includes runtime readiness stages: `Env`, `Docker`, and `API`.
+- Wizard remains open after success so final status is visible.
 
 3. Workspace lifecycle and deletion hardening
-- Delete now supports:
-- Confirmation prompt
-- Running-VM stop attempt before deletion
-- Optional disk/seed file deletion from filesystem
-- Port reservation/release paths improved to avoid stale allocations.
+- Deletion flow includes confirmation, running-VM stop attempt, and optional VM file deletion.
+- Port reservation/release paths were tightened to reduce stale allocations.
 
-4. VM header command responsiveness fixed
-- `RelayCommand` now participates in `CommandManager.RequerySuggested`.
-- Main VM action buttons (Start/Stop/Restart/Delete) update correctly on state changes.
+4. VM header command responsiveness
+- `RelayCommand` participates in `CommandManager.RequerySuggested`.
+- Start/Stop/Restart/Delete buttons react to state changes correctly.
 
-5. Themed confirmation and info dialogs
-- Replaced native `MessageBox` confirmations with themed in-app dialog window.
-- Used for delete/stop/file-delete flows and start-failure notifications.
+5. Themed dialogs
+- Native `MessageBox` prompts were replaced with themed in-app dialogs.
+- Used for delete/stop/file-delete flows and startup failure notifications.
 
 6. Wizard port guardrails
-- Reserved API/UI ports (`3011`, `3012`, `3013`) blocked from SSH/Web/QMP/Serial fields.
-- Prevents duplicate host forwarding collisions (for example Web `3013` + UIv2 `3013`).
+- All forwarded host ports are validated together for range and uniqueness.
+- Wizard supports editing API/UIv1/UIv2 host ports directly.
 
 7. Real SSH terminal implementation
-- `SshTerminalViewModel` now uses SSH.NET `SshClient` with key-based auth.
-- Commands execute on the VM; output/error/exit status are shown in terminal.
-- `clear` handled locally to reset terminal output.
+- `SshTerminalViewModel` now uses SSH.NET key-based auth.
+- Commands execute on VM and show output/error/exit status.
+- `clear` is handled locally.
 
 8. Real Docker-over-SSH integration
-- `DockerService` converted to async SSH connect and connection state checks.
-- `DockerContainersViewModel` now stores workspace context, connects via SSH key, and runs:
-- Container listing
-- Logs retrieval
-- Restart action with refresh
+- `DockerService` uses async SSH connect and connection-state checks.
+- Docker tab supports real container listing, logs, and restart actions.
+- Docker tab health/status evaluates expected stack services and reports `missing`, `warmup`, `unhealthy`, or `healthy`.
 
-9. Repo bootstrap for VM content
-- Wizard Step 2 now includes:
-- Repository URL
-- Repository branch
-- Target directory inside VM
-- Optional Web UI build toggle + build command
-- Optional Web UI static deploy toggle + build output directory
-- Cloud-init `runcmd` now ensures git exists and performs:
-- `git clone` on first boot
-- `git fetch/reset` on subsequent boots
-- Optional npm install + custom build command execution
-- Optional nginx static deployment from configured build output directory
-- Systemd service `WorkingDirectory` uses configured target directory.
-- Workspace Web port is now persisted and used by VM profile and WebView URL.
+9. Repo bootstrap in cloud-init
+- Wizard includes repo URL/branch/target directory.
+- Cloud-init `runcmd` performs clone/reset update logic.
+- Optional Web UI build and static deploy are supported.
+- Workspace Web port is persisted and reused in runtime/WebView.
 
 10. Lifecycle UX and warmup hardening
-- Stop and Restart now show a themed progress child window with live status text.
-- VM action buttons are protected against repeated clicks during stop/restart operations.
-- Startup now includes an explicit SSH stabilization phase.
-- If SSH command channel is temporarily unstable but VM/WebUI are up, startup enters degraded mode instead of immediate failure.
-- Workspace status can be `Running (SSH warming up)` and background retries promote it to `Running` automatically when SSH stabilizes.
+- Stop/Restart use themed progress child windows with guarded actions.
+- Startup includes SSH stabilization.
+- Degraded startup mode allows `Running (SSH warming up)` when SSH command channel is temporarily unstable.
+- Background retry promotes workspace to fully running when SSH stabilizes.
 
-11. Serial + terminal diagnostics polish
-- Serial stream handling moved to chunked buffered flushing to prevent UI freezes under boot-time log bursts.
-- Serial console now reconnects reliably without requiring manual start-stop-start cycle.
-- Serial output renderer now supports ANSI SGR colors (base palette, 256-color, and truecolor escapes).
-- Serial and SSH tabs now include quick `Copy` and `Save` actions for exporting logs.
-- Main header shows an inline readiness notice when warmup retry completes and SSH tools are fully available.
+11. Serial and terminal diagnostics polish
+- Serial stream handling moved to chunked buffered flushing.
+- Serial reconnect behavior improved.
+- ANSI SGR color rendering support added.
+- Serial/SSH tabs include `Copy` and `Save` log export actions.
+- Header shows inline notice when warmup is completed.
+- Serial capture continues while tab is inactive (lower refresh cadence).
+
+12. Wizard/settings resource UX improvements
+- Wizard CPU uses bounded dropdown values.
+- Wizard RAM uses editable presets with host-limit validation.
+- Host capacity hints shown inline.
+- Added quick actions: `Use Host Defaults` and `Auto Assign Ports`.
+- Settings view mirrors wizard resource UX behavior.
+
+13. Settings validation and setup UX
+- Wizard Step 1 includes private key `Browse...`.
+- Settings includes `Auto Assign Ports`.
+- Settings blocks invalid port configurations and shows live warnings.
+- Port warnings render as themed badges.
+
+14. Docker provisioning/runtime hardening
+- Cloud-init Docker install/start path is guarded and non-fatal with diagnostics (`systemctl status`, `journalctl`).
+- Stack service start skips cleanly when Docker is unavailable.
+- Docker up script creates missing `.env` from `.env.example` when possible.
+- Docker up script ensures `API_KEY` and `API_TOKEN` exist and are non-placeholder values.
+- Missing/invalid env/token setup fails fast before `docker compose up`.
+- Ollama embedding model pull is attempted after stack start (`OLLAMA_EMBED_MODEL`, fallback `embeddinggemma:300m-qat-q8_0`).
+- Startup Docker readiness check now supports both `docker` and `sudo -n docker` command paths.
+
+15. Startup diagnostics and completion clarity
+- Startup Docker validation checks expected container health/status, not only raw count.
+- Docker validation includes a retry window for transient `health: starting` states.
+- Wizard Step 4 success view shows compact access info (Web UI, API, SSH, token source).
+- Access info includes one-click copy to clipboard.
 
 ## Main Files Updated
 
 - `GUI/ViewModels/MainViewModel.cs`
 - `GUI/ViewModels/WizardViewModel.cs`
+- `GUI/ViewModels/DockerContainersViewModel.cs`
+- `GUI/ViewModels/SshTerminalViewModel.cs`
+- `GUI/ViewModels/RelayCommand.cs`
 - `GUI/Views/Steps/Step3Review.xaml`
+- `GUI/Views/Steps/Step3Run.xaml`
 - `GUI/Views/WizardWindow.xaml`
 - `GUI/Views/WizardWindow.xaml.cs`
 - `GUI/Views/ThemedDialogWindow.xaml`
 - `GUI/Views/ThemedDialogWindow.xaml.cs`
-- `GUI/ViewModels/RelayCommand.cs`
-- `GUI/ViewModels/SshTerminalViewModel.cs`
 - `Services/DockerService.cs`
-- `GUI/ViewModels/DockerContainersViewModel.cs`
 - `Services/WorkspaceTemplateService.cs`
 
 ## Verification Checklist
 
 - [ ] Clicking `+ New Workspace` opens wizard centered to MainWindow.
-- [ ] Wizard close button turns red on hover.
-- [ ] Wizard creates a workspace entry and saves it.
-- [ ] Start/Stop/Restart/Delete buttons react correctly to VM state.
-- [ ] SSH Terminal can run real commands (`pwd`, `ls`, `docker ps`).
+- [ ] Wizard creates a workspace entry, saves it, and starts it.
+- [ ] Start/Stop/Restart/Delete buttons react to VM state changes.
+- [ ] SSH Terminal runs real commands (`pwd`, `ls`, `docker ps`).
 - [ ] Docker tab refreshes real containers and opens logs popup.
 - [ ] Deleting a workspace prompts for confirmation and optional file deletion.
-

@@ -1,7 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Microsoft.Win32;
 using RauskuClaw.Models;
 using RauskuClaw.Services;
 
@@ -12,18 +18,37 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public class SettingsViewModel : INotifyPropertyChanged
     {
+        private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
+        private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
         private readonly SettingsService _settingsService;
         private Settings _settings;
+        private string _statusMessage = "Ready";
+        private string _portWarningMessage = string.Empty;
+        private readonly ObservableCollection<int> _defaultCpuCoreOptions = new();
+        private readonly ObservableCollection<int> _defaultMemoryOptions = new();
 
         public SettingsViewModel()
         {
             _settingsService = new SettingsService();
             _settings = _settingsService.LoadSettings();
+            BuildCpuCoreOptions();
+            BuildMemoryOptions();
+            if (_settings.DefaultCpuCores > HostLogicalCpuCount)
+            {
+                _settings.DefaultCpuCores = HostLogicalCpuCount;
+            }
+            if (_settings.DefaultMemoryMb > HostMemoryLimitMb)
+            {
+                _settings.DefaultMemoryMb = HostMemoryLimitMb;
+            }
+            RefreshPortWarning();
 
             SaveCommand = new RelayCommand(SaveSettings);
             ResetCommand = new RelayCommand(ResetSettings);
             BrowseQemuPathCommand = new RelayCommand(BrowseQemuPath);
             BrowseVmPathCommand = new RelayCommand(BrowseVmPath);
+            UseHostDefaultsCommand = new RelayCommand(UseHostDefaults);
+            AutoAssignStartingPortsCommand = new RelayCommand(AutoAssignStartingPorts);
         }
 
         public Settings CurrentSettings
@@ -31,6 +56,27 @@ namespace RauskuClaw.GUI.ViewModels
             get => _settings;
             set { _settings = value; OnPropertyChanged(); }
         }
+
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set { _statusMessage = value; OnPropertyChanged(); }
+        }
+
+        public string PortWarningMessage
+        {
+            get => _portWarningMessage;
+            private set
+            {
+                if (_portWarningMessage == value) return;
+                _portWarningMessage = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string HostLimitsText => $"Host limits: up to {HostLogicalCpuCount} logical cores, {HostMemoryLimitMb} MB memory.";
+        public ObservableCollection<int> DefaultCpuCoreOptions => _defaultCpuCoreOptions;
+        public ObservableCollection<int> DefaultMemoryOptions => _defaultMemoryOptions;
 
         // QEMU Settings
         public string QemuPath
@@ -49,13 +95,23 @@ namespace RauskuClaw.GUI.ViewModels
         public int DefaultMemoryMb
         {
             get => _settings.DefaultMemoryMb;
-            set { _settings.DefaultMemoryMb = value; OnPropertyChanged(); }
+            set
+            {
+                var clamped = Math.Clamp(value, 256, HostMemoryLimitMb);
+                _settings.DefaultMemoryMb = clamped;
+                OnPropertyChanged();
+            }
         }
 
         public int DefaultCpuCores
         {
             get => _settings.DefaultCpuCores;
-            set { _settings.DefaultCpuCores = value; OnPropertyChanged(); }
+            set
+            {
+                var clamped = Math.Clamp(value, 1, HostLogicalCpuCount);
+                _settings.DefaultCpuCores = clamped;
+                OnPropertyChanged();
+            }
         }
 
         public string DefaultUsername
@@ -74,37 +130,67 @@ namespace RauskuClaw.GUI.ViewModels
         public int StartingSshPort
         {
             get => _settings.StartingSshPort;
-            set { _settings.StartingSshPort = value; OnPropertyChanged(); }
+            set
+            {
+                _settings.StartingSshPort = value;
+                OnPropertyChanged();
+                RefreshPortWarning();
+            }
         }
 
         public int StartingApiPort
         {
             get => _settings.StartingApiPort;
-            set { _settings.StartingApiPort = value; OnPropertyChanged(); }
+            set
+            {
+                _settings.StartingApiPort = value;
+                OnPropertyChanged();
+                RefreshPortWarning();
+            }
         }
 
         public int StartingUiV2Port
         {
             get => _settings.StartingUiV2Port;
-            set { _settings.StartingUiV2Port = value; OnPropertyChanged(); }
+            set
+            {
+                _settings.StartingUiV2Port = value;
+                OnPropertyChanged();
+                RefreshPortWarning();
+            }
         }
 
         public int StartingUiV1Port
         {
             get => _settings.StartingUiV1Port;
-            set { _settings.StartingUiV1Port = value; OnPropertyChanged(); }
+            set
+            {
+                _settings.StartingUiV1Port = value;
+                OnPropertyChanged();
+                RefreshPortWarning();
+            }
         }
 
         public int StartingQmpPort
         {
             get => _settings.StartingQmpPort;
-            set { _settings.StartingQmpPort = value; OnPropertyChanged(); }
+            set
+            {
+                _settings.StartingQmpPort = value;
+                OnPropertyChanged();
+                RefreshPortWarning();
+            }
         }
 
         public int StartingSerialPort
         {
             get => _settings.StartingSerialPort;
-            set { _settings.StartingSerialPort = value; OnPropertyChanged(); }
+            set
+            {
+                _settings.StartingSerialPort = value;
+                OnPropertyChanged();
+                RefreshPortWarning();
+            }
         }
 
         // Application Settings
@@ -156,11 +242,27 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand ResetCommand { get; }
         public ICommand BrowseQemuPathCommand { get; }
         public ICommand BrowseVmPathCommand { get; }
+        public ICommand UseHostDefaultsCommand { get; }
+        public ICommand AutoAssignStartingPortsCommand { get; }
 
         private void SaveSettings()
         {
-            _settingsService.SaveSettings(_settings);
-            // TODO: Show notification that settings were saved
+            try
+            {
+                if (!TryValidateStartingPorts(out var portError))
+                {
+                    RefreshPortWarning();
+                    StatusMessage = $"Save failed: {portError}";
+                    return;
+                }
+
+                _settingsService.SaveSettings(_settings);
+                StatusMessage = $"Saved at {DateTime.Now:HH:mm:ss}";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Save failed: {ex.Message}";
+            }
         }
 
         private void ResetSettings()
@@ -185,16 +287,254 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(HolviProjectId));
             OnPropertyChanged(nameof(InfisicalClientId));
             OnPropertyChanged(nameof(InfisicalClientSecret));
+            RefreshPortWarning();
+            StatusMessage = "Reset to defaults.";
         }
 
         private void BrowseQemuPath()
         {
-            // TODO: Implement file browser dialog
+            try
+            {
+                var initialDir = Path.GetDirectoryName(QemuPath);
+                if (string.IsNullOrWhiteSpace(initialDir) || !Directory.Exists(initialDir))
+                {
+                    initialDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                }
+
+                var dialog = new OpenFileDialog
+                {
+                    Title = "Select QEMU executable",
+                    Filter = "QEMU executable|qemu-system-*.exe|Executable files (*.exe)|*.exe|All files (*.*)|*.*",
+                    CheckFileExists = true,
+                    InitialDirectory = initialDir
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    QemuPath = dialog.FileName;
+                    StatusMessage = $"QEMU path selected: {Path.GetFileName(dialog.FileName)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Browse failed: {ex.Message}";
+            }
         }
 
         private void BrowseVmPath()
         {
-            // TODO: Implement folder browser dialog
+            try
+            {
+                var selectedPath = PickFolderViaOpenFileDialog(
+                    title: "Select VM base directory",
+                    initialDir: !string.IsNullOrWhiteSpace(VmBasePath) && Directory.Exists(VmBasePath)
+                        ? VmBasePath
+                        : Environment.CurrentDirectory);
+
+                if (!string.IsNullOrWhiteSpace(selectedPath))
+                {
+                    VmBasePath = selectedPath;
+                    StatusMessage = $"VM base path selected: {selectedPath}";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Browse failed: {ex.Message}";
+            }
+        }
+
+        private static string? PickFolderViaOpenFileDialog(string title, string initialDir)
+        {
+            var dir = Directory.Exists(initialDir) ? initialDir : Environment.CurrentDirectory;
+            var dialog = new OpenFileDialog
+            {
+                Title = title,
+                CheckFileExists = false,
+                CheckPathExists = true,
+                ValidateNames = false,
+                FileName = "Select Folder",
+                InitialDirectory = dir,
+                Filter = "Folders|*.folder"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return null;
+            }
+
+            var path = dialog.FileName;
+            if (Directory.Exists(path))
+            {
+                return path;
+            }
+
+            var parent = Path.GetDirectoryName(path);
+            return !string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent) ? parent : null;
+        }
+
+        private void BuildCpuCoreOptions()
+        {
+            _defaultCpuCoreOptions.Clear();
+            for (var i = 1; i <= HostLogicalCpuCount; i++)
+            {
+                _defaultCpuCoreOptions.Add(i);
+            }
+        }
+
+        private void BuildMemoryOptions()
+        {
+            _defaultMemoryOptions.Clear();
+            var candidates = new[] { 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152, 65536 };
+            foreach (var option in candidates)
+            {
+                if (option <= HostMemoryLimitMb)
+                {
+                    _defaultMemoryOptions.Add(option);
+                }
+            }
+        }
+
+        private void UseHostDefaults()
+        {
+            DefaultCpuCores = Math.Clamp(Math.Min(4, HostLogicalCpuCount), 1, HostLogicalCpuCount);
+            DefaultMemoryMb = Math.Clamp(Math.Min(4096, HostMemoryLimitMb), 256, HostMemoryLimitMb);
+            StatusMessage = "Applied host-based defaults for CPU and memory.";
+        }
+
+        private void AutoAssignStartingPorts()
+        {
+            try
+            {
+                var used = new HashSet<int>();
+
+                StartingSshPort = FindAvailablePort(Math.Max(1024, StartingSshPort), used);
+                used.Add(StartingSshPort);
+
+                StartingApiPort = FindAvailablePort(Math.Max(1024, StartingApiPort), used);
+                used.Add(StartingApiPort);
+
+                StartingUiV1Port = FindAvailablePort(Math.Max(1024, StartingUiV1Port), used);
+                used.Add(StartingUiV1Port);
+
+                StartingUiV2Port = FindAvailablePort(Math.Max(1024, StartingUiV2Port), used);
+                used.Add(StartingUiV2Port);
+
+                StartingQmpPort = FindAvailablePort(Math.Max(1024, StartingQmpPort), used);
+                used.Add(StartingQmpPort);
+
+                StartingSerialPort = FindAvailablePort(Math.Max(1024, StartingSerialPort), used);
+
+                StatusMessage = "Auto-assigned free starting ports.";
+                RefreshPortWarning();
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Port auto-assign failed: {ex.Message}";
+            }
+        }
+
+        private static int FindAvailablePort(int startPort, HashSet<int> usedPorts)
+        {
+            var start = Math.Clamp(startPort, 1024, 65535);
+            for (var port = start; port <= 65535; port++)
+            {
+                if (usedPorts.Contains(port))
+                {
+                    continue;
+                }
+
+                if (IsPortAvailable(port))
+                {
+                    return port;
+                }
+            }
+
+            for (var port = 1024; port < start; port++)
+            {
+                if (usedPorts.Contains(port))
+                {
+                    continue;
+                }
+
+                if (IsPortAvailable(port))
+                {
+                    return port;
+                }
+            }
+
+            throw new InvalidOperationException("No free local ports found.");
+        }
+
+        private static bool IsPortAvailable(int port)
+        {
+            try
+            {
+                var listener = new TcpListener(IPAddress.Loopback, port);
+                listener.Start();
+                listener.Stop();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void RefreshPortWarning()
+        {
+            PortWarningMessage = TryValidateStartingPorts(out var error)
+                ? string.Empty
+                : $"Port config warning: {error}";
+        }
+
+        private bool TryValidateStartingPorts(out string error)
+        {
+            var ports = new[]
+            {
+                StartingSshPort,
+                StartingApiPort,
+                StartingUiV1Port,
+                StartingUiV2Port,
+                StartingQmpPort,
+                StartingSerialPort
+            };
+
+            foreach (var port in ports)
+            {
+                if (port is <= 0 or > 65535)
+                {
+                    error = $"Port {port} is out of range (1-65535).";
+                    return false;
+                }
+            }
+
+            var unique = new HashSet<int>(ports);
+            if (unique.Count != ports.Length)
+            {
+                error = "Ports must be unique (duplicate values found).";
+                return false;
+            }
+
+            error = string.Empty;
+            return true;
+        }
+
+        private static int GetHostMemoryLimitMb()
+        {
+            try
+            {
+                var bytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                if (bytes > 0)
+                {
+                    return Math.Max(512, (int)(bytes / (1024 * 1024)));
+                }
+            }
+            catch
+            {
+                // Fallback below.
+            }
+
+            return 8192;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

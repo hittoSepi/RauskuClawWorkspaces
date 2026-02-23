@@ -23,6 +23,7 @@ namespace RauskuClaw.GUI.Views
                 vm.SerialConsole = new SerialConsoleViewModel();
                 vm.DockerContainers = new DockerContainersViewModel();
                 vm.SshTerminal = new SshTerminalViewModel();
+                vm.SftpFiles = new SftpFilesViewModel();
                 vm.Settings = new SettingsViewModel();
             }
         }

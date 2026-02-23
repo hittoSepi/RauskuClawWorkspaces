@@ -19,14 +19,36 @@
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
                     <TextBlock Text="CPU cores" Style="{StaticResource MutedTextBlock}" Padding="0"/>
-                    <TextBox Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}"/>
+                    <ComboBox ItemsSource="{Binding CpuCoreOptions}"
+                              SelectedItem="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}"
+                              MinWidth="120"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="0,0,12,0">
                     <TextBlock Text="Memory (MB)" Style="{StaticResource MutedTextBlock}" Padding="0"/>
-                    <TextBox Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"/>
+                    <ComboBox ItemsSource="{Binding MemoryOptions}"
+                              SelectedItem="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"
+                              IsEditable="True"
+                              MinWidth="120"/>
                 </StackPanel>
             </Grid>
+
+            <TextBlock Text="{Binding HostLimitsText}"
+                       Style="{StaticResource MutedTextBlock}"
+                       Padding="0"
+                       Margin="0,0,0,10"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <Button Content="Use Host Defaults"
+                        Command="{Binding UseHostDefaultsCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        Padding="12,4"
+                        Margin="0,0,8,0"/>
+                <Button Content="Auto Assign Ports"
+                        Command="{Binding AutoAssignPortsCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        Padding="12,4"/>
+            </StackPanel>
 
             <TextBlock Text="Host ports" Style="{StaticResource MutedTextBlock}" Padding="0" Margin="0,0,0,4"/>
             <Grid Margin="0,0,0,10">
@@ -37,22 +59,38 @@
                     <ColumnDefinition Width="120"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,0">
                     <TextBlock Text="SSH" Style="{StaticResource MutedTextBlock}" Padding="0"/>
                     <TextBox Text="{Binding HostSshPort, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,0">
                     <TextBlock Text="Web" Style="{StaticResource MutedTextBlock}" Padding="0"/>
                     <TextBox Text="{Binding HostWebPort, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
-                <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,0">
                     <TextBlock Text="QMP" Style="{StaticResource MutedTextBlock}" Padding="0"/>
                     <TextBox Text="{Binding HostQmpPort, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
-                <StackPanel Grid.Column="3">
+                <StackPanel Grid.Row="0" Grid.Column="3" Margin="0,0,10,0">
                     <TextBlock Text="Serial" Style="{StaticResource MutedTextBlock}" Padding="0"/>
                     <TextBox Text="{Binding HostSerialPort, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,10,0">
+                    <TextBlock Text="API" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+                    <TextBox Text="{Binding HostApiPort, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,10,0">
+                    <TextBlock Text="UI v1" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+                    <TextBox Text="{Binding HostUiV1Port, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,10,0">
+                    <TextBlock Text="UI v2" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+                    <TextBox Text="{Binding HostUiV2Port, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
             </Grid>
 
@@ -62,13 +100,46 @@
                       Margin="0,0,0,8">
                 <StackPanel Margin="0,8,0,0">
                     <TextBlock Text="QEMU executable" Style="{StaticResource MutedTextBlock}" Padding="0"/>
-                    <TextBox Text="{Binding QemuExe, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding QemuExe, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1"
+                                Content="Browse..."
+                                Command="{Binding BrowseQemuCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="12,4"/>
+                    </Grid>
 
                     <TextBlock Text="Disk path (.qcow2)" Style="{StaticResource MutedTextBlock}" Padding="0"/>
-                    <TextBox Text="{Binding DiskPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding DiskPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1"
+                                Content="Browse..."
+                                Command="{Binding BrowseDiskPathCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="12,4"/>
+                    </Grid>
 
                     <TextBlock Text="Seed ISO path" Style="{StaticResource MutedTextBlock}" Padding="0"/>
-                    <TextBox Text="{Binding SeedIsoPath, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding SeedIsoPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1"
+                                Content="Browse..."
+                                Command="{Binding BrowseSeedIsoPathCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="12,4"/>
+                    </Grid>
                 </StackPanel>
             </Expander>
 

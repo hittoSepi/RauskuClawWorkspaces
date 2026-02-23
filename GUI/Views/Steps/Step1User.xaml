@@ -31,16 +31,28 @@
              AcceptsReturn="True" Height="120"/>
         </StackPanel>
 
-        <DockPanel Grid.Row="3">
-            <StackPanel Width="540">
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <TextBlock Text="Private key path" Style="{StaticResource MutedTextBlock}" Padding="0"/>
                 <TextBox Text="{Binding SshPrivateKeyPath, UpdateSourceTrigger=PropertyChanged}"/>
             </StackPanel>
-            <Button DockPanel.Dock="Right"
+            <Button Grid.Column="1"
+                    Content="Browse..."
+                    Style="{StaticResource SecondaryButton}"
+                    Margin="0,24,8,0"
+                    Padding="12,4"
+                    Command="{Binding BrowsePrivateKeyPathCommand}"/>
+            <Button Grid.Column="2"
                     Content="Generate key"
                     Style="{StaticResource SecondaryButton}"
-                    Margin="12,24,0,0"
+                    Margin="0,24,0,0"
                     Command="{Binding GenerateKeyCommand}"/>
-        </DockPanel>
+        </Grid>
     </Grid>
 </UserControl>

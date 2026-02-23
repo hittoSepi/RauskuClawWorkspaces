@@ -21,11 +21,23 @@ namespace RauskuClaw.GUI.Views
         {
             InitializeComponent();
             DataContextChanged += SerialConsole_OnDataContextChanged;
-            Loaded += (_, _) => AttachToViewModel(DataContext as SerialConsoleViewModel);
-            Unloaded += (_, _) => AttachToViewModel(null);
+            Loaded += SerialConsole_OnLoaded;
+            Unloaded += SerialConsole_OnUnloaded;
             SerialOutputRichTextBox.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(SerialOutput_OnScrollChanged));
             SerialOutputRichTextBox.PreviewMouseWheel += SerialOutput_OnUserScrollIntent;
             SerialOutputRichTextBox.PreviewKeyDown += SerialOutput_OnPreviewKeyDown;
+        }
+
+        private void SerialConsole_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            AttachToViewModel(DataContext as SerialConsoleViewModel);
+            _vm?.SetViewerAttached(true);
+        }
+
+        private void SerialConsole_OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            _vm?.SetViewerAttached(false);
+            AttachToViewModel(null);
         }
 
         private void SerialConsole_OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
@@ -39,6 +51,7 @@ namespace RauskuClaw.GUI.Views
             {
                 _vm.SerialChunkAppended -= ViewModel_OnSerialChunkAppended;
                 _vm.SerialOutputReset -= ViewModel_OnSerialOutputReset;
+                _vm.SetViewerAttached(false);
             }
 
             _vm = vm;
@@ -49,6 +62,7 @@ namespace RauskuClaw.GUI.Views
             {
                 _vm.SerialChunkAppended += ViewModel_OnSerialChunkAppended;
                 _vm.SerialOutputReset += ViewModel_OnSerialOutputReset;
+                _vm.SetViewerAttached(IsLoaded);
                 RenderFullText(_vm.SerialOutput);
             }
         }

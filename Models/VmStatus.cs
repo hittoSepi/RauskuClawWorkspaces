@@ -10,6 +10,7 @@ namespace RauskuClaw.Models
         Stopped,
         Starting,
         WarmingUp,
+        WarmingUpTimeout,
         Running,
         Stopping,
         Error
