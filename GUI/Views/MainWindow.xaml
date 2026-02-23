@@ -1,0 +1,261 @@
+<Window x:Class="RauskuClaw.GUI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RauskuClaw.GUI.Views"
+        xmlns:models="clr-namespace:RauskuClaw.Models"
+        xmlns:viewModels="clr-namespace:RauskuClaw.GUI.ViewModels"
+        xmlns:views="clr-namespace:RauskuClaw.GUI.Views"
+        mc:Ignorable="d"
+        Title="RauskuClaw - AI Workspaces"
+        Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="#0F1115">
+    <DockPanel>
+        <!-- Sidebar: Workspace List -->
+        <Border DockPanel.Dock="Left" Width="280" Background="#151A22" BorderBrush="#2A3240" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!-- Header: App title + New button -->
+                <StackPanel DockPanel.Dock="Top" Margin="16">
+                    <DockPanel Margin="0,0,0,8">
+                        <Image Width="64" Height="64" Source="pack://application:,,,/Assets/rausku-icon-64.png" DockPanel.Dock="Left" Margin="0,0,8,0"/>
+                        <TextBlock Text="RauskuClaw" FontSize="22" Foreground="#4DA3FF" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="AI Workspaces" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12"/>
+                    <Button Content="+ New Workspace"
+                            Command="{Binding NewWorkspaceCommand}"
+                            Background="#2A3240"
+                            Foreground="#E6EAF2"
+                            BorderThickness="0"
+                            Padding="12,8"
+                            Cursor="Hand"/>
+                </StackPanel>
+
+                <!-- Workspace List -->
+                <ListBox ItemsSource="{Binding Workspaces}"
+                         SelectedItem="{Binding SelectedWorkspace}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="8"
+                         Foreground="#E6EAF2">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="Transparent" Padding="8" Margin="0,4">
+                                <DockPanel>
+                                    <!-- Status indicator -->
+                                    <Ellipse Width="8" Height="8"
+                                             DockPanel.Dock="Right"
+                                             Fill="{Binding StatusColor}"
+                                             VerticalAlignment="Top"
+                                             Margin="8,0,0,0"/>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#E6EAF2"
+                                                   FontSize="14"/>
+                                        <TextBlock Text="{Binding Description}"
+                                                   FontSize="11"
+                                                   Foreground="#9AA3B2"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,2,0,4"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="CPU:" FontSize="10" Foreground="#6A7382" Margin="0,0,4,0"/>
+                                            <TextBlock Text="{Binding CpuCores}" FontSize="10" Foreground="#6A7382" Margin="0,0,12,0"/>
+                                            <TextBlock Text="RAM:" FontSize="10" Foreground="#6A7382" Margin="0,0,4,0"/>
+                                            <TextBlock Text="{Binding MemoryMb}" FontSize="10" Foreground="#6A7382"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#2A3240"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#2A3240"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <DockPanel DockPanel.Dock="Right">
+            <!-- Header: Workspace info + VM controls -->
+            <Border DockPanel.Dock="Top"
+                    Background="#151A22"
+                    Padding="16,12"
+                    BorderBrush="#2A3240"
+                    BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Workspace info -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding SelectedWorkspace.Name}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="#E6EAF2"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="Status:" FontSize="12" Foreground="#9AA3B2"/>
+                            <TextBlock Text="{Binding SelectedWorkspace.StatusText}"
+                                       FontSize="12"
+                                       Foreground="{Binding SelectedWorkspace.StatusColor}"
+                                       Margin="6,0,0,0"/>
+                            <Border Margin="10,0,0,0"
+                                    Padding="8,2"
+                                    CornerRadius="10"
+                                    Background="#6E4B1A"
+                                    BorderBrush="#D29922"
+                                    BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedWorkspace.Status}" Value="{x:Static models:VmStatus.WarmingUp}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="SSH warming up..."
+                                           FontSize="11"
+                                           Foreground="#F8D58B"
+                                           FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- VM Control Buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Content="Start"
+                                Command="{Binding StartVmCommand}"
+                                Style="{StaticResource GreenButton}"
+                                Padding="16,8"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Stop"
+                                Command="{Binding StopVmCommand}"
+                                Style="{StaticResource RedButton}"
+                                Padding="16,8"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Restart"
+                                Command="{Binding RestartVmCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="16,8"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Delete"
+                                Command="{Binding DeleteWorkspaceCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="16,8"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Quick Info Bar -->
+            <Border DockPanel.Dock="Top"
+                    Background="#0F1115"
+                    Padding="12,8"
+                    BorderBrush="#2A3240"
+                    BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="API" FontSize="10" Foreground="#6A7382"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.ApiUrl}" FontSize="11" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Web UI" FontSize="10" Foreground="#6A7382"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.WebUiUrl}" FontSize="11" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="SSH" FontSize="10" Foreground="#6A7382"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.SshUrl}" FontSize="11" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="Docker" FontSize="10" Foreground="#6A7382"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.DockerStatus}" FontSize="11" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Tab Control: Views -->
+            <TabControl Background="#0F1115" BorderThickness="0">
+                <TabItem Header="Web UI" Padding="16,8">
+                    <ContentControl Content="{Binding WebUi}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:WebUi/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Header="Serial Console" Padding="16,8">
+                    <ContentControl Content="{Binding SerialConsole}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:SerialConsole/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Header="Docker" Padding="16,8">
+                    <ContentControl Content="{Binding DockerContainers}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:DockerContainers/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Header="SSH Terminal" Padding="16,8">
+                    <ContentControl Content="{Binding SshTerminal}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:SshTerminal/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Header="Settings" Padding="16,8">
+                    <ContentControl Content="{Binding Settings}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:Settings/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Header="VM Logs" Padding="16,8">
+                    <TextBox Text="{Binding VmLog, Mode=OneWay}"
+                             IsReadOnly="True"
+                             Background="#0A0C0E"
+                             Foreground="#E6EAF2"
+                             FontFamily="Consolas"
+                             BorderThickness="0"
+                             Padding="12"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"/>
+                </TabItem>
+            </TabControl>
+        </DockPanel>
+    </DockPanel>
+</Window>

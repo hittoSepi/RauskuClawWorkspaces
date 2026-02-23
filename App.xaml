@@ -1,0 +1,151 @@
+﻿<Application x:Class="RauskuClaw.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:RauskuClaw"
+             xmlns:converters="clr-namespace:RauskuClaw.GUI.Converters"
+             StartupUri="GUI/Views/MainWindow.xaml">
+    <Application.Resources>
+        <!-- Colors -->
+        <Color x:Key="BgColor">#0F1115</Color>
+        <Color x:Key="CardColor">#151A22</Color>
+        <Color x:Key="TextColor">#E6EAF2</Color>
+        <Color x:Key="MutedTextColor">#9AA3B2</Color>
+        <Color x:Key="AccentColor">#4DA3FF</Color>
+        <Color x:Key="TabInactiveColor">#34445a</Color>
+        <Color x:Key="TabActiveColor">#23455f</Color>
+        <Color x:Key="GreenColor">#2EA043</Color>
+
+
+        <SolidColorBrush x:Key="Bg" Color="{StaticResource BgColor}" />
+        <SolidColorBrush x:Key="Card" Color="{StaticResource CardColor}" />
+        <SolidColorBrush x:Key="Text" Color="{StaticResource TextColor}" />
+        <SolidColorBrush x:Key="TextBlock" Color="{StaticResource TextColor}" />
+        <SolidColorBrush x:Key="MutedText" Color="{StaticResource MutedTextColor}" />
+        <SolidColorBrush x:Key="Accent" Color="{StaticResource AccentColor}" />
+        <SolidColorBrush x:Key="TabInactive" Color="{StaticResource TabInactiveColor}"/>
+        <SolidColorBrush x:Key="TabActive" Color="{StaticResource TabActiveColor}"/>
+        <SolidColorBrush x:Key="Green" Color="{StaticResource GreenColor}"/>
+
+        <!-- Window -->
+        <Style x:Key="WizardWindow" TargetType="Window">
+            <Setter Property="Background" Value="{StaticResource Bg}" />
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+
+        <!-- Button -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Accent}" />
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.8"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Opacity" Value="0.6"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="GreenButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource Green}"/>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#2A3240"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        </Style>
+
+        <Style x:Key="RedButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#DA3633"/>
+        </Style>
+
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Padding" Value="0,0,0,4"/>
+        </Style>
+
+        <!-- TextBox -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource Card}" />
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="BorderBrush" Value="#2A3240" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+
+        <Style x:Key="Header" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Padding" Value="10,3" />
+        </Style>
+
+
+        <Style x:Key="HeaderRect" TargetType="StackPanel">
+            <Setter Property="Background" Value="{StaticResource Card}" />
+            
+        </Style>
+
+        <!-- Subtle text -->
+        <Style x:Key="HeaderMutedTextBlock" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+            <Setter Property="Padding" Value="10,3" />
+        </Style>
+        <!-- Subtle text -->
+        <Style x:Key="MutedTextBlock" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#9AA3B2"/>
+            <Setter Property="Background" Value="{StaticResource TabInactive}"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderThickness="0"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter x:Name="ContentSite"
+                                                ContentSource="Header"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="#E6EAF2"/>
+                    <Setter Property="Background" Value="{StaticResource TabActive}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Value Converters -->
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:BoolToBorderColorConverter x:Key="BoolToBorderColorConverter"/>
+        <converters:BoolToFillConverter x:Key="BoolToFillConverter"/>
+    </Application.Resources>
+</Application>

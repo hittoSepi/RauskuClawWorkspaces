@@ -1,0 +1,116 @@
+<UserControl x:Class="RauskuClaw.GUI.Views.Steps.Step0Template"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="700"
+             Background="#151A22">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="8">
+            <TextBlock Text="Choose a workspace template to get started:" FontSize="14" Foreground="#E6EAF2" Margin="0,0,0,12"/>
+
+            <!-- Templates List -->
+            <ItemsControl ItemsSource="{Binding Templates}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#0A0C0E"
+                                BorderBrush="{Binding IsSelected, Converter={StaticResource BoolToBorderColorConverter}}"
+                                BorderThickness="2"
+                                CornerRadius="4"
+                                Padding="16"
+                                Margin="0,4,0,4"
+                                Cursor="Hand">
+                            <Border.InputBindings>
+                                <MouseBinding Gesture="LeftClick" Command="{Binding SelectTemplateCommand}" CommandParameter="{Binding}"/>
+                            </Border.InputBindings>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Icon -->
+                                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="32" Margin="0,0,16,0" VerticalAlignment="Top"/>
+
+                                <!-- Content -->
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,4,0,8"/>
+
+                                    <!-- Resources Info -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Border Background="#2A3240" Padding="8,4" CornerRadius="4" Margin="0,0,8,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="⚙" FontSize="12" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding CpuCores}" FontSize="11" Foreground="#E6EAF2"/>
+                                                <TextBlock Text=" cores" FontSize="11" Foreground="#9AA3B2" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="#2A3240" Padding="8,4" CornerRadius="4" Margin="0,0,8,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="💾" FontSize="12" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding MemoryMb}" FontSize="11" Foreground="#E6EAF2"/>
+                                                <TextBlock Text=" MB RAM" FontSize="11" Foreground="#9AA3B2" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="#23455f" Padding="8,4" CornerRadius="4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🏷" FontSize="12" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#E6EAF2"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Services Tags -->
+                                    <ItemsControl ItemsSource="{Binding EnabledServices}" Margin="0,8,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#1a2f38" Padding="6,3" CornerRadius="3" Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding}" FontSize="10" Foreground="#4DA3FF"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Selection Indicator -->
+                                <Ellipse Grid.Column="1" Width="16" Height="16"
+                                         VerticalAlignment="Top"
+                                         HorizontalAlignment="Right"
+                                         Fill="{Binding IsSelected, Converter={StaticResource BoolToFillConverter}}"
+                                         Stroke="#4DA3FF"
+                                         StrokeThickness="2"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Custom Template Option -->
+            <Border Background="#0A0C0E" BorderBrush="#2A3240" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,8,0,0" Cursor="Hand">
+                <Border.InputBindings>
+                    <MouseBinding Gesture="LeftClick" Command="{Binding SelectCustomCommand}"/>
+                </Border.InputBindings>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🎨" FontSize="24" Margin="0,0,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Custom Configuration" FontSize="14" FontWeight="SemiBold" Foreground="#E6EAF2"/>
+                        <TextBlock Text="Configure all settings manually in the next steps" FontSize="11" Foreground="#9AA3B2"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Description Info -->
+            <TextBlock Text="💡 Templates provide pre-configured settings for common use cases. You can customize these settings in the next steps."
+                       FontSize="11" Foreground="#6A7382" FontStyle="Italic" Margin="0,12,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

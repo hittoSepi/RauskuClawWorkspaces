@@ -1,0 +1,272 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\viewmodels\\mainviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\viewmodels\\mainviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\steps\\step2resources.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\steps\\step2resources.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\docs\\sprint1-plan.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:docs\\sprint1-plan.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\docs\\tasks\\001-sprint1-mvp.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:docs\\tasks\\001-sprint1-mvp.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\wizardwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\wizardwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\steps\\step1user.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\steps\\step1user.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\wizardwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\wizardwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\steps\\step3run.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\steps\\step3run.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\steps\\step3run.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\steps\\step3run.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\views\\steps\\step1user.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\views\\steps\\step1user.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\viewmodels\\relaycommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\viewmodels\\relaycommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\models\\vmprofile.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:models\\vmprofile.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|d:\\rauskuclaw\\gui\\rauskuclaw\\gui\\viewmodels\\wizardviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3CAAE304-9231-5E93-EF38-CBE96F7B7A5B}|RauskuClaw.csproj|solutionrelative:gui\\viewmodels\\wizardviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 266,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "001-sprint1-mvp.md",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\docs\\tasks\\001-sprint1-mvp.md",
+              "RelativeDocumentMoniker": "docs\\tasks\\001-sprint1-mvp.md",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\docs\\tasks\\001-sprint1-mvp.md",
+              "RelativeToolTip": "docs\\tasks\\001-sprint1-mvp.md",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-02-23T05:26:26.91Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "sprint1-plan.md",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\docs\\sprint1-plan.md",
+              "RelativeDocumentMoniker": "docs\\sprint1-plan.md",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\docs\\sprint1-plan.md",
+              "RelativeToolTip": "docs\\sprint1-plan.md",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAASAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-02-23T05:26:22.536Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "GUI\\Views\\MainWindow.xaml",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\MainWindow.xaml",
+              "RelativeToolTip": "GUI\\Views\\MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-23T05:14:52.725Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "MainViewModel.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\MainViewModel.cs",
+              "RelativeDocumentMoniker": "GUI\\ViewModels\\MainViewModel.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\MainViewModel.cs",
+              "RelativeToolTip": "GUI\\ViewModels\\MainViewModel.cs",
+              "ViewState": "AgIAALIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-23T05:14:49.773Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Step2Resources.xaml",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step2Resources.xaml",
+              "RelativeDocumentMoniker": "GUI\\Views\\Steps\\Step2Resources.xaml",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step2Resources.xaml",
+              "RelativeToolTip": "GUI\\Views\\Steps\\Step2Resources.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-22T22:34:28.616Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "App.xaml",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\App.xaml",
+              "RelativeDocumentMoniker": "App.xaml",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\App.xaml",
+              "RelativeToolTip": "App.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-23T00:11:31.204Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "WizardWindow.xaml",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\WizardWindow.xaml",
+              "RelativeDocumentMoniker": "GUI\\Views\\WizardWindow.xaml",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\WizardWindow.xaml",
+              "RelativeToolTip": "GUI\\Views\\WizardWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-22T23:15:58.744Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "WizardWindow.xaml.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\WizardWindow.xaml.cs",
+              "RelativeDocumentMoniker": "GUI\\Views\\WizardWindow.xaml.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\WizardWindow.xaml.cs",
+              "RelativeToolTip": "GUI\\Views\\WizardWindow.xaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T23:16:01.43Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Step1User.xaml.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step1User.xaml.cs",
+              "RelativeDocumentMoniker": "GUI\\Views\\Steps\\Step1User.xaml.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step1User.xaml.cs",
+              "RelativeToolTip": "GUI\\Views\\Steps\\Step1User.xaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T23:16:32.42Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "Step3Run.xaml.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step3Run.xaml.cs",
+              "RelativeDocumentMoniker": "GUI\\Views\\Steps\\Step3Run.xaml.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step3Run.xaml.cs",
+              "RelativeToolTip": "GUI\\Views\\Steps\\Step3Run.xaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-23T01:42:14.026Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "Step3Run.xaml",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step3Run.xaml",
+              "RelativeDocumentMoniker": "GUI\\Views\\Steps\\Step3Run.xaml",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step3Run.xaml",
+              "RelativeToolTip": "GUI\\Views\\Steps\\Step3Run.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-22T22:34:47.945Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "Step1User.xaml",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step1User.xaml",
+              "RelativeDocumentMoniker": "GUI\\Views\\Steps\\Step1User.xaml",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step1User.xaml",
+              "RelativeToolTip": "GUI\\Views\\Steps\\Step1User.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-02-22T22:34:14.294Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "RelayCommand.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\RelayCommand.cs",
+              "RelativeDocumentMoniker": "GUI\\ViewModels\\RelayCommand.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\RelayCommand.cs",
+              "RelativeToolTip": "GUI\\ViewModels\\RelayCommand.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T23:49:45.409Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "VmProfile.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\Models\\VmProfile.cs",
+              "RelativeDocumentMoniker": "Models\\VmProfile.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\Models\\VmProfile.cs",
+              "RelativeToolTip": "Models\\VmProfile.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T23:27:43.643Z"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 134,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "WizardViewModel.cs",
+              "DocumentMoniker": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\WizardViewModel.cs",
+              "RelativeDocumentMoniker": "GUI\\ViewModels\\WizardViewModel.cs",
+              "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\WizardViewModel.cs",
+              "RelativeToolTip": "GUI\\ViewModels\\WizardViewModel.cs",
+              "ViewState": "AgIAADsAAAAAAAAAAAAIwEMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T23:27:49.481Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

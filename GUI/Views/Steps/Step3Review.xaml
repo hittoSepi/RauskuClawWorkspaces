@@ -1,0 +1,32 @@
+<UserControl x:Class="RauskuClaw.GUI.Views.Steps.Step3Review"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Review &amp; Start"
+                   Style="{StaticResource Header}"
+                   Padding="0"
+                   Margin="0,0,0,8"/>
+
+        <TextBlock Grid.Row="1"
+                   Text="Review the settings below, then click Start Workspace. Wizard will continue to Step 4 and report progress."
+                   Style="{StaticResource MutedTextBlock}"
+                   Padding="0"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"/>
+
+        <Border Grid.Row="2" Background="#0F1115" BorderBrush="#2A3240" BorderThickness="1" Padding="12">
+            <TextBlock Text="{Binding RunSummary}" Style="{StaticResource MutedTextBlock}" Padding="0" TextWrapping="Wrap"/>
+        </Border>
+    </Grid>
+</UserControl>

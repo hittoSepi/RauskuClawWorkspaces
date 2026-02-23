@@ -1,0 +1,46 @@
+﻿<UserControl x:Class="RauskuClaw.GUI.Views.Steps.Step1User"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:RauskuClaw.GUI.Views.Steps"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Username" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+            <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="Hostname" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+            <TextBox Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+            <TextBlock Text="SSH public key" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+            <TextBox Text="{Binding SshPublicKey, UpdateSourceTrigger=PropertyChanged}"
+             AcceptsReturn="True" Height="120"/>
+        </StackPanel>
+
+        <DockPanel Grid.Row="3">
+            <StackPanel Width="540">
+                <TextBlock Text="Private key path" Style="{StaticResource MutedTextBlock}" Padding="0"/>
+                <TextBox Text="{Binding SshPrivateKeyPath, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+            <Button DockPanel.Dock="Right"
+                    Content="Generate key"
+                    Style="{StaticResource SecondaryButton}"
+                    Margin="12,24,0,0"
+                    Command="{Binding GenerateKeyCommand}"/>
+        </DockPanel>
+    </Grid>
+</UserControl>
