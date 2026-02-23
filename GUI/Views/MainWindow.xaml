@@ -137,6 +137,11 @@
                                            FontWeight="SemiBold"/>
                             </Border>
                         </StackPanel>
+                        <TextBlock Text="{Binding InlineNotice}"
+                                   FontSize="11"
+                                   Foreground="#4DA3FF"
+                                   Margin="0,6,0,0"
+                                   Visibility="{Binding HasInlineNotice, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     </StackPanel>
 
                     <!-- VM Control Buttons -->

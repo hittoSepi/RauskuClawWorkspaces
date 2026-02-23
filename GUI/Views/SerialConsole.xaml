@@ -11,7 +11,9 @@
             <TextBlock Text="Serial Console" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding ConnectionInfo}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <CheckBox Content="Auto-scroll" IsChecked="{Binding AutoScroll}" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
+            <Button Content="{Binding PauseButtonText}" Command="{Binding TogglePauseCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
             <Button Content="Copy" Command="{Binding CopyCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
+            <Button Content="Save" Command="{Binding SaveCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
             <Button Content="Clear" Command="{Binding ClearCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8"/>
         </DockPanel>
 
@@ -23,15 +25,32 @@
                        FontWeight="SemiBold"/>
         </Border>
 
-        <RichTextBox x:Name="SerialOutputRichTextBox"
-                     IsReadOnly="True"
-                     IsDocumentEnabled="False"
-                     FontFamily="Consolas"
-                     Background="#0A0C0E"
-                     Foreground="#00FF00"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     BorderThickness="0"
-                     Padding="8"/>
+        <Grid>
+            <RichTextBox x:Name="SerialOutputRichTextBox"
+                         IsReadOnly="True"
+                         IsDocumentEnabled="False"
+                         FontFamily="Consolas"
+                         Background="#0A0C0E"
+                         Foreground="#00FF00"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         BorderThickness="0"
+                         Padding="8"/>
+
+            <Button x:Name="ScrollToBottomButton"
+                    Content="Jump to bottom"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,12,12"
+                    Padding="10,5"
+                    Background="#2A3240"
+                    Foreground="#E6EAF2"
+                    BorderBrush="#4DA3FF"
+                    BorderThickness="1"
+                    Cursor="Hand"
+                    Visibility="Collapsed"
+                    Opacity="0.92"
+                    Click="ScrollToBottomButton_OnClick"/>
+        </Grid>
     </DockPanel>
 </UserControl>

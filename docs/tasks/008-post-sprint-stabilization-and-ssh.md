@@ -95,4 +95,16 @@ This update finalized the workspace creation flow, stabilized VM control UX, and
 - `GUI/ViewModels/RelayCommand.cs`
 - `GUI/ViewModels/SshTerminalViewModel.cs`
 - `Services/DockerService.cs`
-- `GUI/ViewModels/DockerConta
+- `GUI/ViewModels/DockerContainersViewModel.cs`
+- `Services/WorkspaceTemplateService.cs`
+
+## Verification Checklist
+
+- [ ] Clicking `+ New Workspace` opens wizard centered to MainWindow.
+- [ ] Wizard close button turns red on hover.
+- [ ] Wizard creates a workspace entry and saves it.
+- [ ] Start/Stop/Restart/Delete buttons react correctly to VM state.
+- [ ] SSH Terminal can run real commands (`pwd`, `ls`, `docker ps`).
+- [ ] Docker tab refreshes real containers and opens logs popup.
+- [ ] Deleting a workspace prompts for confirmation and optional file deletion.
+

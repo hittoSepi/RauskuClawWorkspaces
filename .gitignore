@@ -1,0 +1,32 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+publish/
+artifacts/
+TestResults/
+
+# User/local IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / ReSharper
+.idea/
+*.DotSettings.user
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db

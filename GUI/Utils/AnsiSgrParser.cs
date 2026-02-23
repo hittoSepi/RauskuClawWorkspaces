@@ -107,9 +107,35 @@ namespace RauskuClaw.GUI.Utils
             var parts = string.IsNullOrWhiteSpace(payload)
                 ? new[] { 0 }
                 : ParseIntList(payload);
-
-            foreach (var code in parts)
+            for (var i = 0; i < parts.Length; i++)
             {
+                var code = parts[i];
+                if ((code == 38 || code == 48) && i + 1 < parts.Length)
+                {
+                    var isForeground = code == 38;
+                    var mode = parts[i + 1];
+
+                    // 256-color: 38;5;<idx> / 48;5;<idx>
+                    if (mode == 5 && i + 2 < parts.Length)
+                    {
+                        var brush = Map256Color(parts[i + 2]);
+                        if (isForeground) _foreground = brush;
+                        else _background = brush;
+                        i += 2;
+                        continue;
+                    }
+
+                    // Truecolor: 38;2;<r>;<g>;<b> / 48;2;<r>;<g>;<b>
+                    if (mode == 2 && i + 4 < parts.Length)
+                    {
+                        var brush = BuildRgbBrush(parts[i + 2], parts[i + 3], parts[i + 4]);
+                        if (isForeground) _foreground = brush;
+                        else _background = brush;
+                        i += 4;
+                        continue;
+                    }
+                }
+
                 ApplySgr(code);
             }
         }
@@ -165,7 +191,8 @@ namespace RauskuClaw.GUI.Utils
         {
             return (idx, bright) switch
             {
-                (0, false) => Brushes.Black,
+                // Pure black is unreadable on the app's dark terminal background.
+                (0, false) => new SolidColorBrush(Color.FromRgb(0x86, 0x92, 0xA6)),
                 (1, false) => Brushes.IndianRed,
                 (2, false) => Brushes.LimeGreen,
                 (3, false) => Brushes.Goldenrod,
@@ -183,6 +210,60 @@ namespace RauskuClaw.GUI.Utils
                 (7, true) => Brushes.White,
                 _ => Brushes.Lime
             };
+        }
+
+        private static Brush Map256Color(int idx)
+        {
+            if (idx < 0) idx = 0;
+            if (idx > 255) idx = 255;
+
+            // 0-15: ANSI base palette
+            if (idx < 8) return EnsureReadableOnDark(MapBasicColor(idx, bright: false));
+            if (idx < 16) return MapBasicColor(idx - 8, bright: true);
+
+            // 16-231: 6x6x6 color cube
+            if (idx <= 231)
+            {
+                var n = idx - 16;
+                var r = n / 36;
+                var g = (n % 36) / 6;
+                var b = n % 6;
+                return EnsureReadableOnDark(BuildRgbBrush(CubeLevel(r), CubeLevel(g), CubeLevel(b)));
+            }
+
+            // 232-255: grayscale ramp
+            var gray = 8 + ((idx - 232) * 10);
+            return EnsureReadableOnDark(BuildRgbBrush(gray, gray, gray));
+        }
+
+        private static int CubeLevel(int value) => value == 0 ? 0 : 55 + (value * 40);
+
+        private static Brush BuildRgbBrush(int r, int g, int b)
+        {
+            byte rr = (byte)Math.Clamp(r, 0, 255);
+            byte gg = (byte)Math.Clamp(g, 0, 255);
+            byte bb = (byte)Math.Clamp(b, 0, 255);
+            return EnsureReadableOnDark(new SolidColorBrush(Color.FromRgb(rr, gg, bb)));
+        }
+
+        private static Brush EnsureReadableOnDark(Brush brush)
+        {
+            if (brush is not SolidColorBrush solid)
+            {
+                return brush;
+            }
+
+            var c = solid.Color;
+            var luminance = (0.2126 * c.R) + (0.7152 * c.G) + (0.0722 * c.B);
+            if (luminance < 42)
+            {
+                return new SolidColorBrush(Color.FromRgb(
+                    (byte)Math.Clamp(c.R + 90, 0, 255),
+                    (byte)Math.Clamp(c.G + 90, 0, 255),
+                    (byte)Math.Clamp(c.B + 90, 0, 255)));
+            }
+
+            return brush;
         }
 
         private static int[] ParseIntList(string payload)

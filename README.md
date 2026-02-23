@@ -56,6 +56,10 @@
 - **Wizard completion visibility** - wizard stays open after successful startup so final status is visible before manual close.
 - **Lifecycle progress UX** - Stop and Restart use themed progress child windows; action buttons are guarded against repeated clicks.
 - **Degraded SSH warmup mode** - startup can continue when SSH command channel is temporarily unstable; workspace status shows `Running (SSH warming up)` until retries succeed.
+- **Serial console reliability** - serial stream now uses chunked buffered updates with reconnect loop and no UI freeze under heavy output.
+- **ANSI serial rendering** - built-in parser converts ANSI SGR color codes in serial output (basic + 256 + truecolor).
+- **Log export utilities** - Serial Console and SSH Terminal include `Copy` and `Save` actions for fast diagnostics.
+- **Warmup completion notice** - inline header notice appears when SSH warmup finishes and tool auto-connect becomes fully ready.
 
 **Build Status**: ✅ Post-sprint changes build successfully with 0 warnings.
 

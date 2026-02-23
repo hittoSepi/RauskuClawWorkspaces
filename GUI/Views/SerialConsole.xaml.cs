@@ -1,5 +1,7 @@
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows;
+using System.Windows.Input;
 using RauskuClaw.GUI.Utils;
 using RauskuClaw.GUI.ViewModels;
 
@@ -10,8 +12,10 @@ namespace RauskuClaw.GUI.Views
     /// </summary>
     public partial class SerialConsole : UserControl
     {
+        private const double BottomThreshold = 28;
         private readonly AnsiSgrParser _ansiParser = new();
         private SerialConsoleViewModel? _vm;
+        private bool _programmaticScroll;
 
         public SerialConsole()
         {
@@ -19,6 +23,9 @@ namespace RauskuClaw.GUI.Views
             DataContextChanged += SerialConsole_OnDataContextChanged;
             Loaded += (_, _) => AttachToViewModel(DataContext as SerialConsoleViewModel);
             Unloaded += (_, _) => AttachToViewModel(null);
+            SerialOutputRichTextBox.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(SerialOutput_OnScrollChanged));
+            SerialOutputRichTextBox.PreviewMouseWheel += SerialOutput_OnUserScrollIntent;
+            SerialOutputRichTextBox.PreviewKeyDown += SerialOutput_OnPreviewKeyDown;
         }
 
         private void SerialConsole_OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
@@ -96,8 +103,67 @@ namespace RauskuClaw.GUI.Views
         {
             if (_vm?.AutoScroll == true)
             {
+                _programmaticScroll = true;
                 SerialOutputRichTextBox.ScrollToEnd();
+                _programmaticScroll = false;
+                ScrollToBottomButton.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void SerialOutput_OnScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (_vm == null)
+            {
+                return;
+            }
+
+            var distanceToBottom = e.ExtentHeight - (e.VerticalOffset + e.ViewportHeight);
+            var isNearBottom = distanceToBottom <= BottomThreshold;
+            ScrollToBottomButton.Visibility = isNearBottom ? Visibility.Collapsed : Visibility.Visible;
+
+            if (_programmaticScroll)
+            {
+                return;
+            }
+
+            if (e.VerticalChange != 0 && _vm.AutoScroll && !isNearBottom)
+            {
+                _vm.AutoScroll = false;
+            }
+        }
+
+        private void SerialOutput_OnUserScrollIntent(object sender, MouseWheelEventArgs e)
+        {
+            if (_vm != null && _vm.AutoScroll)
+            {
+                _vm.AutoScroll = false;
+            }
+        }
+
+        private void SerialOutput_OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (_vm == null || !_vm.AutoScroll)
+            {
+                return;
+            }
+
+            if (e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End)
+            {
+                _vm.AutoScroll = false;
+            }
+        }
+
+        private void ScrollToBottomButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (_vm != null)
+            {
+                _vm.AutoScroll = true;
+            }
+
+            _programmaticScroll = true;
+            SerialOutputRichTextBox.ScrollToEnd();
+            _programmaticScroll = false;
+            ScrollToBottomButton.Visibility = Visibility.Collapsed;
         }
     }
 }

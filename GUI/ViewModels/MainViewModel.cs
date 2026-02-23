@@ -44,6 +44,8 @@ namespace RauskuClaw.GUI.ViewModels
         private SshTerminalViewModel? _sshTerminal;
         private SettingsViewModel? _settingsViewModel;
         private string _vmLog = "";
+        private string _inlineNotice = "";
+        private CancellationTokenSource? _inlineNoticeCts;
 
         public MainViewModel()
         {
@@ -113,6 +115,20 @@ namespace RauskuClaw.GUI.ViewModels
             set { _vmLog = value; OnPropertyChanged(); }
         }
 
+        public string InlineNotice
+        {
+            get => _inlineNotice;
+            private set
+            {
+                if (_inlineNotice == value) return;
+                _inlineNotice = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasInlineNotice));
+            }
+        }
+
+        public bool HasInlineNotice => !string.IsNullOrWhiteSpace(InlineNotice);
+
         public SerialConsoleViewModel? SerialConsole
         {
             get => _serialConsole;
@@ -170,63 +186,74 @@ namespace RauskuClaw.GUI.ViewModels
 
         private async void ShowNewWorkspaceDialog()
         {
-            var suggestedPorts = _portAllocator.AllocatePorts();
-            var reservedPorts = suggestedPorts;
-            var portsPrepared = false;
-            var wizard = new RauskuClaw.GUI.Views.WizardWindow(_appSettings, suggestedPorts)
+            try
             {
-                Owner = Application.Current?.MainWindow
-            };
-            wizard.ViewModel.StartWorkspaceAsyncHandler = async (workspace, progress, ct) =>
-            {
-                try
+                var suggestedPorts = _portAllocator.AllocatePorts();
+                var reservedPorts = suggestedPorts;
+                var portsPrepared = false;
+                var wizard = new RauskuClaw.GUI.Views.WizardWindow(_appSettings, suggestedPorts)
                 {
-                    if (!portsPrepared)
+                    Owner = Application.Current?.MainWindow
+                };
+                wizard.ViewModel.StartWorkspaceAsyncHandler = async (workspace, progress, ct) =>
+                {
+                    try
                     {
-                        _portAllocator.ReleasePorts(reservedPorts);
-                        workspace.Ports = _portAllocator.AllocatePorts(workspace.Ports ?? suggestedPorts);
-                        reservedPorts = workspace.Ports!;
-                        portsPrepared = true;
+                        if (!portsPrepared)
+                        {
+                            _portAllocator.ReleasePorts(reservedPorts);
+                            workspace.Ports = _portAllocator.AllocatePorts(workspace.Ports ?? suggestedPorts);
+                            reservedPorts = workspace.Ports!;
+                            portsPrepared = true;
+                        }
+
+                        return await StartWorkspaceInternalAsync(workspace, progress, ct);
                     }
+                    catch (Exception ex)
+                    {
+                        return (false, ex.Message);
+                    }
+                };
 
-                    return await StartWorkspaceInternalAsync(workspace, progress, ct);
-                }
-                catch (Exception ex)
+                var dialogResult = wizard.ShowDialog();
+                if (dialogResult != true || wizard.ViewModel.CreatedWorkspace == null)
                 {
-                    return (false, ex.Message);
+                    if (wizard.ViewModel.CreatedWorkspace != null)
+                    {
+                        TryKillTrackedProcess(wizard.ViewModel.CreatedWorkspace, force: true);
+                    }
+                    _portAllocator.ReleasePorts(reservedPorts);
+                    return;
                 }
-            };
 
-            var dialogResult = wizard.ShowDialog();
-            if (dialogResult != true || wizard.ViewModel.CreatedWorkspace == null)
-            {
-                if (wizard.ViewModel.CreatedWorkspace != null)
+                var workspace = wizard.ViewModel.CreatedWorkspace;
+                workspace.Name = BuildUniqueWorkspaceName(workspace.Name);
+                workspace.Description = string.IsNullOrWhiteSpace(workspace.Description)
+                    ? $"Workspace for {workspace.Hostname}"
+                    : workspace.Description;
+
+                if (!portsPrepared)
                 {
-                    TryKillTrackedProcess(wizard.ViewModel.CreatedWorkspace, force: true);
+                    _portAllocator.ReleasePorts(reservedPorts);
+                    workspace.Ports = _portAllocator.AllocatePorts(workspace.Ports ?? suggestedPorts);
                 }
-                _portAllocator.ReleasePorts(reservedPorts);
-                return;
+                else
+                {
+                    workspace.Ports = reservedPorts;
+                }
+                _workspaces.Add(workspace);
+                SelectedWorkspace = workspace;
+
+                _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
             }
-
-            var workspace = wizard.ViewModel.CreatedWorkspace;
-            workspace.Name = BuildUniqueWorkspaceName(workspace.Name);
-            workspace.Description = string.IsNullOrWhiteSpace(workspace.Description)
-                ? $"Workspace for {workspace.Hostname}"
-                : workspace.Description;
-
-            if (!portsPrepared)
+            catch (Exception ex)
             {
-                _portAllocator.ReleasePorts(reservedPorts);
-                workspace.Ports = _portAllocator.AllocatePorts(workspace.Ports ?? suggestedPorts);
+                AppendLog($"New workspace dialog failed: {ex.Message}");
+                ThemedDialogWindow.ShowInfo(
+                    Application.Current?.MainWindow,
+                    "New Workspace Failed",
+                    $"Could not complete workspace creation.\n\n{ex.Message}");
             }
-            else
-            {
-                workspace.Ports = reservedPorts;
-            }
-            _workspaces.Add(workspace);
-            SelectedWorkspace = workspace;
-
-            _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
         }
 
         private async Task StartVmAsync()
@@ -818,6 +845,7 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Running;
                         _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
                         AppendLog($"Warmup complete: SSH stabilized for '{workspace.Name}'.");
+                        SetInlineNotice($"'{workspace.Name}' is fully ready. SSH stabilized and tools connected.");
                         ScheduleWorkspaceClientsAutoConnect(workspace, includeSshAndDocker: true);
                         CancelWarmupRetry(workspace.Id);
                         break;
@@ -928,6 +956,10 @@ namespace RauskuClaw.GUI.ViewModels
 
         public void Shutdown()
         {
+            _inlineNoticeCts?.Cancel();
+            _inlineNoticeCts?.Dispose();
+            _inlineNoticeCts = null;
+
             foreach (var workspaceId in _workspaceWarmupRetries.Keys.ToList())
             {
                 CancelWarmupRetry(workspaceId);
@@ -1073,6 +1105,34 @@ namespace RauskuClaw.GUI.ViewModels
         {
             var timestamp = DateTime.Now.ToString("HH:mm:ss");
             VmLog += $"[{timestamp}] {message}\n";
+        }
+
+        private void SetInlineNotice(string message, int visibleMs = 6500)
+        {
+            InlineNotice = message;
+            _inlineNoticeCts?.Cancel();
+            _inlineNoticeCts?.Dispose();
+            _inlineNoticeCts = new CancellationTokenSource();
+            var ct = _inlineNoticeCts.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(visibleMs, ct);
+                    if (!ct.IsCancellationRequested)
+                    {
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            InlineNotice = "";
+                        });
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Replaced by a newer notice.
+                }
+            }, ct);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
