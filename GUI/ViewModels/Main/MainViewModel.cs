@@ -30,14 +30,14 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly IQemuProcessManager _qemuManager;
         private readonly QmpClient _qmpClient;
         private readonly IPortAllocatorService _portAllocator;
-        private readonly WorkspaceStartupOrchestrator _startupOrchestrator;
-        private readonly WorkspaceWarmupService _warmupService;
+        private readonly IWorkspaceStartupOrchestrator _startupOrchestrator;
+        private readonly IWorkspaceWarmupService _warmupService;
         private readonly QcowImageService _qcowImageService;
         private readonly SettingsService _settingsService;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
-                private readonly object _startPortReservationLock = new();
+        private readonly object _startPortReservationLock = new();
         private readonly HashSet<int> _activeStartPortReservations = new();
         private readonly HashSet<string> _activeWorkspaceStarts = new();
         private bool _isVmStopping;
@@ -73,8 +73,8 @@ namespace RauskuClaw.GUI.ViewModels
             IPortAllocatorService portAllocator,
             QcowImageService qcowImageService,
             SettingsService settingsService,
-            WorkspaceStartupOrchestrator startupOrchestrator,
-            WorkspaceWarmupService warmupService)
+            IWorkspaceStartupOrchestrator startupOrchestrator,
+            IWorkspaceWarmupService warmupService)
         {
             _workspaceService = workspaceService;
             _qemuManager = qemuManager;

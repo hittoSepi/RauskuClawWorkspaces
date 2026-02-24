@@ -6,7 +6,7 @@ using RauskuClaw.Models;
 
 namespace RauskuClaw.Services
 {
-    public sealed class WorkspaceWarmupService
+    public sealed class WorkspaceWarmupService : IWorkspaceWarmupService
     {
         private readonly Dictionary<string, CancellationTokenSource> _workspaceWarmupRetries = new();
         private readonly int _maxAttempts;

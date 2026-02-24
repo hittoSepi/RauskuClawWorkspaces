@@ -25,7 +25,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly SshKeyService _sshKeyService = new();
         private readonly SeedIsoService _seedIsoService = new();
         private readonly WorkspaceTemplateService _templateService = new();
-        private readonly ProvisioningScriptBuilder _provisioningScriptBuilder;
+        private readonly IProvisioningScriptBuilder _provisioningScriptBuilder;
 
         private readonly Dictionary<int, UserControl> _viewCache = new();
 
@@ -78,7 +78,7 @@ namespace RauskuClaw.GUI.ViewModels
         {
         }
 
-        public WizardViewModel(ProvisioningScriptBuilder provisioningScriptBuilder, Settings? settings = null, PortAllocation? suggestedPorts = null)
+        public WizardViewModel(IProvisioningScriptBuilder provisioningScriptBuilder, Settings? settings = null, PortAllocation? suggestedPorts = null)
         {
             _provisioningScriptBuilder = provisioningScriptBuilder;
             ApplyDefaults(settings, suggestedPorts);

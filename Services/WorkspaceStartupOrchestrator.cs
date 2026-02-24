@@ -5,7 +5,7 @@ using RauskuClaw.Models;
 
 namespace RauskuClaw.Services
 {
-    public sealed class WorkspaceStartupOrchestrator
+    public sealed class WorkspaceStartupOrchestrator : IWorkspaceStartupOrchestrator
     {
         public Task<(bool Success, string Message)> StartWorkspaceAsync(
             Workspace workspace,
