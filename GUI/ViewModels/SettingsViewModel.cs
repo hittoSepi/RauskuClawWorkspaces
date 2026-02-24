@@ -268,6 +268,13 @@ namespace RauskuClaw.GUI.ViewModels
             set { _infisicalClientSecret = value; OnPropertyChanged(); }
         }
 
+
+        public string HolviBaseUrl
+        {
+            get => _settings.HolviBaseUrl;
+            set { _settings.HolviBaseUrl = value; OnPropertyChanged(); }
+        }
+
         // Commands
         public ICommand SaveCommand { get; }
         public ICommand ResetCommand { get; }
@@ -340,6 +347,7 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(HolviProjectId));
             OnPropertyChanged(nameof(InfisicalClientId));
             OnPropertyChanged(nameof(InfisicalClientSecret));
+            OnPropertyChanged(nameof(HolviBaseUrl));
             RefreshPortWarning();
             StatusMessage = "Reset to defaults.";
         }
