@@ -3,25 +3,24 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              xmlns:wpf="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800"
              Background="#0F1115">
     <DockPanel>
-            <!-- Status bar when VM not running -->
             <Border DockPanel.Dock="Top"
                     Background="#D29922"
                     Padding="16,12"
                     Visibility="{Binding IsVmRunning, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="⚠" FontSize="16" Margin="0,0,8,0"/>
+                    <fa:IconBlock Icon="ExclamationTriangle" Width="14" Height="14" Margin="0,0,8,0" Foreground="#0F1115" VerticalAlignment="Center"/>
                     <TextBlock Text="VM is not running. Start the workspace to access the RauskuClaw UI."
                                FontWeight="SemiBold"
                                Foreground="#0F1115"/>
                 </StackPanel>
             </Border>
 
-            <!-- Placeholder when VM not running -->
             <Border DockPanel.Dock="Top"
                     Background="#0A0C0E"
                     Padding="16"
@@ -32,10 +31,10 @@
                            FontSize="14"/>
             </Border>
 
-            <!-- WebView2 control (when VM is running) -->
             <wpf:WebView2 x:Name="WebView"
                           Source="{Binding CurrentUrl}"
                           DefaultBackgroundColor="#0F1115"
                           Visibility="{Binding IsVmRunning, Converter={StaticResource BoolToVisibilityConverter}}"/>
     </DockPanel>
 </UserControl>
+

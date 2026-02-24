@@ -28,6 +28,13 @@ namespace RauskuClaw.GUI.Views
         {
             if (ViewModel.IsRunning)
             {
+                if (ViewModel.IsCancellationRequested)
+                {
+                    DialogResult = false;
+                    Close();
+                    return;
+                }
+
                 ViewModel.CancelCommand.Execute(null);
                 return;
             }
@@ -48,6 +55,13 @@ namespace RauskuClaw.GUI.Views
         {
             if (ViewModel.IsRunning)
             {
+                if (ViewModel.IsCancellationRequested)
+                {
+                    DialogResult = false;
+                    base.OnClosing(e);
+                    return;
+                }
+
                 e.Cancel = true;
                 ViewModel.CancelCommand.Execute(null);
                 return;

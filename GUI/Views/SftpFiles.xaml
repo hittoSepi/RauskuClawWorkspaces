@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="900"
              Background="#0F1115">
@@ -10,8 +11,18 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" LastChildFill="False">
             <TextBlock Text="SFTP Files" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding StatusText}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8"/>
-            <Button Content="Disconnect" Command="{Binding DisconnectCommand}" Style="{StaticResource RedButton}" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8"/>
+            <Button Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Refresh" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Refresh" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding DisconnectCommand}" Style="{StaticResource RedButton}" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Plug" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Disconnect" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
         </DockPanel>
 
         <Border DockPanel.Dock="Top" Background="#151A22" BorderBrush="#2A3240" BorderThickness="0,1,0,1" Padding="10,8">
@@ -23,7 +34,12 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding CurrentPath}" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="8,0,8,0" TextTrimming="CharacterEllipsis"/>
-                <Button Grid.Column="2" Content="Up" Command="{Binding UpCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4"/>
+                <Button Grid.Column="2" Command="{Binding UpCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4">
+                    <StackPanel Orientation="Horizontal">
+                        <fa:IconBlock Icon="ArrowUp" Style="{StaticResource FaIconInline}"/>
+                        <TextBlock Text="Up" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
 
@@ -31,10 +47,30 @@
             <Border DockPanel.Dock="Top" Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="10">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Upload..." Command="{Binding UploadCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Download Selected..." Command="{Binding DownloadCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Open Selected Folder" Command="{Binding OpenCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Delete Selected" Command="{Binding DeleteCommand}" Style="{StaticResource RedButton}" Padding="12,4"/>
+                        <Button Command="{Binding UploadCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Upload" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Upload..." Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding DownloadCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Download" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Download Selected..." Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding OpenCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Open Selected Folder" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding DeleteCommand}" Style="{StaticResource RedButton}" Padding="12,4">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Trash" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Delete Selected" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
 
                     <Grid Margin="0,0,0,8">
@@ -46,7 +82,12 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="New folder:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding NewFolderName, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0"/>
-                        <Button Grid.Column="2" Content="Create" Command="{Binding CreateFolderCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4"/>
+                        <Button Grid.Column="2" Command="{Binding CreateFolderCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Folder" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Create" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
 
                         <TextBlock Grid.Column="3" Text="Selected entry can be renamed below." Foreground="#6A7382" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </Grid>
@@ -59,7 +100,12 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Rename to:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding RenameTarget, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0"/>
-                        <Button Grid.Column="2" Content="Rename Selected" Command="{Binding RenameCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4"/>
+                        <Button Grid.Column="2" Command="{Binding RenameCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Pencil" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Rename Selected" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -119,3 +165,4 @@
         </DataGrid>
     </DockPanel>
 </UserControl>
+

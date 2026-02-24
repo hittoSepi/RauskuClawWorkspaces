@@ -3,26 +3,50 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800"
              Background="#0F1115">
     <DockPanel LastChildFill="True">
-        <DockPanel DockPanel.Dock="Top">
+        <DockPanel DockPanel.Dock="Top" LastChildFill="False">
             <TextBlock Text="Serial Console" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding ConnectionInfo}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <CheckBox Content="Auto-scroll" IsChecked="{Binding AutoScroll}" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
-            <Button Content="{Binding PauseButtonText}" Command="{Binding TogglePauseCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
-            <Button Content="Copy" Command="{Binding CopyCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
-            <Button Content="Save" Command="{Binding SaveCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
-            <Button Content="Clear" Command="{Binding ClearCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8"/>
+            <Button Command="{Binding TogglePauseCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Pause" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="{Binding PauseButtonText}" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding CopyCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Copy" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Copy" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding SaveCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Save" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Save" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding ClearCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Eraser" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Clear" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
         </DockPanel>
 
         <Border DockPanel.Dock="Top"
                 Background="#D29922"
                 Padding="12,8"
                 Visibility="{Binding IsNotConnected, Converter={StaticResource BoolToVisibilityConverter}}">
-            <TextBlock Text="Serial not connected yet. Output appears automatically when VM serial stream is active."
+            <StackPanel Orientation="Horizontal">
+                <fa:IconBlock Icon="InfoCircle" Width="14" Height="14" Foreground="#0F1115" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Serial not connected yet. Output appears automatically when VM serial stream is active."
                        FontWeight="SemiBold"/>
+            </StackPanel>
         </Border>
 
         <Grid>
@@ -38,7 +62,6 @@
                          Padding="8"/>
 
             <Button x:Name="ScrollToBottomButton"
-                    Content="Jump to bottom"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
                     Margin="0,0,12,12"
@@ -50,7 +73,13 @@
                     Cursor="Hand"
                     Visibility="Collapsed"
                     Opacity="0.92"
-                    Click="ScrollToBottomButton_OnClick"/>
+                    Click="ScrollToBottomButton_OnClick">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="ArrowDown" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Jump to bottom" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
         </Grid>
     </DockPanel>
 </UserControl>
+

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              xmlns:local="clr-namespace:RauskuClaw.GUI.Views.Steps"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -35,38 +36,13 @@
                    Padding="0"
                    Margin="0,0,0,8"/>
 
-        <Border Grid.Row="3"
-                Visibility="{Binding HasAccessInfo, Converter={StaticResource BoolToVisibilityConverter}}"
-                Background="#101B2D"
-                BorderBrush="#1F6FEB"
-                BorderThickness="1"
-                CornerRadius="4"
-                Padding="10"
-                Margin="0,0,0,8">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,4">
-                    <TextBlock Text="Access Info"
-                               Foreground="#E6EAF2"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
-                    <Button Content="Copy"
-                            Command="{Binding CopyAccessInfoCommand}"
-                            DockPanel.Dock="Right"
-                            Padding="8,2"
-                            Margin="8,0,0,0"
-                            Background="#2A3240"
-                            Foreground="#E6EAF2"
-                            BorderThickness="0"
-                            Cursor="Hand"/>
-                </DockPanel>
-                <TextBlock Text="{Binding AccessInfo}"
-                           Style="{StaticResource MutedTextBlock}"
-                           Padding="0"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
-        </Border>
+        <TextBlock Grid.Row="3"
+                   Text="{Binding VisibleSetupStagesText}"
+                   Style="{StaticResource MutedTextBlock}"
+                   Padding="0"
+                   Margin="0,0,0,6"/>
 
-        <ItemsControl Grid.Row="4" ItemsSource="{Binding SetupStages}" Margin="0,0,0,8">
+        <ItemsControl Grid.Row="4" ItemsSource="{Binding VisibleSetupStages}" Margin="0,0,0,8">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="0,0,0,6">
@@ -77,8 +53,23 @@
                         </Grid.ColumnDefinitions>
                         <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{Binding Color}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="#E6EAF2" Margin="8,0,0,0"/>
-                        <TextBlock Grid.Column="2" Text="{Binding State}" Foreground="{Binding Color}" HorizontalAlignment="Right"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" MinWidth="110">
+                            <TextBlock Text="{Binding State}" Foreground="{Binding Color}" />
+                            <fa:IconBlock x:Name="InProgressSpinner"
+                                          Icon="Refresh"
+                                          fa:Awesome.Spin="True"
+                                          Width="12"
+                                          Height="12"
+                                          Foreground="{Binding Color}"
+                                          Margin="4,0,0,0"
+                                          Visibility="Collapsed"/>
+                        </StackPanel>
                     </Grid>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding State}" Value="In progress">
+                            <Setter TargetName="InProgressSpinner" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
@@ -96,3 +87,4 @@
                  TextWrapping="NoWrap"/>
     </Grid>
 </UserControl>
+

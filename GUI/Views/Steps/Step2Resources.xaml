@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              xmlns:local="clr-namespace:RauskuClaw.GUI.Views.Steps"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -39,15 +40,25 @@
                        Margin="0,0,0,10"/>
 
             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Content="Use Host Defaults"
+                <Button
                         Command="{Binding UseHostDefaultsCommand}"
                         Style="{StaticResource SecondaryButton}"
                         Padding="12,4"
-                        Margin="0,0,8,0"/>
-                <Button Content="Auto Assign Ports"
+                        Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <fa:IconBlock Icon="Desktop" Style="{StaticResource FaIconInline}"/>
+                        <TextBlock Text="Use Host Defaults" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                </Button>
+                <Button
                         Command="{Binding AutoAssignPortsCommand}"
                         Style="{StaticResource SecondaryButton}"
-                        Padding="12,4"/>
+                        Padding="12,4">
+                    <StackPanel Orientation="Horizontal">
+                        <fa:IconBlock Icon="Random" Style="{StaticResource FaIconInline}"/>
+                        <TextBlock Text="Auto Assign Ports" Foreground="#E6EAF2"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <TextBlock Text="Host ports" Style="{StaticResource MutedTextBlock}" Padding="0" Margin="0,0,0,4"/>
@@ -107,10 +118,14 @@
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding QemuExe, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
                         <Button Grid.Column="1"
-                                Content="Browse..."
                                 Command="{Binding BrowseQemuCommand}"
                                 Style="{StaticResource SecondaryButton}"
-                                Padding="12,4"/>
+                                Padding="12,4">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Browse..." Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <TextBlock Text="Disk path (.qcow2)" Style="{StaticResource MutedTextBlock}" Padding="0"/>
@@ -121,10 +136,14 @@
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding DiskPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
                         <Button Grid.Column="1"
-                                Content="Browse..."
                                 Command="{Binding BrowseDiskPathCommand}"
                                 Style="{StaticResource SecondaryButton}"
-                                Padding="12,4"/>
+                                Padding="12,4">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Browse..." Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <TextBlock Text="Seed ISO path" Style="{StaticResource MutedTextBlock}" Padding="0"/>
@@ -135,10 +154,14 @@
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding SeedIsoPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
                         <Button Grid.Column="1"
-                                Content="Browse..."
                                 Command="{Binding BrowseSeedIsoPathCommand}"
                                 Style="{StaticResource SecondaryButton}"
-                                Padding="12,4"/>
+                                Padding="12,4">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Browse..." Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
                 </StackPanel>
             </Expander>
@@ -190,3 +213,4 @@
         </StackPanel>
     </ScrollViewer>
 </UserControl>
+

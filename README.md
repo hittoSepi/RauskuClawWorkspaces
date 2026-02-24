@@ -12,6 +12,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Real wizard-driven `+ New Workspace` flow.
 - Cloud-init seed generation and QEMU start flow.
 - Startup progress stages with readiness/failure reporting.
+- Dedicated post-start `Access Info` step with copy action.
 - SSH stabilization phase with degraded warmup mode (`Running (SSH warming up)`).
 - Themed progress/confirmation dialogs.
 
@@ -31,7 +32,9 @@ Build: Success (`0 warnings`, `0 errors`).
   - create `.env` from `.env.example` when available,
   - ensure `API_KEY` and `API_TOKEN` exist,
   - fail fast if required env/token setup is invalid.
+- Startup ensures required external Docker network (`holvi_holvi_net`) before compose startup.
 - Startup Docker readiness checks include retry logic and expected-container health parsing.
+- Validated runtime result: Docker stack reaches `healthy (5/5 expected containers)`.
 
 ### Settings and UX
 - CPU and RAM resource inputs aligned between Wizard and Settings.
@@ -50,6 +53,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - [Workspace Templates](docs/tasks/007-workspace-templates.md)
 - [Post-Sprint Stabilization & SSH Runtime Integration](docs/tasks/008-post-sprint-stabilization-and-ssh.md)
 - [Task 9: SFTP File Manager](docs/tasks/009-sftp-file-manager.md)
+- [Task 10: Wizard Flow & Icon Pass](docs/tasks/010-wizard-flow-and-icon-pass.md)
 
 ## Requirements
 

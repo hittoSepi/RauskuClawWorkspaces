@@ -1,8 +1,9 @@
-﻿<Application x:Class="RauskuClaw.App"
+<Application x:Class="RauskuClaw.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:RauskuClaw"
              xmlns:converters="clr-namespace:RauskuClaw.GUI.Converters"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              StartupUri="GUI/Views/MainWindow.xaml">
     <Application.Resources>
         <!-- Colors -->
@@ -114,6 +115,14 @@
             <Setter Property="Padding" Value="10,6" />
         </Style>
 
+        <Style x:Key="FaIconInline" TargetType="fa:IconBlock">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="#9AA3B2"/>
             <Setter Property="Background" Value="{StaticResource TabInactive}"/>
@@ -149,3 +158,4 @@
         <converters:BoolToFillConverter x:Key="BoolToFillConverter"/>
     </Application.Resources>
 </Application>
+

@@ -37,6 +37,8 @@ namespace RauskuClaw.Models
         public string SshPublicKey { get; set; } = "";
         public string SshPrivateKeyPath { get; set; } = "";
         public string RepoTargetDir { get; set; } = "/opt/rauskuclaw";
+        public string TemplateId { get; set; } = "custom";
+        public string TemplateName { get; set; } = "Custom";
         public int HostWebPort { get; set; } = 8080;
 
         public int MemoryMb { get; set; } = 4096;

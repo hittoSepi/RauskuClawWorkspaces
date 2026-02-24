@@ -24,6 +24,7 @@ namespace RauskuClaw.GUI.ViewModels
         private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
         private readonly SshKeyService _sshKeyService = new();
         private readonly SeedIsoService _seedIsoService = new();
+        private readonly WorkspaceTemplateService _templateService = new();
 
         private readonly Dictionary<int, UserControl> _viewCache = new();
 
@@ -66,13 +67,17 @@ namespace RauskuClaw.GUI.ViewModels
         private string _failureReason = string.Empty;
         private readonly ObservableCollection<int> _cpuCoreOptions = new();
         private readonly ObservableCollection<int> _memoryOptions = new();
+        private readonly ObservableCollection<WorkspaceTemplateOptionViewModel> _templates = new();
+        private WorkspaceTemplateOptionViewModel? _selectedTemplate;
+        private bool _isCustomTemplate = true;
+        private int _reviewBackStep = 2;
 
         public WizardViewModel(Settings? settings = null, PortAllocation? suggestedPorts = null)
         {
             ApplyDefaults(settings, suggestedPorts);
 
             GenerateKeyCommand = new RelayCommand(GenerateKey, () => !IsRunning);
-            NextCommand = new RelayCommand(Next, () => StepIndex < 2 && !IsRunning);
+            NextCommand = new RelayCommand(Next, () => StepIndex < 3 && !IsRunning);
             BackCommand = new RelayCommand(Back, () => StepIndex > 0 && !IsRunning);
             StartCommand = new RelayCommand(() => _ = StartAndCreateWorkspaceAsync(), CanStart);
             RetryStartCommand = new RelayCommand(() => _ = RetryStartAsync(), CanRetryStart);
@@ -85,29 +90,36 @@ namespace RauskuClaw.GUI.ViewModels
             UseHostDefaultsCommand = new RelayCommand(UseHostDefaults, () => !IsRunning);
             AutoAssignPortsCommand = new RelayCommand(AutoAssignPorts, () => !IsRunning);
             CopyAccessInfoCommand = new RelayCommand(CopyAccessInfo, () => HasAccessInfo);
+            SelectCustomCommand = new RelayCommand(SelectCustomTemplate, () => !IsRunning);
+            EditConfigurationCommand = new RelayCommand(EditConfiguration, () => !IsRunning && StepIndex == 3);
 
             StepIndex = 0;
             Status = "Ready";
             BuildCpuCoreOptions();
             BuildMemoryOptions();
+            LoadTemplates();
             InitializeSetupStages();
         }
 
         public string HeaderTitle => StepIndex switch
         {
-            0 => "User settings",
-            1 => "Resources",
-            2 => "Review",
-            3 => "Starting",
+            0 => "Template",
+            1 => "User settings",
+            2 => "Resources",
+            3 => "Review",
+            4 => "Starting",
+            5 => "Access Info",
             _ => "Setup"
         };
 
         public string HeaderSubtitle => StepIndex switch
         {
-            0 => "Username, hostname, and SSH key for provisioning",
-            1 => "CPU/RAM and ports first, advanced paths and deploy options below",
-            2 => "Review configuration before creating and starting workspace",
-            3 => "Workspace startup progress and final status",
+            0 => "Choose a workspace template or continue with custom setup",
+            1 => "Username, hostname, and SSH key for provisioning",
+            2 => "CPU/RAM and ports first, advanced paths and deploy options below",
+            3 => "Review configuration before creating and starting workspace",
+            4 => "Workspace startup progress and final status",
+            5 => "Connection endpoints and quick access details",
             _ => ""
         };
 
@@ -125,6 +137,10 @@ namespace RauskuClaw.GUI.ViewModels
         public RelayCommand UseHostDefaultsCommand { get; }
         public RelayCommand AutoAssignPortsCommand { get; }
         public RelayCommand CopyAccessInfoCommand { get; }
+        public RelayCommand SelectCustomCommand { get; }
+        public RelayCommand EditConfigurationCommand { get; }
+
+        public ObservableCollection<WorkspaceTemplateOptionViewModel> Templates => _templates;
 
         public string Username
         {
@@ -355,6 +371,8 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        public bool IsCancellationRequested => _startCts?.IsCancellationRequested == true;
+
         public string RunLog
         {
             get => _runLog;
@@ -367,10 +385,13 @@ namespace RauskuClaw.GUI.ViewModels
         }
 
         public string RunSummary =>
-            $"User={Username} | Hostname={Hostname} | CPU={CpuCores} | RAM={MemoryMb}MB | SSH=127.0.0.1:{HostSshPort} | Web=127.0.0.1:{HostWebPort} | API=127.0.0.1:{HostApiPort} | UIv1=127.0.0.1:{HostUiV1Port} | UIv2=127.0.0.1:{HostUiV2Port} | Repo={RepoUrl}@{RepoBranch} | WebBuild={(BuildWebUi ? "on" : "off")} | WebDeploy={(DeployWebUiStatic ? "on" : "off")}";
+            $"Template={SelectedTemplateName} | User={Username} | Hostname={Hostname} | CPU={CpuCores} | RAM={MemoryMb}MB | SSH=127.0.0.1:{HostSshPort} | Web=127.0.0.1:{HostWebPort} | API=127.0.0.1:{HostApiPort} | UIv1=127.0.0.1:{HostUiV1Port} | UIv2=127.0.0.1:{HostUiV2Port} | Repo={RepoUrl}@{RepoBranch} | WebBuild={(BuildWebUi ? "on" : "off")} | WebDeploy={(DeployWebUiStatic ? "on" : "off")}";
         public string HostLimitsText => $"Host limits: up to {HostLogicalCpuCount} logical cores, {HostMemoryLimitMb} MB memory.";
         public ObservableCollection<int> CpuCoreOptions => _cpuCoreOptions;
         public ObservableCollection<int> MemoryOptions => _memoryOptions;
+        public string SelectedTemplateName => _isCustomTemplate ? "Custom" : (_selectedTemplate?.Name ?? "Custom");
+        public bool IsCustomTemplate => _isCustomTemplate;
+        public bool IsTemplateQuickPath => !_isCustomTemplate;
 
         public string RepoUrl
         {
@@ -503,8 +524,13 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_setupStages == value) return;
                 _setupStages = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(VisibleSetupStages));
+                OnPropertyChanged(nameof(VisibleSetupStagesText));
             }
         }
+
+        public IReadOnlyList<SetupStageItem> VisibleSetupStages => BuildVisibleSetupStages();
+        public string VisibleSetupStagesText => $"Showing stages {VisibleSetupStages.Count}/{SetupStages.Count}";
         public bool StartAfterCreateRequested
         {
             get => _startAfterCreateRequested;
@@ -570,17 +596,17 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
-        public bool ShowBackButton => StepIndex != 3 || (!IsRunning && !StartSucceeded);
+        public bool ShowBackButton => !IsRunning && (StepIndex == 1 || StepIndex == 2 || StepIndex == 3);
         public bool ShowNextButton => StepIndex < 3;
-        public bool ShowStartButton => StepIndex == 2;
-        public bool ShowRetryStartButton => StepIndex == 3 && !IsRunning && !StartSucceeded;
+        public bool ShowStartButton => StepIndex == 3;
+        public bool ShowRetryStartButton => StepIndex == 4 && !IsRunning && !StartSucceeded;
         public bool ShowCancelButton => IsRunning;
-        public bool ShowCloseButton => StepIndex == 3 && !IsRunning;
+        public bool ShowCloseButton => (StepIndex == 4 || StepIndex == 5) && !IsRunning;
 
         private static int Normalize(int value)
         {
-            if (value < 0) return 3;
-            if (value > 3) return 0;
+            if (value < 0) return 5;
+            if (value > 5) return 0;
             return value;
         }
 
@@ -593,11 +619,13 @@ namespace RauskuClaw.GUI.ViewModels
 
             UserControl view = index switch
             {
-                0 => new Step1User(),
-                1 => new Step2Resources(),
-                2 => new Step3Review(),
-                3 => new Step3Run(),
-                _ => new Step1User()
+                0 => new Step0Template(),
+                1 => new Step1User(),
+                2 => new Step2Resources(),
+                3 => new Step3Review(),
+                4 => new Step3Run(),
+                5 => new Step4Access(),
+                _ => new Step0Template()
             };
 
             _viewCache[index] = view;
@@ -620,27 +648,189 @@ namespace RauskuClaw.GUI.ViewModels
             UseHostDefaultsCommand.RaiseCanExecuteChanged();
             AutoAssignPortsCommand.RaiseCanExecuteChanged();
             CopyAccessInfoCommand.RaiseCanExecuteChanged();
+            SelectCustomCommand.RaiseCanExecuteChanged();
+            EditConfigurationCommand.RaiseCanExecuteChanged();
         }
 
-        private void Next() => StepIndex++;
+        private void Next()
+        {
+            if (StepIndex == 0)
+            {
+                if (_isCustomTemplate)
+                {
+                    StepIndex = 1;
+                }
+                else
+                {
+                    if (!EnsureSshKeyReady(updateStatus: true))
+                    {
+                        StepIndex = 1;
+                        return;
+                    }
 
-        private void Back() => StepIndex--;
+                    _reviewBackStep = 0;
+                    StepIndex = 3;
+                }
+                return;
+            }
+
+            if (StepIndex == 2)
+            {
+                _reviewBackStep = 2;
+                StepIndex = 3;
+                return;
+            }
+
+            StepIndex++;
+        }
+
+        private void Back()
+        {
+            if (StepIndex == 3)
+            {
+                StepIndex = _reviewBackStep;
+                return;
+            }
+
+            StepIndex--;
+        }
+
+        private void EditConfiguration()
+        {
+            _reviewBackStep = 2;
+            StepIndex = 1;
+        }
+
+        private void LoadTemplates()
+        {
+            Templates.Clear();
+            var loaded = _templateService.LoadTemplates();
+            foreach (var template in loaded)
+            {
+                Templates.Add(new WorkspaceTemplateOptionViewModel(template, () => SelectTemplate(template.Id)));
+            }
+
+            var defaultTemplate = Templates.FirstOrDefault(t => t.IsDefault) ?? Templates.FirstOrDefault();
+            if (defaultTemplate != null)
+            {
+                SelectTemplate(defaultTemplate.Id, preserveCurrentPorts: true);
+            }
+            else
+            {
+                SelectCustomTemplate();
+            }
+        }
+
+        private void SelectTemplate(string templateId, bool preserveCurrentPorts = false)
+        {
+            var selected = Templates.FirstOrDefault(t => string.Equals(t.Id, templateId, StringComparison.OrdinalIgnoreCase));
+            if (selected == null)
+            {
+                return;
+            }
+
+            foreach (var option in Templates)
+            {
+                option.IsSelected = ReferenceEquals(option, selected);
+            }
+
+            _selectedTemplate = selected;
+            _isCustomTemplate = false;
+
+            ApplyTemplate(selected, preserveCurrentPorts);
+
+            OnPropertyChanged(nameof(SelectedTemplateName));
+            OnPropertyChanged(nameof(IsCustomTemplate));
+            OnPropertyChanged(nameof(IsTemplateQuickPath));
+            OnPropertyChanged(nameof(RunSummary));
+        }
+
+        private void SelectCustomTemplate()
+        {
+            foreach (var option in Templates)
+            {
+                option.IsSelected = false;
+            }
+
+            _selectedTemplate = null;
+            _isCustomTemplate = true;
+            OnPropertyChanged(nameof(SelectedTemplateName));
+            OnPropertyChanged(nameof(IsCustomTemplate));
+            OnPropertyChanged(nameof(IsTemplateQuickPath));
+            OnPropertyChanged(nameof(RunSummary));
+        }
+
+        private void ApplyTemplate(WorkspaceTemplateOptionViewModel template, bool preserveCurrentPorts)
+        {
+            Username = template.Username;
+            Hostname = template.Hostname;
+            MemoryMb = template.MemoryMb;
+            CpuCores = template.CpuCores;
+
+            if (preserveCurrentPorts)
+            {
+                return;
+            }
+
+            foreach (var mapping in template.PortMappings)
+            {
+                switch (mapping.Name)
+                {
+                    case "SSH":
+                        HostSshPort = mapping.Port;
+                        break;
+                    case "API":
+                        HostApiPort = mapping.Port;
+                        break;
+                    case "UIv1":
+                        HostUiV1Port = mapping.Port;
+                        break;
+                    case "UIv2":
+                        HostUiV2Port = mapping.Port;
+                        break;
+                    case "Web":
+                        HostWebPort = mapping.Port;
+                        break;
+                    case "QMP":
+                        HostQmpPort = mapping.Port;
+                        break;
+                    case "Serial":
+                        HostSerialPort = mapping.Port;
+                        break;
+                }
+            }
+        }
 
         private void GenerateKey()
         {
+            EnsureSshKeyReady(updateStatus: true);
+        }
+
+        private bool EnsureSshKeyReady(bool updateStatus)
+        {
             try
             {
+                if (LooksLikeSshPublicKey(SshPublicKey))
+                {
+                    return true;
+                }
+
                 var res = _sshKeyService.EnsureEd25519Keypair(
                     SshPrivateKeyPath,
                     overwrite: false,
                     comment: Environment.MachineName);
 
                 SshPublicKey = res.PublicKey;
-                Status = $"SSH key ready: {res.PublicKeyPath}";
+                if (updateStatus)
+                {
+                    Status = $"SSH key ready: {res.PublicKeyPath}";
+                }
+                return true;
             }
             catch (Exception ex)
             {
                 Status = $"SSH key generation failed: {ex.Message}";
+                return false;
             }
         }
 
@@ -744,6 +934,15 @@ namespace RauskuClaw.GUI.ViewModels
 
         private async Task StartAndCreateWorkspaceAsync()
         {
+            if (!LooksLikeSshPublicKey(SshPublicKey))
+            {
+                if (!EnsureSshKeyReady(updateStatus: false))
+                {
+                    Status = "SSH public key is missing and automatic key generation failed.";
+                    return;
+                }
+            }
+
             if (!ValidateInputs(out var validationError))
             {
                 Status = validationError;
@@ -758,6 +957,8 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 Name = workspaceName,
                 Description = workspaceDescription,
+                TemplateId = _isCustomTemplate ? "custom" : (_selectedTemplate?.Id ?? "custom"),
+                TemplateName = SelectedTemplateName,
                 Username = Username.Trim(),
                 Hostname = Hostname.Trim(),
                 SshPublicKey = SshPublicKey.Trim(),
@@ -789,11 +990,12 @@ namespace RauskuClaw.GUI.ViewModels
 
             StartAfterCreateRequested = true;
             StartSucceeded = false;
-            StepIndex = 3;
+            StepIndex = 4;
             RunLog = string.Empty;
             FailureReason = string.Empty;
             IsRunning = true;
             _startCts = new CancellationTokenSource();
+            OnPropertyChanged(nameof(IsCancellationRequested));
             InitializeSetupStages();
 
             try
@@ -821,6 +1023,7 @@ namespace RauskuClaw.GUI.ViewModels
                     UpdateStage("done", "success", string.IsNullOrWhiteSpace(result.Message) ? "Workspace ready." : result.Message);
                     AppendRunLog("Startup complete. You can now close the wizard.");
                     Status = "Startup complete. You can now close the wizard.";
+                    StepIndex = 5;
                 }
                 else
                 {
@@ -846,12 +1049,13 @@ namespace RauskuClaw.GUI.ViewModels
                 IsRunning = false;
                 _startCts?.Dispose();
                 _startCts = null;
+                OnPropertyChanged(nameof(IsCancellationRequested));
             }
         }
 
-        private bool CanStart() => !IsRunning && StepIndex == 2 && ValidateInputs(out _);
+        private bool CanStart() => !IsRunning && StepIndex == 3;
 
-        private bool CanRetryStart() => !IsRunning && StepIndex == 3 && !StartSucceeded;
+        private bool CanRetryStart() => !IsRunning && StepIndex == 4 && !StartSucceeded;
 
         private Task RetryStartAsync() => StartAndCreateWorkspaceAsync();
 
@@ -859,7 +1063,17 @@ namespace RauskuClaw.GUI.ViewModels
         {
             if (IsRunning)
             {
-                _startCts?.Cancel();
+                if (!IsCancellationRequested)
+                {
+                    Status = "Cancelling startup...";
+                    AppendRunLog("Cancellation requested. Waiting for startup task to stop...");
+                    _startCts?.Cancel();
+                    OnPropertyChanged(nameof(IsCancellationRequested));
+                    return;
+                }
+
+                // Allow force-close if cancellation was already requested but startup is still stuck.
+                CloseRequested?.Invoke(false);
                 return;
             }
 
@@ -1243,6 +1457,7 @@ namespace RauskuClaw.GUI.ViewModels
             var escapedRepoUrl = RepoUrl.Trim().Replace("\"", "\\\"");
             var escapedRepoBranch = RepoBranch.Trim().Replace("\"", "\\\"");
             var escapedRepoTargetDir = RepoTargetDir.Trim().Replace("\"", "\\\"");
+            var escapedUsername = Username.Trim().Replace("\"", "\\\"");
             var escapedBuildCommand = WebUiBuildCommand.Trim().Replace("\"", "\\\"");
             var escapedWebUiBuildOutputDir = WebUiBuildOutputDir.Trim().Replace("\"", "\\\"");
             var buildWebUiSection = BuildWebUi
@@ -1330,6 +1545,11 @@ runcmd:
     else
       rm -rf ""{escapedRepoTargetDir}""
       git clone --depth 1 -b ""{escapedRepoBranch}"" ""{escapedRepoUrl}"" ""{escapedRepoTargetDir}""
+    fi
+    # Ensure workspace user can manage files over SFTP in repo target directory.
+    if id -u ""{escapedUsername}"" >/dev/null 2>&1; then
+      chown -R ""{escapedUsername}:{escapedUsername}"" ""{escapedRepoTargetDir}"" || true
+      chmod -R u+rwX ""{escapedRepoTargetDir}"" || true
     fi{buildWebUiSection}{deployWebUiSection}
   # Ensure Docker engine is installed and running
   - |
@@ -1455,8 +1675,16 @@ runcmd:
       fi
     }}
 
+    if docker network inspect holvi_holvi_net >/dev/null 2>&1; then
+      echo ""Found external network holvi_holvi_net.""
+    else
+      echo ""External network holvi_holvi_net missing; creating...""
+      docker network create holvi_holvi_net >/dev/null 2>&1 || true
+    fi
     run_up ""$ROOT_DIR"" ""backend stack""
-    run_up ""$HOLVI_DIR"" ""holvi stack""
+    if ! run_up ""$HOLVI_DIR"" ""holvi stack""; then
+      echo ""Holvi stack failed to start (non-fatal). Continuing startup.""
+    fi
 
     pull_embed_model() {{
       local model=""embeddinggemma:300m-qat-q8_0""
@@ -1613,6 +1841,9 @@ runcmd:
                 };
             }
 
+            OnPropertyChanged(nameof(VisibleSetupStages));
+            OnPropertyChanged(nameof(VisibleSetupStagesText));
+
             if (string.Equals(state, "failed", StringComparison.OrdinalIgnoreCase))
             {
                 var stageName = stage?.Title ?? key;
@@ -1634,6 +1865,53 @@ runcmd:
             }
 
             return null;
+        }
+
+        private IReadOnlyList<SetupStageItem> BuildVisibleSetupStages()
+        {
+            if (SetupStages.Count <= 5)
+            {
+                return SetupStages;
+            }
+
+            var currentIndex = -1;
+            for (var i = 0; i < SetupStages.Count; i++)
+            {
+                if (string.Equals(SetupStages[i].State, "In progress", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            if (currentIndex < 0)
+            {
+                for (var i = SetupStages.Count - 1; i >= 0; i--)
+                {
+                    if (!string.Equals(SetupStages[i].State, "Pending", StringComparison.OrdinalIgnoreCase))
+                    {
+                        currentIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (currentIndex < 0)
+            {
+                currentIndex = 0;
+            }
+
+            var start = Math.Max(0, currentIndex - 2);
+            var end = Math.Min(SetupStages.Count - 1, start + 4);
+            start = Math.Max(0, end - 4);
+
+            var result = new List<SetupStageItem>(5);
+            for (var i = start; i <= end; i++)
+            {
+                result.Add(SetupStages[i]);
+            }
+
+            return result;
         }
 
         private static string StripAnsi(string input)
@@ -1740,6 +2018,49 @@ runcmd:
             {
                 if (_color == value) return;
                 _color = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public sealed class WorkspaceTemplateOptionViewModel : INotifyPropertyChanged
+    {
+        private bool _isSelected;
+
+        public WorkspaceTemplateOptionViewModel(WorkspaceTemplate template, Action onSelect)
+        {
+            Template = template ?? throw new ArgumentNullException(nameof(template));
+            SelectTemplateCommand = new RelayCommand(onSelect ?? throw new ArgumentNullException(nameof(onSelect)));
+        }
+
+        private WorkspaceTemplate Template { get; }
+
+        public string Id => Template.Id;
+        public string Name => Template.Name;
+        public string Description => Template.Description;
+        public string Category => Template.Category;
+        public int MemoryMb => Template.MemoryMb;
+        public int CpuCores => Template.CpuCores;
+        public string Username => Template.Username;
+        public string Hostname => Template.Hostname;
+        public string Icon => Template.Icon;
+        public bool IsDefault => Template.IsDefault;
+        public IReadOnlyList<TemplatePortMapping> PortMappings => Template.PortMappings;
+        public IReadOnlyList<string> EnabledServices => Template.EnabledServices;
+        public RelayCommand SelectTemplateCommand { get; }
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected == value) return;
+                _isSelected = value;
                 OnPropertyChanged();
             }
         }

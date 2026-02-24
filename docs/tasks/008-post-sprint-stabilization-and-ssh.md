@@ -97,6 +97,12 @@ This update finalized workspace creation flow, stabilized VM control UX, and rep
 - Wizard Step 4 success view shows compact access info (Web UI, API, SSH, token source).
 - Access info includes one-click copy to clipboard.
 
+## Validation Update (2026-02-24)
+
+- Confirmed on live startup run: `Docker stack is running and healthy (5/5 expected containers).`
+- Cloud-init YAML parsing issue caused by tab indentation in generated user-data was fixed; update/repo stage now executes normally.
+- `holvi_holvi_net` external Docker network is now ensured before stack startup to avoid early compose failure.
+
 ## Main Files Updated
 
 - `GUI/ViewModels/MainViewModel.cs`

@@ -549,47 +549,41 @@ namespace RauskuClaw.GUI.ViewModels
                 }
 
                 ReportStage(progress, "updates", "in_progress", "Verifying repository update inside VM...");
-                if (allowDegradedStartup)
+                var updateCheck = await WaitForRepositoryReadyAsync(workspace, ct);
+                if (!updateCheck.Success)
                 {
-                    ReportStage(progress, "updates", "success", "Skipped for now (SSH warming up).");
-                }
-                else
-                {
-                    var updateCheck = await WaitForRepositoryReadyAsync(workspace, ct);
-                    if (!updateCheck.Success)
-                    {
-                        var nonFatalRepoNotReady =
-                            updateCheck.Message.Contains("exit 7", StringComparison.OrdinalIgnoreCase)
-                            || updateCheck.Message.Contains("Repository not ready after wait window", StringComparison.OrdinalIgnoreCase);
+                    var nonFatalRepoNotReady =
+                        updateCheck.Message.Contains("exit 7", StringComparison.OrdinalIgnoreCase)
+                        || updateCheck.Message.Contains("Repository not ready after wait window", StringComparison.OrdinalIgnoreCase);
+                    var transientInDegradedMode = allowDegradedStartup && IsTransientConnectionIssue(updateCheck.Message);
 
-                        if (nonFatalRepoNotReady)
+                    if (nonFatalRepoNotReady || transientInDegradedMode)
+                    {
+                        repoPending = true;
+                        ReportStage(progress, "updates", "success", "Repository/update still in progress; continuing startup.");
+                        var cloudInitTail = await RunSshCommandAsync(
+                            workspace,
+                            "tail -n 80 /var/log/cloud-init-output.log 2>/dev/null || tail -n 80 /var/log/cloud-init.log 2>/dev/null || journalctl -u cloud-final --no-pager -n 80 2>/dev/null || true",
+                            ct);
+                        if (cloudInitTail.Success && !string.IsNullOrWhiteSpace(cloudInitTail.Message))
                         {
-                            repoPending = true;
-                            ReportStage(progress, "updates", "success", "Repository not ready yet; continuing startup.");
-                            var cloudInitTail = await RunSshCommandAsync(
-                                workspace,
-                                "tail -n 80 /var/log/cloud-init-output.log 2>/dev/null || tail -n 80 /var/log/cloud-init.log 2>/dev/null || journalctl -u cloud-final --no-pager -n 80 2>/dev/null || true",
-                                ct);
-                            if (cloudInitTail.Success && !string.IsNullOrWhiteSpace(cloudInitTail.Message))
-                            {
-                                AppendLog("cloud-init tail (latest):");
-                                AppendLog(cloudInitTail.Message);
-                            }
-                            AppendLog($"Repository check deferred: {updateCheck.Message}");
+                            AppendLog("cloud-init tail (latest):");
+                            AppendLog(cloudInitTail.Message);
                         }
-                        else
-                        {
-                            ReportStage(progress, "updates", "failed", "Repository verification failed.");
-                            workspace.Status = VmStatus.Error;
-                            workspace.IsRunning = false;
-                            TryKillTrackedProcess(workspace, force: true);
-                            return (false, updateCheck.Message);
-                        }
+                        AppendLog($"Repository check deferred: {updateCheck.Message}");
                     }
                     else
                     {
-                        ReportStage(progress, "updates", "success", "Repository looks available.");
+                        ReportStage(progress, "updates", "failed", "Repository verification failed.");
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        TryKillTrackedProcess(workspace, force: true);
+                        return (false, updateCheck.Message);
                     }
+                }
+                else
+                {
+                    ReportStage(progress, "updates", "success", "Repository looks available.");
                 }
 
                 var startupWarnings = new List<string>();
@@ -645,13 +639,6 @@ namespace RauskuClaw.GUI.ViewModels
                 else
                 {
                     ReportStage(progress, "api", "success", apiReady.Message);
-                }
-
-                if (serialDiagCts != null)
-                {
-                    serialDiagCts.Cancel();
-                    serialDiagCts.Dispose();
-                    serialDiagCts = null;
                 }
 
                 ReportStage(progress, "webui", "in_progress", $"Waiting for WebUI on 127.0.0.1:{workspace.HostWebPort}...");
@@ -903,8 +890,8 @@ namespace RauskuClaw.GUI.ViewModels
                 "rauskuclaw-api",
                 "rauskuclaw-worker",
                 "rauskuclaw-ollama",
-                "rauskuclaw-ui",
-                "rauskuclaw-ui-v2"
+                "rauskuclaw-ui-v2",
+                "rauskuclaw-ui"
             };
 
             var dockerPs = await RunSshCommandAsync(
@@ -914,14 +901,14 @@ namespace RauskuClaw.GUI.ViewModels
                 "elif sudo -n docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then " +
                 "DOCKER='sudo -n docker'; " +
                 "else echo 'docker-unavailable'; exit 19; fi; " +
-                "$DOCKER ps --format '{{.Names}}|{{.Status}}' | grep -E '^rauskuclaw-(api|worker|ollama|ui|ui-v2)\\|' || true",
+                "$DOCKER ps --format '{{.Names}}|{{.Status}}'",
                 ct);
             if (!dockerPs.Success)
             {
                 return (false, $"Docker stack check failed: {dockerPs.Message}");
             }
 
-            var statusesByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var statusesByExpectedName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var lines = dockerPs.Message
                 .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var rawLine in lines)
@@ -939,7 +926,16 @@ namespace RauskuClaw.GUI.ViewModels
                     continue;
                 }
 
-                statusesByName[name] = status;
+                var expectedName = ResolveExpectedContainerName(name, expected);
+                if (expectedName == null)
+                {
+                    continue;
+                }
+
+                if (!statusesByExpectedName.ContainsKey(expectedName))
+                {
+                    statusesByExpectedName[expectedName] = status;
+                }
             }
 
             var missing = new List<string>();
@@ -950,7 +946,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             foreach (var container in expected)
             {
-                if (!statusesByName.TryGetValue(container, out var status))
+                if (!statusesByExpectedName.TryGetValue(container, out var status))
                 {
                     missing.Add(container);
                     continue;
@@ -997,6 +993,29 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (true, $"Docker stack is running and healthy ({runningCount}/{expected.Length} expected containers).");
+        }
+
+        private static string? ResolveExpectedContainerName(string actualName, IReadOnlyList<string> expectedNames)
+        {
+            if (string.IsNullOrWhiteSpace(actualName))
+            {
+                return null;
+            }
+
+            foreach (var expected in expectedNames)
+            {
+                if (actualName.Equals(expected, StringComparison.OrdinalIgnoreCase)
+                    || actualName.StartsWith(expected + "-", StringComparison.OrdinalIgnoreCase)
+                    || actualName.Contains(expected + "-", StringComparison.OrdinalIgnoreCase)
+                    || actualName.StartsWith(expected + "_", StringComparison.OrdinalIgnoreCase)
+                    || actualName.Contains(expected + "_", StringComparison.OrdinalIgnoreCase)
+                    || actualName.Contains(expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    return expected;
+                }
+            }
+
+            return null;
         }
 
         private async Task<(bool Success, string Message)> WaitForDockerStackReadyAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
@@ -1118,6 +1137,7 @@ namespace RauskuClaw.GUI.ViewModels
                     var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
                     if (read <= 0)
                     {
+                        ReportLog(progress, "[serial] stream closed by guest or QEMU.");
                         break;
                     }
 

@@ -7,10 +7,12 @@
              d:DesignHeight="400" d:DesignWidth="700"
              Background="#151A22">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="8">
-            <TextBlock Text="Choose a workspace template to get started:" FontSize="14" Foreground="#E6EAF2" Margin="0,0,0,12"/>
+        <StackPanel Margin="4">
+            <TextBlock Text="Choose a workspace template to get started:"
+                       FontSize="13"
+                       Foreground="#E6EAF2"
+                       Margin="0,0,0,8"/>
 
-            <!-- Templates List -->
             <ItemsControl ItemsSource="{Binding Templates}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -18,8 +20,8 @@
                                 BorderBrush="{Binding IsSelected, Converter={StaticResource BoolToBorderColorConverter}}"
                                 BorderThickness="2"
                                 CornerRadius="4"
-                                Padding="16"
-                                Margin="0,4,0,4"
+                                Padding="12"
+                                Margin="0,3,0,3"
                                 Cursor="Hand">
                             <Border.InputBindings>
                                 <MouseBinding Gesture="LeftClick" Command="{Binding SelectTemplateCommand}" CommandParameter="{Binding}"/>
@@ -30,42 +32,38 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Icon -->
-                                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="32" Margin="0,0,16,0" VerticalAlignment="Top"/>
+                                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Top"/>
 
-                                <!-- Content -->
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2"/>
-                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Foreground="#E6EAF2"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,3,0,6"/>
 
-                                    <!-- Resources Info -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <Border Background="#2A3240" Padding="8,4" CornerRadius="4" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Border Background="#2A3240" Padding="6,3" CornerRadius="4" Margin="0,0,6,0">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="⚙" FontSize="12" Margin="0,0,4,0"/>
-                                                <TextBlock Text="{Binding CpuCores}" FontSize="11" Foreground="#E6EAF2"/>
-                                                <TextBlock Text=" cores" FontSize="11" Foreground="#9AA3B2" Margin="4,0,0,0"/>
+                                                <TextBlock Text="CPU" FontSize="10" Margin="0,0,4,0" Foreground="#9AA3B2"/>
+                                                <TextBlock Text="{Binding CpuCores}" FontSize="10" Foreground="#E6EAF2"/>
+                                                <TextBlock Text=" cores" FontSize="10" Foreground="#9AA3B2" Margin="4,0,0,0"/>
                                             </StackPanel>
                                         </Border>
 
-                                        <Border Background="#2A3240" Padding="8,4" CornerRadius="4" Margin="0,0,8,0">
+                                        <Border Background="#2A3240" Padding="6,3" CornerRadius="4" Margin="0,0,6,0">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="💾" FontSize="12" Margin="0,0,4,0"/>
-                                                <TextBlock Text="{Binding MemoryMb}" FontSize="11" Foreground="#E6EAF2"/>
-                                                <TextBlock Text=" MB RAM" FontSize="11" Foreground="#9AA3B2" Margin="4,0,0,0"/>
+                                                <TextBlock Text="RAM" FontSize="10" Margin="0,0,4,0" Foreground="#9AA3B2"/>
+                                                <TextBlock Text="{Binding MemoryMb}" FontSize="10" Foreground="#E6EAF2"/>
+                                                <TextBlock Text=" MB" FontSize="10" Foreground="#9AA3B2" Margin="4,0,0,0"/>
                                             </StackPanel>
                                         </Border>
 
-                                        <Border Background="#23455f" Padding="8,4" CornerRadius="4">
+                                        <Border Background="#23455f" Padding="6,3" CornerRadius="4">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="🏷" FontSize="12" Margin="0,0,4,0"/>
-                                                <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#E6EAF2"/>
+                                                <TextBlock Text="Type" FontSize="10" Margin="0,0,4,0" Foreground="#9AA3B2"/>
+                                                <TextBlock Text="{Binding Category}" FontSize="10" Foreground="#E6EAF2"/>
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
 
-                                    <!-- Services Tags -->
-                                    <ItemsControl ItemsSource="{Binding EnabledServices}" Margin="0,8,0,0">
+                                    <ItemsControl ItemsSource="{Binding EnabledServices}" Margin="0,6,0,0">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <WrapPanel Orientation="Horizontal"/>
@@ -73,16 +71,17 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#1a2f38" Padding="6,3" CornerRadius="3" Margin="0,0,4,0">
-                                                    <TextBlock Text="{Binding}" FontSize="10" Foreground="#4DA3FF"/>
+                                                <Border Background="#1a2f38" Padding="5,2" CornerRadius="3" Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding}" FontSize="9" Foreground="#4DA3FF"/>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
 
-                                <!-- Selection Indicator -->
-                                <Ellipse Grid.Column="1" Width="16" Height="16"
+                                <Ellipse Grid.Column="1"
+                                         Width="14"
+                                         Height="14"
                                          VerticalAlignment="Top"
                                          HorizontalAlignment="Right"
                                          Fill="{Binding IsSelected, Converter={StaticResource BoolToFillConverter}}"
@@ -94,23 +93,25 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- Custom Template Option -->
-            <Border Background="#0A0C0E" BorderBrush="#2A3240" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,8,0,0" Cursor="Hand">
+            <Border Background="#0A0C0E" BorderBrush="#2A3240" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,6,0,0" Cursor="Hand">
                 <Border.InputBindings>
                     <MouseBinding Gesture="LeftClick" Command="{Binding SelectCustomCommand}"/>
                 </Border.InputBindings>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="🎨" FontSize="24" Margin="0,0,12,0"/>
+                    <TextBlock Text="*" FontSize="20" Margin="0,0,12,0"/>
                     <StackPanel>
-                        <TextBlock Text="Custom Configuration" FontSize="14" FontWeight="SemiBold" Foreground="#E6EAF2"/>
-                        <TextBlock Text="Configure all settings manually in the next steps" FontSize="11" Foreground="#9AA3B2"/>
+                        <TextBlock Text="Custom Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EAF2"/>
+                        <TextBlock Text="Configure all settings manually in the next steps" FontSize="10" Foreground="#9AA3B2"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Description Info -->
-            <TextBlock Text="💡 Templates provide pre-configured settings for common use cases. You can customize these settings in the next steps."
-                       FontSize="11" Foreground="#6A7382" FontStyle="Italic" Margin="0,12,0,0"/>
+            <TextBlock Text="Tip: You can still fine-tune all values in the next steps."
+                       FontSize="10"
+                       Foreground="#6A7382"
+                       FontStyle="Italic"
+                       Margin="0,8,0,0"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
+

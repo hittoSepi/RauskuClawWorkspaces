@@ -7,6 +7,7 @@
         xmlns:models="clr-namespace:RauskuClaw.Models"
         xmlns:viewModels="clr-namespace:RauskuClaw.GUI.ViewModels"
         xmlns:views="clr-namespace:RauskuClaw.GUI.Views"
+        xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
         mc:Ignorable="d"
         Title="RauskuClaw - AI Workspaces"
         Height="700" Width="1200"
@@ -23,13 +24,17 @@
                         <TextBlock Text="RauskuClaw" FontSize="22" Foreground="#4DA3FF" FontWeight="Bold" VerticalAlignment="Center"/>
                     </DockPanel>
                     <TextBlock Text="AI Workspaces" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12"/>
-                    <Button Content="+ New Workspace"
-                            Command="{Binding NewWorkspaceCommand}"
+                    <Button Command="{Binding NewWorkspaceCommand}"
                             Background="#2A3240"
                             Foreground="#E6EAF2"
                             BorderThickness="0"
                             Padding="12,8"
-                            Cursor="Hand"/>
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Plus" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="New Workspace" Foreground="#E6EAF2"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- Workspace List -->
@@ -167,25 +172,45 @@
 
                     <!-- VM Control Buttons -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button Content="Start"
+                        <Button
                                 Command="{Binding StartVmCommand}"
                                 Style="{StaticResource GreenButton}"
                                 Padding="16,8"
-                                Margin="0,0,8,0"/>
-                        <Button Content="Stop"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Play" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Start" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
+                        <Button
                                 Command="{Binding StopVmCommand}"
                                 Style="{StaticResource RedButton}"
                                 Padding="16,8"
-                                Margin="0,0,8,0"/>
-                        <Button Content="Restart"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Stop" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Stop" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
+                        <Button
                                 Command="{Binding RestartVmCommand}"
                                 Style="{StaticResource SecondaryButton}"
                                 Padding="16,8"
-                                Margin="0,0,8,0"/>
-                        <Button Content="Delete"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Refresh" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Restart" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
+                        <Button
                                 Command="{Binding DeleteWorkspaceCommand}"
                                 Style="{StaticResource SecondaryButton}"
-                                Padding="16,8"/>
+                                Padding="16,8">
+                            <StackPanel Orientation="Horizontal">
+                                <fa:IconBlock Icon="Trash" Style="{StaticResource FaIconInline}"/>
+                                <TextBlock Text="Delete" Foreground="#E6EAF2"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -225,7 +250,13 @@
 
             <!-- Tab Control: Views -->
             <TabControl Background="#0F1115" BorderThickness="0">
-                <TabItem Header="Web UI" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Globe" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="Web UI"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding WebUi}">
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
@@ -234,7 +265,13 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Header="Serial Console" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Terminal" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="Serial Console"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding SerialConsole}">
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
@@ -243,7 +280,13 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Header="Docker" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Cubes" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="Docker"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding DockerContainers}">
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
@@ -252,7 +295,13 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Header="SSH Terminal" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Terminal" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="SSH Terminal"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding SshTerminal}">
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
@@ -261,7 +310,13 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Header="SFTP" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="SFTP"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding SftpFiles}">
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
@@ -270,7 +325,13 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Header="Settings" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Cog" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="Settings"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <ContentControl Content="{Binding Settings}">
                         <ContentControl.ContentTemplate>
                             <DataTemplate>
@@ -279,7 +340,13 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Header="VM Logs" Padding="16,8">
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="ListAlt" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="VM Logs"/>
+                        </StackPanel>
+                    </TabItem.Header>
                     <TextBox Text="{Binding VmLog, Mode=OneWay}"
                              IsReadOnly="True"
                              Background="#0A0C0E"
@@ -294,3 +361,4 @@
         </DockPanel>
     </DockPanel>
 </Window>
+

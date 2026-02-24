@@ -3,15 +3,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="800"
              Background="#0F1115">
     <DockPanel LastChildFill="True">
         <!-- Toolbar -->
-        <DockPanel DockPanel.Dock="Top">
+        <DockPanel DockPanel.Dock="Top" LastChildFill="False">
             <TextBlock Text="SSH Terminal" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding ConnectionInfo}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
-            <Button Content="Copy"
+            <Button
                     Command="{Binding CopyOutputCommand}"
                     Background="#2A3240"
                     Foreground="#E6EAF2"
@@ -19,8 +20,13 @@
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
-                    Margin="0,8,8,8"/>
-            <Button Content="Save"
+                    Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Copy" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Copy" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+            <Button
                     Command="{Binding SaveOutputCommand}"
                     Background="#2A3240"
                     Foreground="#E6EAF2"
@@ -28,8 +34,13 @@
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
-                    Margin="0,8,8,8"/>
-            <Button Content="Disconnect"
+                    Margin="0,8,8,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Save" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Save" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+            <Button
                     Command="{Binding DisconnectCommand}"
                     Background="#DA3633"
                     Foreground="White"
@@ -37,7 +48,12 @@
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
-                    Margin="0,8,12,8"/>
+                    Margin="0,8,12,8">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="Plug" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Disconnect" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
         </DockPanel>
 
         <!-- Not connected indicator -->
@@ -46,7 +62,7 @@
                 Padding="12,8"
                 Visibility="{Binding ShowWarning, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="?" FontSize="16" Margin="0,0,8,0"/>
+                <fa:IconBlock Icon="ExclamationTriangle" Width="14" Height="14" Foreground="#0F1115" Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding WarningText}"
                            FontWeight="SemiBold"/>
             </StackPanel>
@@ -86,3 +102,4 @@
                  TextWrapping="NoWrap"/>
     </DockPanel>
 </UserControl>
+

@@ -122,7 +122,7 @@
               "RelativeDocumentMoniker": "GUI\\ViewModels\\MainViewModel.cs",
               "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\ViewModels\\MainViewModel.cs",
               "RelativeToolTip": "GUI\\ViewModels\\MainViewModel.cs",
-              "ViewState": "AgIAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAUAAAAAAAAAAIBJwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-02-23T05:14:49.773Z",
               "EditorCaption": ""
@@ -173,7 +173,8 @@
               "RelativeToolTip": "GUI\\Views\\WizardWindow.xaml.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-22T23:16:01.43Z"
+              "WhenOpened": "2026-02-22T23:16:01.43Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -185,7 +186,8 @@
               "RelativeToolTip": "GUI\\Views\\Steps\\Step1User.xaml.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-22T23:16:32.42Z"
+              "WhenOpened": "2026-02-22T23:16:32.42Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -197,7 +199,8 @@
               "RelativeToolTip": "GUI\\Views\\Steps\\Step3Run.xaml.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-23T01:42:14.026Z"
+              "WhenOpened": "2026-02-23T01:42:14.026Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -208,7 +211,8 @@
               "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step3Run.xaml",
               "RelativeToolTip": "GUI\\Views\\Steps\\Step3Run.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-02-22T22:34:47.945Z"
+              "WhenOpened": "2026-02-22T22:34:47.945Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -219,7 +223,8 @@
               "ToolTip": "D:\\RauskuClaw\\GUI\\RauskuClaw\\GUI\\Views\\Steps\\Step1User.xaml",
               "RelativeToolTip": "GUI\\Views\\Steps\\Step1User.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-02-22T22:34:14.294Z"
+              "WhenOpened": "2026-02-22T22:34:14.294Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -231,7 +236,8 @@
               "RelativeToolTip": "GUI\\ViewModels\\RelayCommand.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-22T23:49:45.409Z"
+              "WhenOpened": "2026-02-22T23:49:45.409Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -243,7 +249,8 @@
               "RelativeToolTip": "Models\\VmProfile.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-22T23:27:43.643Z"
+              "WhenOpened": "2026-02-22T23:27:43.643Z",
+              "EditorCaption": ""
             }
           ]
         },

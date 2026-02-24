@@ -24,8 +24,8 @@ namespace RauskuClaw.GUI.ViewModels
             "rauskuclaw-api",
             "rauskuclaw-worker",
             "rauskuclaw-ollama",
-            "rauskuclaw-ui",
-            "rauskuclaw-ui-v2"
+            "rauskuclaw-ui-v2",
+            "rauskuclaw-ui"
         };
 
         private readonly DockerService _dockerService;
@@ -266,14 +266,22 @@ namespace RauskuClaw.GUI.ViewModels
 
         private static List<DockerService.ContainerInfo> MergeExpectedContainers(List<DockerService.ContainerInfo> runningContainers)
         {
-            var byName = runningContainers
-                .Where(c => !string.IsNullOrWhiteSpace(c.Name))
-                .ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
+            var byExpectedName = new Dictionary<string, DockerService.ContainerInfo>(StringComparer.OrdinalIgnoreCase);
+            foreach (var container in runningContainers.Where(c => !string.IsNullOrWhiteSpace(c.Name)))
+            {
+                var expectedName = ResolveExpectedContainerName(container.Name);
+                if (expectedName == null || byExpectedName.ContainsKey(expectedName))
+                {
+                    continue;
+                }
+
+                byExpectedName[expectedName] = container;
+            }
 
             var merged = new List<DockerService.ContainerInfo>();
             foreach (var expected in ExpectedContainers)
             {
-                if (byName.TryGetValue(expected, out var existing))
+                if (byExpectedName.TryGetValue(expected, out var existing))
                 {
                     merged.Add(existing);
                 }
@@ -291,7 +299,7 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             // Show unexpected extra containers below expected stack services.
-            foreach (var extra in runningContainers.Where(c => !ExpectedContainers.Contains(c.Name, StringComparer.OrdinalIgnoreCase)))
+            foreach (var extra in runningContainers.Where(c => ResolveExpectedContainerName(c.Name) == null))
             {
                 merged.Add(extra);
             }
@@ -342,6 +350,29 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (runningExpected, $"Docker healthy ({runningExpected}/{ExpectedContainers.Length} expected running)");
+        }
+
+        private static string? ResolveExpectedContainerName(string? actualName)
+        {
+            if (string.IsNullOrWhiteSpace(actualName))
+            {
+                return null;
+            }
+
+            foreach (var expected in ExpectedContainers)
+            {
+                if (actualName.Equals(expected, StringComparison.OrdinalIgnoreCase)
+                    || actualName.StartsWith(expected + "-", StringComparison.OrdinalIgnoreCase)
+                    || actualName.Contains(expected + "-", StringComparison.OrdinalIgnoreCase)
+                    || actualName.StartsWith(expected + "_", StringComparison.OrdinalIgnoreCase)
+                    || actualName.Contains(expected + "_", StringComparison.OrdinalIgnoreCase)
+                    || actualName.Contains(expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    return expected;
+                }
+            }
+
+            return null;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
