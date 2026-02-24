@@ -50,6 +50,7 @@ namespace RauskuClaw.GUI.ViewModels
         private DockerContainersViewModel? _dockerContainers;
         private SshTerminalViewModel? _sshTerminal;
         private SftpFilesViewModel? _sftpFiles;
+        private HolviViewModel? _holviViewModel;
         private SettingsViewModel? _settingsViewModel;
         private string _vmLog = "";
         private string _inlineNotice = "";
@@ -127,6 +128,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_dockerContainers != null) _dockerContainers.SetWorkspace(value);
                 if (_sshTerminal != null) _sshTerminal.SetWorkspace(value);
                 if (_sftpFiles != null) _sftpFiles.SetWorkspace(value);
+                if (_holviViewModel != null) _holviViewModel.Workspace = value;
                 if (_settingsViewModel != null) _settingsViewModel.SetSelectedWorkspace(value);
                 CommandManager.InvalidateRequerySuggested();
             }
@@ -222,6 +224,22 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+
+        public HolviViewModel? Holvi
+        {
+            get => _holviViewModel;
+            set
+            {
+                _holviViewModel = value;
+                if (_holviViewModel != null)
+                {
+                    _holviViewModel.Workspace = SelectedWorkspace;
+                    _holviViewModel.SetSettingsViewModel(_settingsViewModel);
+                }
+                OnPropertyChanged();
+            }
+        }
+
         public SettingsViewModel? Settings
         {
             get => _settingsViewModel;
@@ -229,6 +247,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 _settingsViewModel = value;
                 _settingsViewModel?.SetSelectedWorkspace(SelectedWorkspace);
+                _holviViewModel?.SetSettingsViewModel(_settingsViewModel);
                 OnPropertyChanged();
             }
         }

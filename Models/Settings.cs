@@ -29,6 +29,7 @@ namespace RauskuClaw.Models
         private string? _holviProjectIdSecretRef;
         private string? _infisicalClientIdSecretRef;
         private string? _infisicalClientSecretSecretRef;
+        private string _holviBaseUrl = "http://127.0.0.1:8099";
 
         // QEMU Settings
         public string QemuPath
@@ -154,6 +155,13 @@ namespace RauskuClaw.Models
         {
             get => _infisicalClientSecretSecretRef;
             set { _infisicalClientSecretSecretRef = value; OnPropertyChanged(); }
+        }
+
+
+        public string HolviBaseUrl
+        {
+            get => _holviBaseUrl;
+            set { _holviBaseUrl = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

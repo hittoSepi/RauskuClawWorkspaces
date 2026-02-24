@@ -367,6 +367,21 @@
                 <TabItem Padding="16,8">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Key" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="HOLVI"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ContentControl Content="{Binding Holvi}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:HolviView/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
                             <fa:IconBlock Icon="Cog" Style="{StaticResource FaIconInline}"/>
                             <TextBlock Text="Settings"/>
                         </StackPanel>

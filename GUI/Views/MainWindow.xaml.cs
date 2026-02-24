@@ -23,12 +23,13 @@ namespace RauskuClaw.GUI.Views
             // Initialize child ViewModels
             if (_mainViewModel is MainViewModel vm)
             {
+                vm.Settings = new SettingsViewModel(settingsService, pathResolver);
                 vm.WebUi = new WebUiViewModel();
                 vm.SerialConsole = new SerialConsoleViewModel();
                 vm.DockerContainers = new DockerContainersViewModel();
                 vm.SshTerminal = new SshTerminalViewModel();
                 vm.SftpFiles = new SftpFilesViewModel();
-                vm.Settings = new SettingsViewModel(settingsService, pathResolver);
+                vm.Holvi = new HolviViewModel(vm.Settings);
             }
         }
 

@@ -92,6 +92,7 @@ namespace RauskuClaw.Services
                     settings.HolviProjectIdSecretRef = data.HolviProjectIdSecretRef;
                     settings.InfisicalClientIdSecretRef = data.InfisicalClientIdSecretRef;
                     settings.InfisicalClientSecretSecretRef = data.InfisicalClientSecretSecretRef;
+                    settings.HolviBaseUrl = string.IsNullOrWhiteSpace(data.HolviBaseUrl) ? "http://127.0.0.1:8099" : data.HolviBaseUrl;
 
                     return TryMigrateLegacySecrets(settings, data);
                 }
@@ -141,7 +142,8 @@ namespace RauskuClaw.Services
                 HolviApiKeySecretRef = settings.HolviApiKeySecretRef,
                 HolviProjectIdSecretRef = settings.HolviProjectIdSecretRef,
                 InfisicalClientIdSecretRef = settings.InfisicalClientIdSecretRef,
-                InfisicalClientSecretSecretRef = settings.InfisicalClientSecretSecretRef
+                InfisicalClientSecretSecretRef = settings.InfisicalClientSecretSecretRef,
+                HolviBaseUrl = settings.HolviBaseUrl
             };
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -237,6 +239,7 @@ namespace RauskuClaw.Services
             public string? HolviProjectIdSecretRef { get; set; }
             public string? InfisicalClientIdSecretRef { get; set; }
             public string? InfisicalClientSecretSecretRef { get; set; }
+            public string? HolviBaseUrl { get; set; }
 
             // Legacy plaintext fields for one-time migration.
             public string? HolviApiKey { get; set; }
