@@ -94,11 +94,11 @@ namespace RauskuClaw.GUI.ViewModels
             _workspaceService = workspaceService ?? new WorkspaceService(pathResolver: _pathResolver);
             _qemuManager = qemuManager ?? new QemuProcessManager();
             _qmpClient = qmpClient ?? new QmpClient();
-            _portAllocator = portAllocator ?? new PortAllocatorService();
+            _appSettings = _settingsService.LoadSettings();
+            _portAllocator = portAllocator ?? new PortAllocatorService(_appSettings);
             _qcowImageService = qcowImageService ?? new QcowImageService();
             _startupOrchestrator = startupOrchestrator ?? new WorkspaceStartupOrchestrator();
             _warmupService = warmupService ?? new WorkspaceWarmupService();
-            _appSettings = _settingsService.LoadSettings();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
             EnsureWorkspaceHostDirectories();

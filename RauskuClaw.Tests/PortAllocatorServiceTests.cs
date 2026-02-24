@@ -6,9 +6,42 @@ namespace RauskuClaw.Tests;
 public class PortAllocatorServiceTests
 {
     [Fact]
-    public void AllocatePorts_FirstWorkspace_UsesExpectedDefaultPorts()
+    public void AllocatePorts_UsesSettingsStartingPortsAsSourceOfTruth()
     {
-        var service = new PortAllocatorService();
+        var settings = new Settings
+        {
+            StartingSshPort = 4022,
+            StartingApiPort = 5011,
+            StartingUiV2Port = 5013,
+            StartingUiV1Port = 5012,
+            StartingQmpPort = 5444,
+            StartingSerialPort = 5556
+        };
+        var service = new PortAllocatorService(settings);
+
+        var allocation = service.AllocatePorts();
+
+        Assert.Equal(4022, allocation.Ssh);
+        Assert.Equal(5011, allocation.Api);
+        Assert.Equal(5013, allocation.UiV2);
+        Assert.Equal(5012, allocation.UiV1);
+        Assert.Equal(5444, allocation.Qmp);
+        Assert.Equal(5556, allocation.Serial);
+    }
+
+    [Fact]
+    public void AllocatePorts_WhenSettingsAreInvalid_FallsBackToDefaults()
+    {
+        var invalid = new Settings
+        {
+            StartingSshPort = -1,
+            StartingApiPort = 0,
+            StartingUiV2Port = 70000,
+            StartingUiV1Port = 3012,
+            StartingQmpPort = 4444,
+            StartingSerialPort = 5555
+        };
+        var service = new PortAllocatorService(invalid);
 
         var allocation = service.AllocatePorts();
 
@@ -21,44 +54,31 @@ public class PortAllocatorServiceTests
     }
 
     [Fact]
-    public void AllocatePorts_WhenRequestedPortsCollide_FallsBackToAutoAssignedPorts()
+    public void AllocatePorts_IsDeterministicForMultipleWorkspaces()
     {
-        var service = new PortAllocatorService();
-        var first = service.AllocatePorts();
-
-        var requested = new PortAllocation
+        var settings = new Settings
         {
-            Ssh = first.Ssh,
-            Api = first.Api,
-            UiV2 = first.UiV2,
-            UiV1 = first.UiV1,
-            Qmp = first.Qmp,
-            Serial = first.Serial
+            StartingSshPort = 2222,
+            StartingApiPort = 3011,
+            StartingUiV2Port = 3013,
+            StartingUiV1Port = 3012,
+            StartingQmpPort = 4444,
+            StartingSerialPort = 5555
         };
+        var service = new PortAllocatorService(settings);
 
-        var second = service.AllocatePorts(requested);
-
-        Assert.NotEqual(first.Ssh, second.Ssh);
-        Assert.Equal(2322, second.Ssh);
-        Assert.Equal(2332, second.Api);
-        Assert.Equal(3113, second.UiV2);
-        Assert.Equal(3112, second.UiV1);
-        Assert.Equal(4544, second.Qmp);
-        Assert.Equal(5655, second.Serial);
-    }
-
-    [Fact]
-    public void ReleasePorts_MakesReleasedRangeAvailableAgain()
-    {
-        var service = new PortAllocatorService();
         var first = service.AllocatePorts();
         var second = service.AllocatePorts();
-
-        service.ReleasePorts(first);
-
         var third = service.AllocatePorts();
 
-        Assert.Equal(first.Ssh, third.Ssh);
-        Assert.Equal(second.Ssh, 2322);
+        Assert.Equal(2222, first.Ssh);
+        Assert.Equal(2322, second.Ssh);
+        Assert.Equal(2422, third.Ssh);
+        Assert.Equal(3011, first.Api);
+        Assert.Equal(3111, second.Api);
+        Assert.Equal(3211, third.Api);
+        Assert.Equal(3013, first.UiV2);
+        Assert.Equal(3113, second.UiV2);
+        Assert.Equal(3213, third.UiV2);
     }
 }
