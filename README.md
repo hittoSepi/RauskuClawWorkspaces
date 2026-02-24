@@ -66,6 +66,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - [Task 13: Wizard Port Collision Hardening](docs/tasks/013-wizard-port-collision-hardening.md)
 - [Task 14: SFTP UX and Host Workspace Visibility](docs/tasks/014-sftp-ux-and-hostpath.md)
 - [Task 15: HOLVI WebView Tab & Infisical Access Flow](docs/tasks/015-holvi-webview-tab-proposal.md)
+- [Task 16: Hardening & Regression Baseline](docs/tasks/016-hardening-and-regression-baseline.md)
 
 ## Requirements
 
