@@ -9,6 +9,13 @@ namespace RauskuClaw.Services
     /// </summary>
     public sealed class QcowImageService
     {
+        private readonly IProcessRunner _processRunner;
+
+        public QcowImageService(IProcessRunner? processRunner = null)
+        {
+            _processRunner = processRunner ?? new ProcessRunner();
+        }
+
         public bool EnsureOverlayDisk(string qemuSystemPath, string baseDiskPath, string overlayDiskPath, out string error)
         {
             error = string.Empty;
@@ -56,20 +63,11 @@ namespace RauskuClaw.Services
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(psi);
-                if (process == null)
-                {
-                    error = $"Failed to start {qemuImg}.";
-                    return false;
-                }
+                var processResult = _processRunner.Run(psi);
 
-                var stdOut = process.StandardOutput.ReadToEnd();
-                var stdErr = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
+                if (processResult.ExitCode != 0)
                 {
-                    error = $"qemu-img failed (exit {process.ExitCode}): {stdErr} {stdOut}".Trim();
+                    error = $"qemu-img failed (exit {processResult.ExitCode}): {processResult.StandardError} {processResult.StandardOutput}".Trim();
                     return false;
                 }
 
