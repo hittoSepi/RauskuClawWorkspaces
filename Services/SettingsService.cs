@@ -11,36 +11,59 @@ namespace RauskuClaw.Services
         public string SettingsFileName { get; init; } = "settings.json";
     }
 
+    public sealed class SettingsLoadResult
+    {
+        public Settings Settings { get; init; } = new();
+        public bool MigrationPerformed { get; init; }
+        public string? MigrationMessage { get; init; }
+        public string? MigrationError { get; init; }
+    }
+
     /// <summary>
     /// Service for managing application settings - save, load, reset.
     /// </summary>
     public class SettingsService
     {
+        public const string HolviApiKeySecretKey = "settings/holvi-api-key";
+        public const string HolviProjectIdSecretKey = "settings/holvi-project-id";
+        public const string InfisicalClientIdSecretKey = "settings/infisical-client-id";
+        public const string InfisicalClientSecretKey = "settings/infisical-client-secret";
+
         private readonly SettingsServiceOptions _options;
         private readonly AppPathResolver _pathResolver;
+        private readonly SecretStorageService _secretStorageService;
 
-        public SettingsService(SettingsServiceOptions? options = null, AppPathResolver? pathResolver = null)
+        public SettingsService(
+            SettingsServiceOptions? options = null,
+            AppPathResolver? pathResolver = null,
+            SecretStorageService? secretStorageService = null)
         {
             _options = options ?? new SettingsServiceOptions();
             _pathResolver = pathResolver ?? new AppPathResolver();
+            _secretStorageService = secretStorageService ?? new SecretStorageService(_pathResolver);
         }
+
+        public Settings LoadSettings() => LoadSettingsWithResult().Settings;
 
         /// <summary>
         /// Load settings from disk. Returns default settings if file doesn't exist.
+        /// Also migrates legacy plaintext secrets to secure storage.
         /// </summary>
-        public Settings LoadSettings()
+        public SettingsLoadResult LoadSettingsWithResult()
         {
             var settings = new Settings();
             var settingsDir = _pathResolver.ResolveSettingsDirectory(_options.SettingsDirectory);
 
             if (!Directory.Exists(settingsDir))
+            {
                 Directory.CreateDirectory(settingsDir);
+            }
 
             var filePath = _pathResolver.ResolveSettingsFilePath(_options.SettingsDirectory, _options.SettingsFileName);
             if (!File.Exists(filePath))
             {
                 SaveSettings(settings);
-                return settings;
+                return new SettingsLoadResult { Settings = settings };
             }
 
             try
@@ -65,10 +88,12 @@ namespace RauskuClaw.Services
                     settings.AutoStartVMs = data.AutoStartVMs;
                     settings.MinimizeToTray = data.MinimizeToTray;
                     settings.CheckUpdates = data.CheckUpdates;
-                    settings.HolviApiKey = data.HolviApiKey;
-                    settings.HolviProjectId = data.HolviProjectId;
-                    settings.InfisicalClientId = data.InfisicalClientId;
-                    settings.InfisicalClientSecret = data.InfisicalClientSecret;
+                    settings.HolviApiKeySecretRef = data.HolviApiKeySecretRef;
+                    settings.HolviProjectIdSecretRef = data.HolviProjectIdSecretRef;
+                    settings.InfisicalClientIdSecretRef = data.InfisicalClientIdSecretRef;
+                    settings.InfisicalClientSecretSecretRef = data.InfisicalClientSecretSecretRef;
+
+                    return TryMigrateLegacySecrets(settings, data);
                 }
             }
             catch
@@ -76,7 +101,17 @@ namespace RauskuClaw.Services
                 SaveSettings(settings);
             }
 
-            return settings;
+            return new SettingsLoadResult { Settings = settings };
+        }
+
+        public string? LoadSecret(string? secretRef)
+        {
+            return _secretStorageService.GetSecret(secretRef);
+        }
+
+        public string StoreSecret(string secretKey, string? value)
+        {
+            return _secretStorageService.StoreSecret(secretKey, value);
         }
 
         public void SaveSettings(Settings settings)
@@ -103,10 +138,10 @@ namespace RauskuClaw.Services
                 AutoStartVMs = settings.AutoStartVMs,
                 MinimizeToTray = settings.MinimizeToTray,
                 CheckUpdates = settings.CheckUpdates,
-                HolviApiKey = settings.HolviApiKey,
-                HolviProjectId = settings.HolviProjectId,
-                InfisicalClientId = settings.InfisicalClientId,
-                InfisicalClientSecret = settings.InfisicalClientSecret
+                HolviApiKeySecretRef = settings.HolviApiKeySecretRef,
+                HolviProjectIdSecretRef = settings.HolviProjectIdSecretRef,
+                InfisicalClientIdSecretRef = settings.InfisicalClientIdSecretRef,
+                InfisicalClientSecretSecretRef = settings.InfisicalClientSecretSecretRef
             };
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -118,8 +153,65 @@ namespace RauskuClaw.Services
         public Settings ResetSettings()
         {
             var settings = new Settings();
+            _secretStorageService.DeleteSecret(HolviApiKeySecretKey);
+            _secretStorageService.DeleteSecret(HolviProjectIdSecretKey);
+            _secretStorageService.DeleteSecret(InfisicalClientIdSecretKey);
+            _secretStorageService.DeleteSecret(InfisicalClientSecretKey);
             SaveSettings(settings);
             return settings;
+        }
+
+        private SettingsLoadResult TryMigrateLegacySecrets(Settings settings, SettingsData data)
+        {
+            var hasLegacySecrets =
+                !string.IsNullOrWhiteSpace(data.HolviApiKey)
+                || !string.IsNullOrWhiteSpace(data.HolviProjectId)
+                || !string.IsNullOrWhiteSpace(data.InfisicalClientId)
+                || !string.IsNullOrWhiteSpace(data.InfisicalClientSecret);
+
+            if (!hasLegacySecrets)
+            {
+                return new SettingsLoadResult { Settings = settings };
+            }
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(data.HolviApiKey))
+                {
+                    settings.HolviApiKeySecretRef = StoreSecret(HolviApiKeySecretKey, data.HolviApiKey);
+                }
+
+                if (!string.IsNullOrWhiteSpace(data.HolviProjectId))
+                {
+                    settings.HolviProjectIdSecretRef = StoreSecret(HolviProjectIdSecretKey, data.HolviProjectId);
+                }
+
+                if (!string.IsNullOrWhiteSpace(data.InfisicalClientId))
+                {
+                    settings.InfisicalClientIdSecretRef = StoreSecret(InfisicalClientIdSecretKey, data.InfisicalClientId);
+                }
+
+                if (!string.IsNullOrWhiteSpace(data.InfisicalClientSecret))
+                {
+                    settings.InfisicalClientSecretSecretRef = StoreSecret(InfisicalClientSecretKey, data.InfisicalClientSecret);
+                }
+
+                SaveSettings(settings);
+                return new SettingsLoadResult
+                {
+                    Settings = settings,
+                    MigrationPerformed = true,
+                    MigrationMessage = "Legacy secrets migrated to secure storage successfully."
+                };
+            }
+            catch (Exception ex)
+            {
+                return new SettingsLoadResult
+                {
+                    Settings = settings,
+                    MigrationError = $"Secret migration failed: {ex.Message}"
+                };
+            }
         }
 
         private class SettingsData
@@ -140,6 +232,13 @@ namespace RauskuClaw.Services
             public bool AutoStartVMs { get; set; }
             public bool MinimizeToTray { get; set; }
             public bool CheckUpdates { get; set; }
+
+            public string? HolviApiKeySecretRef { get; set; }
+            public string? HolviProjectIdSecretRef { get; set; }
+            public string? InfisicalClientIdSecretRef { get; set; }
+            public string? InfisicalClientSecretSecretRef { get; set; }
+
+            // Legacy plaintext fields for one-time migration.
             public string? HolviApiKey { get; set; }
             public string? HolviProjectId { get; set; }
             public string? InfisicalClientId { get; set; }

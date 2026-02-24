@@ -29,12 +29,18 @@ namespace RauskuClaw.GUI.ViewModels
         private string _portWarningMessage = string.Empty;
         private readonly ObservableCollection<int> _defaultCpuCoreOptions = new();
         private readonly ObservableCollection<int> _defaultMemoryOptions = new();
+        private string? _holviApiKey;
+        private string? _holviProjectId;
+        private string? _infisicalClientId;
+        private string? _infisicalClientSecret;
 
         public SettingsViewModel(SettingsService? settingsService = null, AppPathResolver? pathResolver = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
             _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
-            _settings = _settingsService.LoadSettings();
+            var loadResult = _settingsService.LoadSettingsWithResult();
+            _settings = loadResult.Settings;
+            LoadSecretsFromSecureStore();
             BuildCpuCoreOptions();
             BuildMemoryOptions();
             if (_settings.DefaultCpuCores > HostLogicalCpuCount)
@@ -46,6 +52,15 @@ namespace RauskuClaw.GUI.ViewModels
                 _settings.DefaultMemoryMb = HostMemoryLimitMb;
             }
             RefreshPortWarning();
+
+            if (!string.IsNullOrWhiteSpace(loadResult.MigrationError))
+            {
+                StatusMessage = loadResult.MigrationError;
+            }
+            else if (loadResult.MigrationPerformed)
+            {
+                StatusMessage = loadResult.MigrationMessage ?? "Secrets migrated to secure storage.";
+            }
 
             SaveCommand = new RelayCommand(SaveSettings);
             ResetCommand = new RelayCommand(ResetSettings);
@@ -231,26 +246,26 @@ namespace RauskuClaw.GUI.ViewModels
         // Secret Manager Settings
         public string? HolviApiKey
         {
-            get => _settings.HolviApiKey;
-            set { _settings.HolviApiKey = value; OnPropertyChanged(); }
+            get => _holviApiKey;
+            set { _holviApiKey = value; OnPropertyChanged(); }
         }
 
         public string? HolviProjectId
         {
-            get => _settings.HolviProjectId;
-            set { _settings.HolviProjectId = value; OnPropertyChanged(); }
+            get => _holviProjectId;
+            set { _holviProjectId = value; OnPropertyChanged(); }
         }
 
         public string? InfisicalClientId
         {
-            get => _settings.InfisicalClientId;
-            set { _settings.InfisicalClientId = value; OnPropertyChanged(); }
+            get => _infisicalClientId;
+            set { _infisicalClientId = value; OnPropertyChanged(); }
         }
 
         public string? InfisicalClientSecret
         {
-            get => _settings.InfisicalClientSecret;
-            set { _settings.InfisicalClientSecret = value; OnPropertyChanged(); }
+            get => _infisicalClientSecret;
+            set { _infisicalClientSecret = value; OnPropertyChanged(); }
         }
 
         // Commands
@@ -285,8 +300,13 @@ namespace RauskuClaw.GUI.ViewModels
                     return;
                 }
 
+                _settings.HolviApiKeySecretRef = _settingsService.StoreSecret(SettingsService.HolviApiKeySecretKey, HolviApiKey);
+                _settings.HolviProjectIdSecretRef = _settingsService.StoreSecret(SettingsService.HolviProjectIdSecretKey, HolviProjectId);
+                _settings.InfisicalClientIdSecretRef = _settingsService.StoreSecret(SettingsService.InfisicalClientIdSecretKey, InfisicalClientId);
+                _settings.InfisicalClientSecretSecretRef = _settingsService.StoreSecret(SettingsService.InfisicalClientSecretKey, InfisicalClientSecret);
+
                 _settingsService.SaveSettings(_settings);
-                StatusMessage = $"Saved at {DateTime.Now:HH:mm:ss}";
+                StatusMessage = $"Saved securely at {DateTime.Now:HH:mm:ss}";
             }
             catch (Exception ex)
             {
@@ -297,6 +317,7 @@ namespace RauskuClaw.GUI.ViewModels
         private void ResetSettings()
         {
             _settings = _settingsService.ResetSettings();
+            LoadSecretsFromSecureStore();
             OnPropertyChanged(nameof(QemuPath));
             OnPropertyChanged(nameof(VmBasePath));
             OnPropertyChanged(nameof(WorkspaceRootPath));
@@ -427,6 +448,14 @@ namespace RauskuClaw.GUI.ViewModels
 
             var parent = Path.GetDirectoryName(path);
             return !string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent) ? parent : null;
+        }
+
+        private void LoadSecretsFromSecureStore()
+        {
+            _holviApiKey = _settingsService.LoadSecret(_settings.HolviApiKeySecretRef);
+            _holviProjectId = _settingsService.LoadSecret(_settings.HolviProjectIdSecretRef);
+            _infisicalClientId = _settingsService.LoadSecret(_settings.InfisicalClientIdSecretRef);
+            _infisicalClientSecret = _settingsService.LoadSecret(_settings.InfisicalClientSecretSecretRef);
         }
 
         private void BuildCpuCoreOptions()
