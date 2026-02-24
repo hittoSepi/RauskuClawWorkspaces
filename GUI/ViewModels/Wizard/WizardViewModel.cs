@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 namespace RauskuClaw.GUI.ViewModels
 {
-    public sealed class WizardViewModel : INotifyPropertyChanged
+    public sealed partial class WizardViewModel : INotifyPropertyChanged
     {
         private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
         private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
