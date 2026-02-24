@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800"
              Background="#0F1115">
@@ -12,12 +11,7 @@
             <DockPanel DockPanel.Dock="Top" LastChildFill="False">
                 <TextBlock Text="Docker Containers" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
                 <TextBlock Text="{Binding StatusText}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
-                <Button Command="{Binding RefreshCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8">
-                    <StackPanel Orientation="Horizontal">
-                        <fa:IconBlock Icon="Refresh" Style="{StaticResource FaIconInline}"/>
-                        <TextBlock Text="Refresh" Foreground="#E6EAF2"/>
-                    </StackPanel>
-                </Button>
+                <Button Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryIconButton}" Tag="ArrowsRotate" Content="Refresh" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8"/>
             </DockPanel>
 
             <!-- Loading indicator -->
@@ -45,26 +39,18 @@
 
                                     <StackPanel Grid.Column="3" Orientation="Horizontal">
                                         <Button Command="{Binding RestartCommand}"
-                                                Background="#2A3240" Foreground="#E6EAF2"
-                                                BorderThickness="0"
+                                                Style="{StaticResource SecondaryIconButton}"
+                                                Tag="ArrowsRotate"
+                                                Content="Restart"
                                                 Padding="8,4"
                                                 Margin="0,0,4,0"
-                                                Cursor="Hand">
-                                            <StackPanel Orientation="Horizontal">
-                                                <fa:IconBlock Icon="Refresh" Style="{StaticResource FaIconInline}"/>
-                                                <TextBlock Text="Restart" Foreground="#E6EAF2"/>
-                                            </StackPanel>
-                                        </Button>
+                                                Cursor="Hand"/>
                                         <Button Command="{Binding ShowLogsCommand}"
-                                                Background="#2A3240" Foreground="#E6EAF2"
-                                                BorderThickness="0"
+                                                Style="{StaticResource SecondaryIconButton}"
+                                                Tag="List"
+                                                Content="Logs"
                                                 Padding="8,4"
-                                                Cursor="Hand">
-                                            <StackPanel Orientation="Horizontal">
-                                                <fa:IconBlock Icon="ListAlt" Style="{StaticResource FaIconInline}"/>
-                                                <TextBlock Text="Logs" Foreground="#E6EAF2"/>
-                                            </StackPanel>
-                                        </Button>
+                                                Cursor="Hand"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -88,19 +74,14 @@
                                  Padding="8"/>
                         <Button
                                 Command="{Binding CloseLogsCommand}"
-                                Background="#2A3240"
-                                Foreground="#E6EAF2"
-                                BorderThickness="0"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="Xmark"
+                                Content="Close"
                                 Padding="12,4"
                                 HorizontalAlignment="Right"
                                 DockPanel.Dock="Bottom"
                                 Margin="0,12,0,0"
-                                Cursor="Hand">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Times" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Close" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Cursor="Hand"/>
                     </DockPanel>
                 </Border>
             </Popup>

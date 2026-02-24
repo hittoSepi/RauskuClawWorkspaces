@@ -12,8 +12,80 @@
         Title="RauskuClaw - AI Workspaces"
         Height="700" Width="1200"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        MinWidth="1000"
+        MinHeight="620"
         Background="#0F1115">
-    <DockPanel>
+    <Window.Resources>
+        <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#151A22"/>
+            <Setter Property="Foreground" Value="#E6EAF2"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2A3240"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1F2733"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="TitleBarCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource TitleBarButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C42B1C"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#8F1D14"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="#2A3240" BorderThickness="1" Background="#0F1115">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="46"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0"
+                  Background="#151A22"
+                  MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <DockPanel Grid.Column="0" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <Image Width="16" Height="16" Source="pack://application:,,,/Assets/rausku-icon-64.png" Margin="0,0,8,0"/>
+                    <TextBlock Text="RauskuClaw - AI Workspaces"
+                               VerticalAlignment="Center"
+                               Foreground="#E6EAF2"
+                               FontSize="13"/>
+                </DockPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Content="−" Click="MinimizeButton_OnClick"/>
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Content="□" Margin="4,0,0,0" Click="MaximizeRestoreButton_OnClick"/>
+                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Content="X" Margin="4,0,0,0" Click="CloseButton_OnClick"/>
+                </StackPanel>
+            </Grid>
+
+            <DockPanel Grid.Row="1">
         <!-- Sidebar: Workspace List -->
         <Border DockPanel.Dock="Left" Width="280" Background="#151A22" BorderBrush="#2A3240" BorderThickness="0,0,1,0">
             <DockPanel>
@@ -25,16 +97,11 @@
                     </DockPanel>
                     <TextBlock Text="AI Workspaces" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12"/>
                     <Button Command="{Binding NewWorkspaceCommand}"
-                            Background="#2A3240"
-                            Foreground="#E6EAF2"
-                            BorderThickness="0"
+                            Style="{StaticResource SecondaryIconButton}"
+                            Tag="Plus"
+                            Content="New Workspace"
                             Padding="12,8"
-                            Cursor="Hand">
-                        <StackPanel Orientation="Horizontal">
-                            <fa:IconBlock Icon="Plus" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="New Workspace" Foreground="#E6EAF2"/>
-                        </StackPanel>
-                    </Button>
+                            Cursor="Hand"/>
                 </StackPanel>
 
                 <!-- Workspace List -->
@@ -174,43 +241,31 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <Button
                                 Command="{Binding StartVmCommand}"
-                                Style="{StaticResource GreenButton}"
+                                Style="{StaticResource GreenIconButton}"
+                                Tag="Play"
+                                Content="Start"
                                 Padding="16,8"
-                                Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Play" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Start" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Margin="0,0,8,0"/>
                         <Button
                                 Command="{Binding StopVmCommand}"
-                                Style="{StaticResource RedButton}"
+                                Style="{StaticResource RedIconButton}"
+                                Tag="Stop"
+                                Content="Stop"
                                 Padding="16,8"
-                                Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Stop" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Stop" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Margin="0,0,8,0"/>
                         <Button
                                 Command="{Binding RestartVmCommand}"
-                                Style="{StaticResource SecondaryButton}"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="Refresh"
+                                Content="Restart"
                                 Padding="16,8"
-                                Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Refresh" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Restart" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Margin="0,0,8,0"/>
                         <Button
                                 Command="{Binding DeleteWorkspaceCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                Padding="16,8">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Trash" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Delete" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="Trash"
+                                Content="Delete"
+                                Padding="16,8"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -359,6 +414,8 @@
                 </TabItem>
             </TabControl>
         </DockPanel>
-    </DockPanel>
+            </DockPanel>
+        </Grid>
+    </Border>
 </Window>
 

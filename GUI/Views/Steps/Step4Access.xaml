@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
@@ -43,17 +42,12 @@
                     <Button
                             Command="{Binding CopyAccessInfoCommand}"
                             DockPanel.Dock="Right"
+                            Style="{StaticResource SecondaryIconButton}"
+                            Tag="Copy"
+                            Content="Copy"
                             Padding="8,2"
                             Margin="8,0,0,0"
-                            Background="#2A3240"
-                            Foreground="#E6EAF2"
-                            BorderThickness="0"
-                            Cursor="Hand">
-                        <StackPanel Orientation="Horizontal">
-                            <fa:IconBlock Icon="Copy" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Copy" Foreground="#E6EAF2"/>
-                        </StackPanel>
-                    </Button>
+                            Cursor="Hand"/>
                 </DockPanel>
                 <TextBlock Text="{Binding AccessInfo}"
                            Style="{StaticResource MutedTextBlock}"

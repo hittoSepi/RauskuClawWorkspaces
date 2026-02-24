@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -22,6 +23,7 @@ namespace RauskuClaw.GUI.ViewModels
         private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
         private readonly SettingsService _settingsService;
         private Settings _settings;
+        private Workspace? _selectedWorkspace;
         private string _statusMessage = "Ready";
         private string _portWarningMessage = string.Empty;
         private readonly ObservableCollection<int> _defaultCpuCoreOptions = new();
@@ -49,6 +51,7 @@ namespace RauskuClaw.GUI.ViewModels
             BrowseVmPathCommand = new RelayCommand(BrowseVmPath);
             UseHostDefaultsCommand = new RelayCommand(UseHostDefaults);
             AutoAssignStartingPortsCommand = new RelayCommand(AutoAssignStartingPorts);
+            OpenSelectedWorkspaceFolderCommand = new RelayCommand(OpenSelectedWorkspaceFolder);
         }
 
         public Settings CurrentSettings
@@ -90,6 +93,14 @@ namespace RauskuClaw.GUI.ViewModels
             get => _settings.VmBasePath;
             set { _settings.VmBasePath = value; OnPropertyChanged(); }
         }
+
+        public string WorkspaceRootPath
+        {
+            get => _settings.WorkspacePath;
+            set { _settings.WorkspacePath = value; OnPropertyChanged(); }
+        }
+
+        public string SelectedWorkspaceHostPath => _selectedWorkspace?.HostWorkspacePath ?? "(no workspace selected)";
 
         // Default VM Settings
         public int DefaultMemoryMb
@@ -244,6 +255,13 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand BrowseVmPathCommand { get; }
         public ICommand UseHostDefaultsCommand { get; }
         public ICommand AutoAssignStartingPortsCommand { get; }
+        public ICommand OpenSelectedWorkspaceFolderCommand { get; }
+
+        public void SetSelectedWorkspace(Workspace? workspace)
+        {
+            _selectedWorkspace = workspace;
+            OnPropertyChanged(nameof(SelectedWorkspaceHostPath));
+        }
 
         private void SaveSettings()
         {
@@ -270,6 +288,7 @@ namespace RauskuClaw.GUI.ViewModels
             _settings = _settingsService.ResetSettings();
             OnPropertyChanged(nameof(QemuPath));
             OnPropertyChanged(nameof(VmBasePath));
+            OnPropertyChanged(nameof(WorkspaceRootPath));
             OnPropertyChanged(nameof(DefaultMemoryMb));
             OnPropertyChanged(nameof(DefaultCpuCores));
             OnPropertyChanged(nameof(DefaultUsername));
@@ -340,6 +359,31 @@ namespace RauskuClaw.GUI.ViewModels
             catch (Exception ex)
             {
                 StatusMessage = $"Browse failed: {ex.Message}";
+            }
+        }
+
+        private void OpenSelectedWorkspaceFolder()
+        {
+            try
+            {
+                var path = _selectedWorkspace?.HostWorkspacePath;
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    StatusMessage = "No workspace host path available.";
+                    return;
+                }
+
+                Directory.CreateDirectory(path);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"\"{path}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Open folder failed: {ex.Message}";
             }
         }
 

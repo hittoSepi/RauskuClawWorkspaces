@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="800"
              Background="#0F1115">
@@ -35,13 +34,8 @@
                                  Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
                                  Padding="8,4" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <Button Grid.Column="2" Command="{Binding BrowseQemuPathCommand}"
-                                Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0"
-                                Padding="12,4" Cursor="Hand" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Browse..." Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Style="{StaticResource SecondaryIconButton}" Tag="FolderOpen" Content="Browse..."
+                                Padding="12,4" Cursor="Hand" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid>
@@ -56,13 +50,47 @@
                                  Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
                                  Padding="8,4" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <Button Grid.Column="2" Command="{Binding BrowseVmPathCommand}"
-                                Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0"
-                                Padding="12,4" Cursor="Hand" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Browse..." Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Style="{StaticResource SecondaryIconButton}" Tag="FolderOpen" Content="Browse..."
+                                Padding="12,4" Cursor="Hand" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Workspace Storage Section -->
+            <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Workspace Storage" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2" Margin="0,0,0,12"/>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Workspace Root:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Text="{Binding WorkspaceRootPath, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                 Padding="8,4" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Selected Host Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Text="{Binding SelectedWorkspaceHostPath}"
+                                 IsReadOnly="True"
+                                 Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                 Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="2"
+                                Command="{Binding OpenSelectedWorkspaceFolderCommand}"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="FolderOpen"
+                                Content="Open Folder"
+                                Padding="12,4"
+                                Cursor="Hand"
+                                VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -123,13 +151,8 @@
                         <TextBlock Grid.Column="0" Text="" />
                         <Button Grid.Column="1"
                                 Command="{Binding UseHostDefaultsCommand}"
-                                Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0"
-                                Padding="12,4" HorizontalAlignment="Left" Cursor="Hand">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Desktop" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Use Host Defaults" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Style="{StaticResource SecondaryIconButton}" Tag="Desktop" Content="Use Host Defaults"
+                                Padding="12,4" HorizontalAlignment="Left" Cursor="Hand"/>
                     </Grid>
 
                     <Grid>
@@ -160,13 +183,8 @@
                         <TextBlock Grid.Column="0" Text="" />
                         <Button Grid.Column="1"
                                 Command="{Binding AutoAssignStartingPortsCommand}"
-                                Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0"
-                                Padding="12,4" HorizontalAlignment="Left" Cursor="Hand">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Random" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Auto Assign Ports" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Style="{StaticResource SecondaryIconButton}" Tag="Shuffle" Content="Auto Assign Ports"
+                                Padding="12,4" HorizontalAlignment="Left" Cursor="Hand"/>
                     </Grid>
 
                     <Grid Margin="0,0,0,12">
@@ -364,21 +382,11 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Command="{Binding ResetCommand}"
-                            Background="#DA3633" Foreground="#E6EAF2" BorderThickness="0"
-                            Padding="16,8" Margin="0,0,8,0" Cursor="Hand">
-                        <StackPanel Orientation="Horizontal">
-                            <fa:IconBlock Icon="Undo" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Reset to Defaults" Foreground="#E6EAF2"/>
-                        </StackPanel>
-                    </Button>
+                            Style="{StaticResource RedIconButton}" Tag="RotateLeft" Content="Reset to Defaults"
+                            Padding="16,8" Margin="0,0,8,0" Cursor="Hand"/>
                     <Button Command="{Binding SaveCommand}"
-                            Style="{StaticResource GreenButton}" Foreground="#E6EAF2"
-                            Padding="16,8" Cursor="Hand">
-                        <StackPanel Orientation="Horizontal">
-                            <fa:IconBlock Icon="Save" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Save Settings" Foreground="#E6EAF2"/>
-                        </StackPanel>
-                    </Button>
+                            Style="{StaticResource GreenIconButton}" Tag="FloppyDisk" Content="Save Settings"
+                            Padding="16,8" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
         </Border>

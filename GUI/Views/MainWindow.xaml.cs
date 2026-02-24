@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using RauskuClaw.GUI.ViewModels;
 
 namespace RauskuClaw.GUI.Views
@@ -32,6 +33,42 @@ namespace RauskuClaw.GUI.Views
         {
             _mainViewModel?.Shutdown();
             base.OnClosing(e);
+        }
+
+        private void TitleBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                ToggleWindowState();
+                return;
+            }
+
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                DragMove();
+            }
+        }
+
+        private void MinimizeButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeRestoreButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            ToggleWindowState();
+        }
+
+        private void CloseButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        private void ToggleWindowState()
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
         }
     }
 }

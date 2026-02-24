@@ -12,30 +12,10 @@
             <TextBlock Text="Serial Console" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding ConnectionInfo}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <CheckBox Content="Auto-scroll" IsChecked="{Binding AutoScroll}" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
-            <Button Command="{Binding TogglePauseCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Pause" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="{Binding PauseButtonText}" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
-            <Button Command="{Binding CopyCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Copy" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Copy" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
-            <Button Command="{Binding SaveCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Save" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Save" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
-            <Button Command="{Binding ClearCommand}" Background="#2A3240" Foreground="#E6EAF2" BorderThickness="0" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Eraser" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Clear" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
+            <Button Command="{Binding TogglePauseCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Pause" Content="{Binding PauseButtonText}" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
+            <Button Command="{Binding CopyCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Copy" Content="Copy" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
+            <Button Command="{Binding SaveCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Save" Content="Save" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,8,8"/>
+            <Button Command="{Binding ClearCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Eraser" Content="Clear" Padding="12,4" DockPanel.Dock="Right" Cursor="Hand" Margin="0,8,12,8"/>
         </DockPanel>
 
         <Border DockPanel.Dock="Top"

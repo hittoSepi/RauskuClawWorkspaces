@@ -12,6 +12,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Real wizard-driven `+ New Workspace` flow.
 - Cloud-init seed generation and QEMU start flow.
 - Startup progress stages with readiness/failure reporting.
+- Startup-time host-port collision hardening with UI-v2 auto-remap retry path.
 - Dedicated post-start `Access Info` step with copy action.
 - SSH stabilization phase with degraded warmup mode (`Running (SSH warming up)`).
 - Themed progress/confirmation dialogs.
@@ -54,6 +55,10 @@ Build: Success (`0 warnings`, `0 errors`).
 - [Post-Sprint Stabilization & SSH Runtime Integration](docs/tasks/008-post-sprint-stabilization-and-ssh.md)
 - [Task 9: SFTP File Manager](docs/tasks/009-sftp-file-manager.md)
 - [Task 10: Wizard Flow & Icon Pass](docs/tasks/010-wizard-flow-and-icon-pass.md)
+- [Task 11: FontAwesome Modernization](docs/tasks/011-fontawesome-modernization.md)
+- [Task 12: IconButton Standardization](docs/tasks/012-iconbutton-standardization.md)
+- [Task 13: Wizard Port Collision Hardening](docs/tasks/013-wizard-port-collision-hardening.md)
+- [Task 14: SFTP UX and Host Workspace Visibility](docs/tasks/014-sftp-ux-and-hostpath.md)
 
 ## Requirements
 

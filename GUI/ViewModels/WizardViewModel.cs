@@ -932,6 +932,55 @@ namespace RauskuClaw.GUI.ViewModels
             return Environment.CurrentDirectory;
         }
 
+        private static string BuildWorkspaceArtifactDirectoryName(string workspaceName, string workspaceId)
+        {
+            var safeName = SanitizeFileSegment(workspaceName);
+            if (string.IsNullOrWhiteSpace(safeName))
+            {
+                safeName = "workspace";
+            }
+
+            var compactId = (workspaceId ?? string.Empty).Replace("-", string.Empty);
+            if (compactId.Length < 8)
+            {
+                compactId = Guid.NewGuid().ToString("N")[..8];
+            }
+            else
+            {
+                compactId = compactId[..8];
+            }
+
+            return $"{safeName}-{compactId}";
+        }
+
+        private static string SanitizeFileSegment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var sb = new StringBuilder(value.Length);
+            foreach (var ch in value.Trim())
+            {
+                if (char.IsWhiteSpace(ch))
+                {
+                    sb.Append('-');
+                    continue;
+                }
+
+                if (Array.IndexOf(invalidChars, ch) >= 0)
+                {
+                    continue;
+                }
+
+                sb.Append(ch);
+            }
+
+            return sb.ToString().Trim('-');
+        }
+
         private async Task StartAndCreateWorkspaceAsync()
         {
             if (!LooksLikeSshPublicKey(SshPublicKey))
@@ -985,8 +1034,15 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 // Keep paths grouped under the same base folder when user typed relative paths.
                 CreatedWorkspace.DiskPath = Path.Combine(vmBasePath, Path.GetFileName(DiskPath));
-                CreatedWorkspace.SeedIsoPath = Path.Combine(vmBasePath, Path.GetFileName(SeedIsoPath));
             }
+
+            var requestedSeedRootDir = Path.GetDirectoryName(CreatedWorkspace.SeedIsoPath);
+            var seedRootDir = !string.IsNullOrWhiteSpace(requestedSeedRootDir)
+                ? requestedSeedRootDir
+                : (!string.IsNullOrWhiteSpace(vmBasePath) ? vmBasePath : Environment.CurrentDirectory);
+            var artifactDirName = BuildWorkspaceArtifactDirectoryName(workspaceName, CreatedWorkspace.Id);
+            var workspaceArtifactDir = Path.Combine(seedRootDir, artifactDirName);
+            CreatedWorkspace.SeedIsoPath = Path.Combine(workspaceArtifactDir, "seed.iso");
 
             StartAfterCreateRequested = true;
             StartSucceeded = false;

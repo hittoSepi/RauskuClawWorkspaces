@@ -14,46 +14,31 @@
             <TextBlock Text="{Binding ConnectionInfo}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <Button
                     Command="{Binding CopyOutputCommand}"
-                    Background="#2A3240"
-                    Foreground="#E6EAF2"
-                    BorderThickness="0"
+                    Style="{StaticResource SecondaryIconButton}"
+                    Tag="Copy"
+                    Content="Copy"
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
-                    Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Copy" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Copy" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
+                    Margin="0,8,8,8"/>
             <Button
                     Command="{Binding SaveOutputCommand}"
-                    Background="#2A3240"
-                    Foreground="#E6EAF2"
-                    BorderThickness="0"
+                    Style="{StaticResource SecondaryIconButton}"
+                    Tag="Save"
+                    Content="Save"
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
-                    Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Save" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Save" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
+                    Margin="0,8,8,8"/>
             <Button
                     Command="{Binding DisconnectCommand}"
-                    Background="#DA3633"
-                    Foreground="White"
-                    BorderThickness="0"
+                    Style="{StaticResource RedIconButton}"
+                    Tag="Plug"
+                    Content="Disconnect"
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
-                    Margin="0,8,12,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Plug" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Disconnect" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
+                    Margin="0,8,12,8"/>
         </DockPanel>
 
         <!-- Not connected indicator -->

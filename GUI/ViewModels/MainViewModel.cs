@@ -61,6 +61,7 @@ namespace RauskuClaw.GUI.ViewModels
             _appSettings = _settingsService.LoadSettings();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
+            EnsureWorkspaceHostDirectories();
             ReserveExistingWorkspacePorts();
 
             NewWorkspaceCommand = new RelayCommand(ShowNewWorkspaceDialog);
@@ -96,6 +97,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_dockerContainers != null) _dockerContainers.SetWorkspace(value);
                 if (_sshTerminal != null) _sshTerminal.SetWorkspace(value);
                 if (_sftpFiles != null) _sftpFiles.SetWorkspace(value);
+                if (_settingsViewModel != null) _settingsViewModel.SetSelectedWorkspace(value);
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -193,7 +195,12 @@ namespace RauskuClaw.GUI.ViewModels
         public SettingsViewModel? Settings
         {
             get => _settingsViewModel;
-            set { _settingsViewModel = value; OnPropertyChanged(); }
+            set
+            {
+                _settingsViewModel = value;
+                _settingsViewModel?.SetSelectedWorkspace(SelectedWorkspace);
+                OnPropertyChanged();
+            }
         }
 
         // Commands
@@ -260,6 +267,8 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     workspace.Ports = reservedPorts;
                 }
+
+                EnsureWorkspaceHostDirectory(workspace);
                 _workspaces.Add(workspace);
                 SelectedWorkspace = workspace;
 
@@ -273,6 +282,103 @@ namespace RauskuClaw.GUI.ViewModels
                     "New Workspace Failed",
                     $"Could not complete workspace creation.\n\n{ex.Message}");
             }
+        }
+
+        private void EnsureWorkspaceHostDirectories()
+        {
+            var changed = false;
+            foreach (var workspace in _workspaces)
+            {
+                if (EnsureWorkspaceHostDirectory(workspace))
+                {
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+            }
+        }
+
+        private bool EnsureWorkspaceHostDirectory(Workspace workspace)
+        {
+            var current = (workspace.HostWorkspacePath ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(current))
+            {
+                var resolvedExisting = ResolveWorkspacePath(current);
+                Directory.CreateDirectory(resolvedExisting);
+                workspace.HostWorkspacePath = resolvedExisting;
+                return !string.Equals(current, resolvedExisting, StringComparison.Ordinal);
+            }
+
+            var root = ResolveWorkspacePath(_appSettings.WorkspacePath);
+            Directory.CreateDirectory(root);
+
+            var shortId = BuildWorkspaceShortId(workspace.Id);
+            var safeName = SanitizePathSegment(workspace.Name);
+            if (string.IsNullOrWhiteSpace(safeName))
+            {
+                safeName = "workspace";
+            }
+
+            var folderName = $"{safeName}-{shortId}";
+            var hostDir = Path.Combine(root, folderName);
+            Directory.CreateDirectory(hostDir);
+
+            workspace.HostWorkspacePath = hostDir;
+            return true;
+        }
+
+        private static string BuildWorkspaceShortId(string? workspaceId)
+        {
+            var compact = (workspaceId ?? string.Empty).Replace("-", string.Empty);
+            if (compact.Length >= 8)
+            {
+                return compact[..8];
+            }
+
+            return Guid.NewGuid().ToString("N")[..8];
+        }
+
+        private static string SanitizePathSegment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var sb = new StringBuilder(value.Length);
+            foreach (var ch in value.Trim())
+            {
+                if (char.IsWhiteSpace(ch))
+                {
+                    sb.Append('-');
+                    continue;
+                }
+
+                if (Array.IndexOf(invalidChars, ch) >= 0)
+                {
+                    continue;
+                }
+
+                sb.Append(ch);
+            }
+
+            return sb.ToString().Trim('-');
+        }
+
+        private static string ResolveWorkspacePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return Path.GetFullPath("Workspaces");
+            }
+
+            return Path.IsPathRooted(path)
+                ? path
+                : Path.GetFullPath(path);
         }
 
         private async Task StartVmAsync()
@@ -430,7 +536,7 @@ namespace RauskuClaw.GUI.ViewModels
             var deleteFiles = ThemedDialogWindow.ShowConfirm(
                 Application.Current?.MainWindow,
                 "Delete VM Files",
-                "Also delete workspace disk and seed files from disk?");
+                "Also delete workspace disk, seed, and host workspace files from disk?");
 
             if (workspaceToDelete.Ports != null)
             {
@@ -451,6 +557,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 TryDeleteFile(workspaceToDelete.SeedIsoPath);
                 TryDeleteFile(workspaceToDelete.DiskPath);
+                TryDeleteDirectory(workspaceToDelete.HostWorkspacePath);
             }
         }
 
@@ -468,24 +575,62 @@ namespace RauskuClaw.GUI.ViewModels
 
             try
             {
-                var profile = new VmProfile
+                var portPreflight = EnsureStartPortsReady(workspace, progress);
+                if (!portPreflight.Success)
                 {
-                    QemuExe = workspace.QemuExe,
-                    DiskPath = workspace.DiskPath,
-                    SeedIsoPath = workspace.SeedIsoPath,
-                    MemoryMb = workspace.MemoryMb,
-                    CpuCores = workspace.CpuCores,
-                    HostSshPort = workspace.Ports?.Ssh ?? 2222,
-                    HostWebPort = workspace.HostWebPort,
-                    HostQmpPort = workspace.Ports?.Qmp ?? 4444,
-                    HostSerialPort = workspace.Ports?.Serial ?? 5555,
-                    HostApiPort = workspace.Ports?.Api ?? 3011,
-                    HostUiV1Port = workspace.Ports?.UiV1 ?? 3012,
-                    HostUiV2Port = workspace.Ports?.UiV2 ?? 3013
-                };
+                    ReportStage(progress, "qemu", "failed", portPreflight.Message);
+                    workspace.Status = VmStatus.Error;
+                    workspace.IsRunning = false;
+                    return (false, portPreflight.Message);
+                }
+
+                var profile = BuildVmProfile(workspace);
 
                 ct.ThrowIfCancellationRequested();
                 var process = _qemuManager.StartVm(profile);
+
+                await Task.Delay(600, ct);
+                if (process.HasExited)
+                {
+                    var firstExitCode = process.ExitCode;
+                    process.Dispose();
+
+                    var uiV2Retry = TryReassignUiV2PortForRetry(workspace, progress, $"QEMU exited early with code {firstExitCode}");
+                    if (!uiV2Retry.Success)
+                    {
+                        var fail = $"QEMU exited immediately (exit {firstExitCode}). {uiV2Retry.Message}";
+                        ReportStage(progress, "qemu", "failed", fail);
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        return (false, fail);
+                    }
+
+                    var retryPreflight = EnsureStartPortsReady(workspace, progress);
+                    if (!retryPreflight.Success)
+                    {
+                        ReportStage(progress, "qemu", "failed", retryPreflight.Message);
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        return (false, retryPreflight.Message);
+                    }
+
+                    profile = BuildVmProfile(workspace);
+                    ReportLog(progress, "Retrying QEMU start with updated UI-v2 host port.");
+                    ct.ThrowIfCancellationRequested();
+                    process = _qemuManager.StartVm(profile);
+                    await Task.Delay(600, ct);
+                    if (process.HasExited)
+                    {
+                        var secondExitCode = process.ExitCode;
+                        process.Dispose();
+                        var fail = $"QEMU exited immediately after retry (exit {secondExitCode}). Check host port conflicts and VM logs.";
+                        ReportStage(progress, "qemu", "failed", fail);
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        return (false, fail);
+                    }
+                }
+
                 _workspaceProcesses[workspace.Id] = process;
                 workspace.IsRunning = true;
                 workspace.LastRun = DateTime.Now;
@@ -548,7 +693,7 @@ namespace RauskuClaw.GUI.ViewModels
                     ReportStage(progress, "ssh_stable", "success", "SSH command channel is stable.");
                 }
 
-                ReportStage(progress, "updates", "in_progress", "Verifying repository update inside VM...");
+                ReportStage(progress, "updates", "in_progress", "Checking repository path inside VM...");
                 var updateCheck = await WaitForRepositoryReadyAsync(workspace, ct);
                 if (!updateCheck.Success)
                 {
@@ -610,7 +755,7 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 }
 
-                ReportStage(progress, "docker", "in_progress", "Checking Docker stack services...");
+                ReportStage(progress, "docker", "in_progress", "Checking Docker stack services... this might take several minutes.");
                 if (allowDegradedStartup)
                 {
                     ReportStage(progress, "docker", "success", "Skipped for now (SSH warming up).");
@@ -735,6 +880,165 @@ namespace RauskuClaw.GUI.ViewModels
                     serialDiagCts.Dispose();
                 }
                 _workspaceBootSignals[workspace.Id] = bootSignalSeen;
+            }
+        }
+
+        private static VmProfile BuildVmProfile(Workspace workspace)
+        {
+            return new VmProfile
+            {
+                QemuExe = workspace.QemuExe,
+                DiskPath = workspace.DiskPath,
+                SeedIsoPath = workspace.SeedIsoPath,
+                MemoryMb = workspace.MemoryMb,
+                CpuCores = workspace.CpuCores,
+                HostSshPort = workspace.Ports?.Ssh ?? 2222,
+                HostWebPort = workspace.HostWebPort,
+                HostQmpPort = workspace.Ports?.Qmp ?? 4444,
+                HostSerialPort = workspace.Ports?.Serial ?? 5555,
+                HostApiPort = workspace.Ports?.Api ?? 3011,
+                HostUiV1Port = workspace.Ports?.UiV1 ?? 3012,
+                HostUiV2Port = workspace.Ports?.UiV2 ?? 3013
+            };
+        }
+
+        private (bool Success, string Message) EnsureStartPortsReady(Workspace workspace, IProgress<string>? progress)
+        {
+            var conflicts = GetBusyStartPorts(workspace);
+            if (conflicts.Count == 0)
+            {
+                return (true, string.Empty);
+            }
+
+            if (conflicts.Any(c => string.Equals(c.Name, "UIv2", StringComparison.OrdinalIgnoreCase)))
+            {
+                var reassigned = TryReassignUiV2Port(workspace, progress, "UI-v2 port was already in use before start");
+                if (reassigned.Success)
+                {
+                    conflicts = GetBusyStartPorts(workspace);
+                    if (conflicts.Count == 0)
+                    {
+                        return (true, reassigned.Message);
+                    }
+                }
+            }
+
+            var conflictText = string.Join(", ", conflicts.Select(c => $"{c.Name}=127.0.0.1:{c.Port}"));
+            return (false, $"Host port(s) in use: {conflictText}. Use Auto Assign Ports or free the conflicting ports.");
+        }
+
+        private (bool Success, string Message) TryReassignUiV2PortForRetry(Workspace workspace, IProgress<string>? progress, string reason)
+        {
+            var reassigned = TryReassignUiV2Port(workspace, progress, reason);
+            if (reassigned.Success)
+            {
+                return reassigned;
+            }
+
+            return (false, "Unable to auto-remap UI-v2 port for retry.");
+        }
+
+        private (bool Success, string Message) TryReassignUiV2Port(Workspace workspace, IProgress<string>? progress, string reason)
+        {
+            if (workspace.Ports == null)
+            {
+                return (false, "Workspace ports are not initialized.");
+            }
+
+            var currentUiV2 = workspace.Ports.UiV2;
+            var reserved = new HashSet<int>(
+                GetWorkspaceHostPorts(workspace)
+                    .Where(p => !string.Equals(p.Name, "UIv2", StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Port));
+
+            int nextUiV2;
+            try
+            {
+                nextUiV2 = FindNextAvailablePort(Math.Max(1024, currentUiV2 + 1), reserved);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"UI-v2 auto-remap failed: {ex.Message}");
+            }
+
+            workspace.Ports.UiV2 = nextUiV2;
+            var info = $"{reason}. UI-v2 remapped 127.0.0.1:{currentUiV2} -> 127.0.0.1:{nextUiV2}.";
+            ReportStage(progress, "qemu", "in_progress", info);
+            return (true, info);
+        }
+
+        private static List<(string Name, int Port)> GetBusyStartPorts(Workspace workspace)
+        {
+            var busy = new List<(string Name, int Port)>();
+            foreach (var item in GetWorkspaceHostPorts(workspace))
+            {
+                if (!IsPortAvailable(item.Port))
+                {
+                    busy.Add(item);
+                }
+            }
+
+            return busy;
+        }
+
+        private static List<(string Name, int Port)> GetWorkspaceHostPorts(Workspace workspace)
+        {
+            return new List<(string Name, int Port)>
+            {
+                ("SSH", workspace.Ports?.Ssh ?? 2222),
+                ("Web", workspace.HostWebPort > 0 ? workspace.HostWebPort : 8080),
+                ("API", workspace.Ports?.Api ?? 3011),
+                ("UIv1", workspace.Ports?.UiV1 ?? 3012),
+                ("UIv2", workspace.Ports?.UiV2 ?? 3013),
+                ("QMP", workspace.Ports?.Qmp ?? 4444),
+                ("Serial", workspace.Ports?.Serial ?? 5555)
+            };
+        }
+
+        private static int FindNextAvailablePort(int startPort, HashSet<int> reserved)
+        {
+            var start = Math.Clamp(startPort, 1024, 65535);
+            for (var port = start; port <= 65535; port++)
+            {
+                if (reserved.Contains(port))
+                {
+                    continue;
+                }
+
+                if (IsPortAvailable(port))
+                {
+                    return port;
+                }
+            }
+
+            for (var port = 1024; port < start; port++)
+            {
+                if (reserved.Contains(port))
+                {
+                    continue;
+                }
+
+                if (IsPortAvailable(port))
+                {
+                    return port;
+                }
+            }
+
+            throw new InvalidOperationException("No free local host port available for UI-v2 fallback.");
+        }
+
+        private static bool IsPortAvailable(int port)
+        {
+            try
+            {
+                var listener = new TcpListener(System.Net.IPAddress.Loopback, port);
+                listener.Start();
+                listener.Stop();
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -1077,9 +1381,6 @@ namespace RauskuClaw.GUI.ViewModels
         private async Task<(bool Success, string Message)> WaitForRepositoryReadyAsync(Workspace workspace, CancellationToken ct)
         {
             var escapedRepoDir = EscapeSingleQuotes(workspace.RepoTargetDir);
-
-            // Wait for cloud-init final stage when available; ignore if command is missing.
-            _ = await RunSshCommandAsync(workspace, "cloud-init status --wait >/dev/null 2>&1 || true", ct);
 
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(180);
             var attempt = 0;
@@ -1684,6 +1985,22 @@ namespace RauskuClaw.GUI.ViewModels
             catch (Exception ex)
             {
                 AppendLog($"Could not delete file '{path}': {ex.Message}");
+            }
+        }
+
+        private void TryDeleteDirectory(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                    AppendLog($"Deleted directory: {path}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Could not delete directory '{path}': {ex.Message}");
             }
         }
 

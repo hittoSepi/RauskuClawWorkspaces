@@ -44,6 +44,7 @@ namespace RauskuClaw.Services
                             SshPublicKey = item.SshPublicKey,
                             SshPrivateKeyPath = item.SshPrivateKeyPath,
                             RepoTargetDir = item.RepoTargetDir ?? "/opt/rauskuclaw",
+                            HostWorkspacePath = item.HostWorkspacePath ?? string.Empty,
                             HostWebPort = item.HostWebPort > 0 ? item.HostWebPort : 8080,
                             MemoryMb = item.MemoryMb,
                             CpuCores = item.CpuCores,
@@ -82,6 +83,7 @@ namespace RauskuClaw.Services
                 SshPublicKey = w.SshPublicKey,
                 SshPrivateKeyPath = w.SshPrivateKeyPath,
                 RepoTargetDir = w.RepoTargetDir,
+                HostWorkspacePath = w.HostWorkspacePath,
                 HostWebPort = w.HostWebPort,
                 MemoryMb = w.MemoryMb,
                 CpuCores = w.CpuCores,
@@ -109,6 +111,7 @@ namespace RauskuClaw.Services
             public string SshPublicKey { get; set; } = "";
             public string SshPrivateKeyPath { get; set; } = "";
             public string? RepoTargetDir { get; set; }
+            public string? HostWorkspacePath { get; set; }
             public int HostWebPort { get; set; } = 8080;
             public int MemoryMb { get; set; }
             public int CpuCores { get; set; }

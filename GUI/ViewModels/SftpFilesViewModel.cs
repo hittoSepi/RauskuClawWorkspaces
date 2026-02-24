@@ -1,8 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -22,9 +25,15 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _isBusy;
         private string _statusText = "SFTP disconnected";
         private string _currentPath = "/";
+        private string _pathInput = "/";
         private SftpEntryItemViewModel? _selectedEntry;
+        private readonly ObservableCollection<string> _pathSuggestions = new();
+        private bool _isPathSuggestionsOpen;
+        private string? _selectedPathSuggestion;
         private string _newFolderName = string.Empty;
         private string _renameTarget = string.Empty;
+        private int _pathSuggestionVersion;
+        private const int MaxEditorBytes = 2 * 1024 * 1024;
 
         public SftpFilesViewModel()
         {
@@ -37,6 +46,8 @@ namespace RauskuClaw.GUI.ViewModels
             CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync(), CanCreateFolder);
             RenameCommand = new RelayCommand(async () => await RenameSelectedAsync(), CanRenameSelected);
             DisconnectCommand = new RelayCommand(Disconnect, () => IsConnected);
+            NavigateToPathCommand = new RelayCommand(async () => await NavigateToPathInputAsync(), CanRunActions);
+            OpenHostWorkspaceFolderCommand = new RelayCommand(OpenHostWorkspaceFolder);
         }
 
         public ObservableCollection<SftpEntryItemViewModel> Entries => _entries;
@@ -49,6 +60,8 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand CreateFolderCommand { get; }
         public ICommand RenameCommand { get; }
         public ICommand DisconnectCommand { get; }
+        public ICommand NavigateToPathCommand { get; }
+        public ICommand OpenHostWorkspaceFolderCommand { get; }
 
         public string StatusText
         {
@@ -93,8 +106,47 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_currentPath == value) return;
                 _currentPath = value;
                 OnPropertyChanged();
+                PathInput = value;
             }
         }
+
+        public string PathInput
+        {
+            get => _pathInput;
+            set
+            {
+                if (_pathInput == value) return;
+                _pathInput = value;
+                OnPropertyChanged();
+                _ = RefreshPathSuggestionsAsync();
+            }
+        }
+
+        public ObservableCollection<string> PathSuggestions => _pathSuggestions;
+
+        public bool IsPathSuggestionsOpen
+        {
+            get => _isPathSuggestionsOpen;
+            set
+            {
+                if (_isPathSuggestionsOpen == value) return;
+                _isPathSuggestionsOpen = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string? SelectedPathSuggestion
+        {
+            get => _selectedPathSuggestion;
+            set
+            {
+                if (_selectedPathSuggestion == value) return;
+                _selectedPathSuggestion = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string HostWorkspacePathDisplay => _workspace?.HostWorkspacePath ?? "(not set)";
 
         public SftpEntryItemViewModel? SelectedEntry
         {
@@ -105,7 +157,7 @@ namespace RauskuClaw.GUI.ViewModels
                 _selectedEntry = value;
                 if (_selectedEntry != null)
                 {
-                    RenameTarget = _selectedEntry.Name;
+                    RenameTarget = _selectedEntry.IsParentShortcut ? string.Empty : _selectedEntry.Name;
                 }
                 OnPropertyChanged();
                 RaiseCommands();
@@ -139,6 +191,7 @@ namespace RauskuClaw.GUI.ViewModels
         public void SetWorkspace(Workspace? workspace)
         {
             _workspace = workspace;
+            OnPropertyChanged(nameof(HostWorkspacePathDisplay));
             if (_workspace == null || !_workspace.IsRunning)
             {
                 Disconnect();
@@ -171,12 +224,18 @@ namespace RauskuClaw.GUI.ViewModels
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Entries.Clear();
+                    if (!string.Equals(CurrentPath, "/", StringComparison.Ordinal))
+                    {
+                        var parent = GetParentPath(CurrentPath);
+                        Entries.Add(SftpEntryItemViewModel.CreateParentShortcut(parent));
+                    }
                     foreach (var entry in list)
                     {
                         Entries.Add(new SftpEntryItemViewModel(entry));
                     }
                 });
-                StatusText = $"Connected ({Entries.Count} entries)";
+                var visibleCount = Entries.Count(e => !e.IsParentShortcut);
+                StatusText = $"Connected ({visibleCount} entries)";
             }
             catch (Exception ex)
             {
@@ -221,6 +280,7 @@ namespace RauskuClaw.GUI.ViewModels
             _sftpService.Disconnect();
             IsConnected = false;
             CurrentPath = "/";
+            PathInput = "/";
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher == null || dispatcher.CheckAccess())
             {
@@ -230,6 +290,8 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 dispatcher.Invoke(() => Entries.Clear());
             }
+            PathSuggestions.Clear();
+            IsPathSuggestionsOpen = false;
             StatusText = _workspace?.IsRunning == true ? "SFTP disconnected" : "VM is not running";
         }
 
@@ -300,6 +362,234 @@ namespace RauskuClaw.GUI.ViewModels
             return string.IsNullOrWhiteSpace(user) ? "/" : $"/home/{user}";
         }
 
+        private string? ResolveHostWorkspaceDirectory()
+        {
+            var path = _workspace?.HostWorkspacePath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(path);
+                return path;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task HandleEntryDoubleClickAsync(SftpEntryItemViewModel? entry)
+        {
+            if (entry == null || !CanRunActions())
+            {
+                return;
+            }
+
+            SelectedEntry = entry;
+            await OpenSelectedAsync();
+        }
+
+        public async Task AcceptPathSuggestionAsync(string? suggestion)
+        {
+            if (string.IsNullOrWhiteSpace(suggestion))
+            {
+                return;
+            }
+
+            PathInput = suggestion;
+            IsPathSuggestionsOpen = false;
+            await NavigateToPathInputAsync();
+        }
+
+        private async Task NavigateToPathInputAsync()
+        {
+            var normalized = NormalizePathInput(PathInput);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                StatusText = "Path is empty.";
+                return;
+            }
+
+            await TryNavigateToPathAsync(normalized);
+        }
+
+        private async Task TryNavigateToPathAsync(string path)
+        {
+            if (!CanRunActions())
+            {
+                return;
+            }
+
+            IsBusy = true;
+            try
+            {
+                if (!await _sftpService.PathExistsAsync(path))
+                {
+                    StatusText = $"Path does not exist: {path}";
+                    return;
+                }
+
+                // Permission check before navigation: listing must succeed.
+                _ = await _sftpService.ListDirectoryAsync(path);
+
+                CurrentPath = path;
+                IsPathSuggestionsOpen = false;
+                await RefreshAsync();
+            }
+            catch (Exception ex)
+            {
+                if (IsTransientConnectionError(ex))
+                {
+                    Disconnect();
+                }
+                StatusText = $"Cannot open path '{path}': {ex.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task RefreshPathSuggestionsAsync()
+        {
+            var version = ++_pathSuggestionVersion;
+            if (!IsConnected || IsBusy)
+            {
+                PathSuggestions.Clear();
+                IsPathSuggestionsOpen = false;
+                return;
+            }
+
+            var raw = (PathInput ?? string.Empty).Trim().Replace('\\', '/');
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                PathSuggestions.Clear();
+                IsPathSuggestionsOpen = false;
+                return;
+            }
+
+            var (parent, prefix) = SplitSuggestionScope(raw);
+            try
+            {
+                var entries = await _sftpService.ListDirectoryAsync(parent);
+                if (version != _pathSuggestionVersion)
+                {
+                    return;
+                }
+
+                var suggestions = entries
+                    .Where(e => e.IsDirectory)
+                    .Where(e => string.IsNullOrEmpty(prefix) || e.Name.StartsWith(prefix, StringComparison.Ordinal))
+                    .Select(e => parent == "/" ? "/" + e.Name : parent.TrimEnd('/') + "/" + e.Name)
+                    .OrderBy(x => x, StringComparer.Ordinal)
+                    .Take(30)
+                    .ToList();
+
+                PathSuggestions.Clear();
+                foreach (var suggestion in suggestions)
+                {
+                    PathSuggestions.Add(suggestion);
+                }
+
+                IsPathSuggestionsOpen = PathSuggestions.Count > 0;
+            }
+            catch
+            {
+                if (version != _pathSuggestionVersion)
+                {
+                    return;
+                }
+
+                PathSuggestions.Clear();
+                IsPathSuggestionsOpen = false;
+            }
+        }
+
+        private static (string Parent, string Prefix) SplitSuggestionScope(string input)
+        {
+            if (input == "/")
+            {
+                return ("/", string.Empty);
+            }
+
+            var normalized = input.Replace('\\', '/');
+            if (!normalized.StartsWith("/", StringComparison.Ordinal))
+            {
+                return ("/", normalized);
+            }
+
+            if (normalized.EndsWith("/", StringComparison.Ordinal))
+            {
+                return (NormalizeRemotePath(normalized), string.Empty);
+            }
+
+            var idx = normalized.LastIndexOf('/');
+            if (idx <= 0)
+            {
+                return ("/", normalized.Trim('/'));
+            }
+
+            var parent = normalized[..idx];
+            var prefix = normalized[(idx + 1)..];
+            return (NormalizeRemotePath(parent), prefix);
+        }
+
+        private string NormalizePathInput(string input)
+        {
+            var value = (input ?? string.Empty).Trim().Replace('\\', '/');
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            if (!value.StartsWith("/", StringComparison.Ordinal))
+            {
+                var basePath = string.IsNullOrWhiteSpace(CurrentPath) ? "/" : CurrentPath;
+                value = basePath.TrimEnd('/') + "/" + value;
+            }
+
+            return NormalizeRemotePath(value);
+        }
+
+        private static string NormalizeRemotePath(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "/";
+            }
+
+            var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return "/";
+            }
+
+            var stack = new System.Collections.Generic.List<string>(parts.Length);
+            foreach (var part in parts)
+            {
+                if (part == ".")
+                {
+                    continue;
+                }
+
+                if (part == "..")
+                {
+                    if (stack.Count > 0)
+                    {
+                        stack.RemoveAt(stack.Count - 1);
+                    }
+                    continue;
+                }
+
+                stack.Add(part);
+            }
+
+            return "/" + string.Join("/", stack);
+        }
+
         private async Task NavigateUpAsync()
         {
             var parent = GetParentPath(CurrentPath);
@@ -308,19 +598,26 @@ namespace RauskuClaw.GUI.ViewModels
                 return;
             }
 
-            CurrentPath = parent;
-            await RefreshAsync();
+            await TryNavigateToPathAsync(parent);
         }
 
         private async Task OpenSelectedAsync()
         {
-            if (SelectedEntry?.IsDirectory != true)
+            if (SelectedEntry == null)
             {
                 return;
             }
 
-            CurrentPath = SelectedEntry.FullPath;
-            await RefreshAsync();
+            if (SelectedEntry.IsParentShortcut || SelectedEntry.IsDirectory)
+            {
+                await TryNavigateToPathAsync(SelectedEntry.FullPath);
+                return;
+            }
+
+            if (!SelectedEntry.IsDirectory)
+            {
+                await OpenSelectedFileInEditorAsync();
+            }
         }
 
         private async Task UploadAsync()
@@ -334,7 +631,8 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 Title = "Select file to upload",
                 CheckFileExists = true,
-                Multiselect = false
+                Multiselect = false,
+                InitialDirectory = ResolveHostWorkspaceDirectory()
             };
 
             if (dialog.ShowDialog() != true)
@@ -374,7 +672,8 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 Title = "Save downloaded file",
                 FileName = SelectedEntry.Name,
-                AddExtension = false
+                AddExtension = false,
+                InitialDirectory = ResolveHostWorkspaceDirectory()
             };
 
             if (dialog.ShowDialog() != true)
@@ -399,6 +698,129 @@ namespace RauskuClaw.GUI.ViewModels
             finally
             {
                 IsBusy = false;
+            }
+        }
+
+        private async Task OpenSelectedFileInEditorAsync()
+        {
+            if (SelectedEntry == null || SelectedEntry.IsDirectory || _workspace == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (SelectedEntry.Size > MaxEditorBytes)
+                {
+                    StatusText = $"Editor disabled for files larger than {MaxEditorBytes / (1024 * 1024)} MB.";
+                    return;
+                }
+
+                var tempRoot = Path.Combine(Path.GetTempPath(), "RauskuClaw", "sftp-editor", _workspace.Id);
+                Directory.CreateDirectory(tempRoot);
+                var tempFileName = BuildSafeTempFileName(SelectedEntry.Name, SelectedEntry.FullPath);
+                var tempPath = Path.Combine(tempRoot, tempFileName);
+
+                await _sftpService.DownloadFileAsync(SelectedEntry.FullPath, tempPath);
+                var bytes = await File.ReadAllBytesAsync(tempPath);
+                var isBinary = LooksLikeBinary(bytes);
+                if (isBinary)
+                {
+                    StatusText = "Binary file detected. Editor is text-only.";
+                    return;
+                }
+
+                var content = Encoding.UTF8.GetString(bytes);
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    var window = new GUI.Views.SftpFileEditorWindow(
+                        remotePath: SelectedEntry.FullPath,
+                        tempPath: tempPath,
+                        initialContent: content,
+                        readOnly: false)
+                    {
+                        Owner = Application.Current?.MainWindow
+                    };
+
+                    window.UploadRequested += async (_, args) =>
+                    {
+                        try
+                        {
+                            await _sftpService.UploadFileToPathAsync(args.TempPath, args.RemotePath);
+                            StatusText = $"Uploaded {SelectedEntry.Name}";
+                            args.SetResult(true, "Upload complete.");
+                        }
+                        catch (Exception ex)
+                        {
+                            args.SetResult(false, ex.Message);
+                        }
+                    };
+
+                    window.ShowDialog();
+                });
+            }
+            catch (Exception ex)
+            {
+                if (IsTransientConnectionError(ex))
+                {
+                    Disconnect();
+                }
+                StatusText = $"Editor open failed: {ex.Message}";
+            }
+        }
+
+        private static string BuildSafeTempFileName(string name, string fullPath)
+        {
+            var safeName = string.IsNullOrWhiteSpace(name) ? "file.txt" : name;
+            foreach (var ch in Path.GetInvalidFileNameChars())
+            {
+                safeName = safeName.Replace(ch, '_');
+            }
+
+            var hash = Math.Abs(fullPath.GetHashCode()).ToString("X8");
+            return $"{hash}-{safeName}";
+        }
+
+        private static bool LooksLikeBinary(byte[] bytes)
+        {
+            if (bytes.Length == 0)
+            {
+                return false;
+            }
+
+            var sample = Math.Min(bytes.Length, 4096);
+            for (var i = 0; i < sample; i++)
+            {
+                if (bytes[i] == 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void OpenHostWorkspaceFolder()
+        {
+            try
+            {
+                var path = ResolveHostWorkspaceDirectory();
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    StatusText = "Host workspace path is not available.";
+                    return;
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"\"{path}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Open folder failed: {ex.Message}";
             }
         }
 
@@ -513,7 +935,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private bool CanDeleteSelected()
         {
-            return CanRunActions() && SelectedEntry != null;
+            return CanRunActions() && SelectedEntry != null && !SelectedEntry.IsParentShortcut;
         }
 
         private bool CanCreateFolder()
@@ -525,6 +947,7 @@ namespace RauskuClaw.GUI.ViewModels
         {
             return CanRunActions()
                 && SelectedEntry != null
+                && !SelectedEntry.IsParentShortcut
                 && !string.IsNullOrWhiteSpace(RenameTarget)
                 && !string.Equals(RenameTarget.Trim(), SelectedEntry.Name, StringComparison.Ordinal);
         }
@@ -540,6 +963,7 @@ namespace RauskuClaw.GUI.ViewModels
             (CreateFolderCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (RenameCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (DisconnectCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (NavigateToPathCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         private static string GetParentPath(string path)
@@ -579,18 +1003,23 @@ namespace RauskuClaw.GUI.ViewModels
 
     public sealed class SftpEntryItemViewModel
     {
-        public SftpEntryItemViewModel(SftpEntry entry)
+        public SftpEntryItemViewModel(SftpEntry entry, bool isParentShortcut = false)
         {
             Name = entry.Name;
             FullPath = entry.FullPath;
             IsDirectory = entry.IsDirectory;
             Size = entry.Size;
             LastWriteTime = entry.LastWriteTime;
+            IsParentShortcut = isParentShortcut;
         }
+
+        public static SftpEntryItemViewModel CreateParentShortcut(string parentPath)
+            => new(new SftpEntry("..", parentPath, true, 0, DateTime.Now), isParentShortcut: true);
 
         public string Name { get; }
         public string FullPath { get; }
         public bool IsDirectory { get; }
+        public bool IsParentShortcut { get; }
         public long Size { get; }
         public DateTime LastWriteTime { get; }
         public string TypeText => IsDirectory ? "DIR" : "FILE";

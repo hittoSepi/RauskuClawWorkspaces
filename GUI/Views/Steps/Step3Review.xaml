@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
@@ -33,13 +32,10 @@
                     Visibility="{Binding IsTemplateQuickPath, Converter={StaticResource BoolToVisibilityConverter}}">
             <Button
                     Command="{Binding EditConfigurationCommand}"
-                    Style="{StaticResource SecondaryButton}"
-                    Padding="12,4">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Sliders" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Muokkaa asetuksia" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
+                    Style="{StaticResource SecondaryIconButton}"
+                    Tag="Sliders"
+                    Content="Muokkaa asetuksia"
+                    Padding="12,4"/>
             <TextBlock Text="Template-valinta ohitti konfigurointistepit. Voit avata ne tästä."
                        Style="{StaticResource MutedTextBlock}"
                        Margin="10,3,0,0"/>

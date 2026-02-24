@@ -91,53 +91,39 @@
                 <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                         <Button
-                                Style="{StaticResource SecondaryButton}"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="ArrowLeft"
+                                Content="Back"
                                 Command="{Binding BackCommand}"
                                 Margin="0,0,8,0"
-                                Visibility="{Binding ShowBackButton, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="ArrowLeft" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Back" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding ShowBackButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Button
-                                Style="{StaticResource SecondaryButton}"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="ArrowRight"
+                                Content="Next"
                                 Command="{Binding NextCommand}"
                                 Margin="0,0,8,0"
-                                Visibility="{Binding ShowNextButton, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="ArrowRight" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Next" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding ShowNextButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Button
-                                Style="{StaticResource GreenButton}"
+                                Style="{StaticResource GreenIconButton}"
+                                Tag="Play"
+                                Content="Start Workspace"
                                 Command="{Binding StartCommand}"
                                 Margin="0,0,8,0"
-                                Visibility="{Binding ShowStartButton, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Play" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Start Workspace" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding ShowStartButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Button
+                                Style="{StaticResource IconButton}"
+                                Tag="Times"
+                                Content="Cancel"
                                 Command="{Binding CancelCommand}"
                                 Margin="0,0,8,0"
-                                Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Times" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Cancel" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Button
-                                Style="{StaticResource SecondaryButton}"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="Check"
+                                Content="Close"
                                 Command="{Binding CloseCommand}"
-                                Visibility="{Binding ShowCloseButton, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Check" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Close" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding ShowCloseButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     </StackPanel>
                     <TextBlock DockPanel.Dock="Right" Style="{StaticResource MutedTextBlock}" Text="{Binding Status}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                 </DockPanel>

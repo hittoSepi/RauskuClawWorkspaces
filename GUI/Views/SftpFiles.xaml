@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="900"
              Background="#0F1115">
@@ -11,66 +10,75 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" LastChildFill="False">
             <TextBlock Text="SFTP Files" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding StatusText}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
-            <Button Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Refresh" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Refresh" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
-            <Button Command="{Binding DisconnectCommand}" Style="{StaticResource RedButton}" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <fa:IconBlock Icon="Plug" Style="{StaticResource FaIconInline}"/>
-                    <TextBlock Text="Disconnect" Foreground="#E6EAF2"/>
-                </StackPanel>
-            </Button>
+            <Button Command="{Binding RefreshCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Refresh" Content="Refresh" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8"/>
+            <Button Command="{Binding DisconnectCommand}" Style="{StaticResource RedIconButton}" Tag="Plug" Content="Disconnect" Padding="12,4" DockPanel.Dock="Right" Margin="0,8,8,8"/>
         </DockPanel>
 
         <Border DockPanel.Dock="Top" Background="#151A22" BorderBrush="#2A3240" BorderThickness="0,1,0,1" Padding="10,8">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding CurrentPath}" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="8,0,8,0" TextTrimming="CharacterEllipsis"/>
-                <Button Grid.Column="2" Command="{Binding UpCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4">
-                    <StackPanel Orientation="Horizontal">
-                        <fa:IconBlock Icon="ArrowUp" Style="{StaticResource FaIconInline}"/>
-                        <TextBlock Text="Up" Foreground="#E6EAF2"/>
-                    </StackPanel>
-                </Button>
-            </Grid>
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding PathInput, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="8,0,8,0"
+                             VerticalContentAlignment="Center"
+                             KeyDown="PathInputTextBox_OnKeyDown"/>
+                    <Button Grid.Column="2" Command="{Binding NavigateToPathCommand}" Style="{StaticResource SecondaryIconButton}" Tag="ArrowRight" Content="Go" Padding="10,4" Margin="0,0,8,0"/>
+                    <Button Grid.Column="3" Command="{Binding UpCommand}" Style="{StaticResource SecondaryIconButton}" Tag="ArrowUp" Content="Up" Padding="10,4"/>
+                </Grid>
+
+                <Border Background="#0A0C0E"
+                        BorderBrush="#2A3240"
+                        BorderThickness="1"
+                        Margin="0,6,0,0"
+                        Visibility="{Binding IsPathSuggestionsOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <ListBox ItemsSource="{Binding PathSuggestions}"
+                             SelectedItem="{Binding SelectedPathSuggestion}"
+                             Background="#0A0C0E"
+                             Foreground="#E6EAF2"
+                             BorderThickness="0"
+                             MaxHeight="130"
+                             MouseDoubleClick="PathSuggestions_OnMouseDoubleClick"
+                             KeyDown="PathSuggestions_OnKeyDown"/>
+                </Border>
+
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Host Workspace:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding HostWorkspacePathDisplay}"
+                               Foreground="#E6EAF2"
+                               Margin="8,0,8,0"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <Button Grid.Column="2"
+                            Command="{Binding OpenHostWorkspaceFolderCommand}"
+                            Style="{StaticResource SecondaryIconButton}"
+                            Tag="FolderOpen"
+                            Content="Open Folder"
+                            Padding="10,4"/>
+                </Grid>
+            </StackPanel>
         </Border>
 
         <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
             <Border DockPanel.Dock="Top" Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="10">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Command="{Binding UploadCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Upload" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Upload..." Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Command="{Binding DownloadCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Download" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Download Selected..." Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Command="{Binding OpenCommand}" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Open Selected Folder" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Command="{Binding DeleteCommand}" Style="{StaticResource RedButton}" Padding="12,4">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Trash" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Delete Selected" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                        <Button Command="{Binding UploadCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Upload" Content="Upload..." Padding="12,4" Margin="0,0,8,0"/>
+                        <Button Command="{Binding DownloadCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Download" Content="Download Selected..." Padding="12,4" Margin="0,0,8,0"/>
+                        <Button Command="{Binding OpenCommand}" Style="{StaticResource SecondaryIconButton}" Tag="FolderOpen" Content="Open Selected Folder" Padding="12,4" Margin="0,0,8,0"/>
+                        <Button Command="{Binding DeleteCommand}" Style="{StaticResource RedIconButton}" Tag="Trash" Content="Delete Selected" Padding="12,4"/>
                     </StackPanel>
 
                     <Grid Margin="0,0,0,8">
@@ -82,12 +90,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="New folder:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding NewFolderName, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0"/>
-                        <Button Grid.Column="2" Command="{Binding CreateFolderCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Folder" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Create" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                        <Button Grid.Column="2" Command="{Binding CreateFolderCommand}" Style="{StaticResource SecondaryIconButton}" Tag="Folder" Content="Create" Padding="10,4"/>
 
                         <TextBlock Grid.Column="3" Text="Selected entry can be renamed below." Foreground="#6A7382" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </Grid>
@@ -100,12 +103,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Rename to:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding RenameTarget, UpdateSourceTrigger=PropertyChanged}" Margin="8,0,8,0"/>
-                        <Button Grid.Column="2" Command="{Binding RenameCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4">
-                            <StackPanel Orientation="Horizontal">
-                                <fa:IconBlock Icon="Pencil" Style="{StaticResource FaIconInline}"/>
-                                <TextBlock Text="Rename Selected" Foreground="#E6EAF2"/>
-                            </StackPanel>
-                        </Button>
+                        <Button Grid.Column="2" Command="{Binding RenameCommand}" Style="{StaticResource SecondaryIconButton}" Tag="PencilAlt" Content="Rename Selected" Padding="10,4"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -125,7 +123,8 @@
                   VerticalGridLinesBrush="#1B2230"
                   RowHeaderWidth="0"
                   CanUserResizeRows="False"
-                  Margin="0,8,0,0">
+                  Margin="0,8,0,0"
+                  MouseDoubleClick="EntriesDataGrid_OnMouseDoubleClick">
             <DataGrid.Resources>
                 <Style TargetType="DataGridColumnHeader">
                     <Setter Property="Background" Value="#151A22"/>
@@ -141,18 +140,48 @@
                     <Setter Property="BorderBrush" Value="#1B2230"/>
                     <Setter Property="BorderThickness" Value="0,0,1,1"/>
                     <Setter Property="Padding" Value="8,4"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="#1F3B5E"/>
+                            <Setter Property="Foreground" Value="#EAF3FF"/>
+                            <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True"/>
+                                <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Background" Value="#18314F"/>
+                            <Setter Property="Foreground" Value="#DCE9FF"/>
+                            <Setter Property="BorderBrush" Value="#346DAA"/>
+                        </MultiTrigger>
+                    </Style.Triggers>
                 </Style>
                 <Style TargetType="DataGridRow">
                     <Setter Property="Background" Value="#0A0C0E"/>
                     <Setter Property="Foreground" Value="#E6EAF2"/>
+                    <Setter Property="BorderBrush" Value="#1B2230"/>
+                    <Setter Property="BorderThickness" Value="1"/>
                     <Style.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Background" Value="#111722"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#1A2A3E"/>
-                            <Setter Property="Foreground" Value="#E6EAF2"/>
+                            <Setter Property="Background" Value="#1F3B5E"/>
+                            <Setter Property="Foreground" Value="#EAF3FF"/>
+                            <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                            <Setter Property="BorderThickness" Value="1"/>
                         </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True"/>
+                                <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Background" Value="#18314F"/>
+                            <Setter Property="Foreground" Value="#DCE9FF"/>
+                            <Setter Property="BorderBrush" Value="#346DAA"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                        </MultiTrigger>
                     </Style.Triggers>
                 </Style>
             </DataGrid.Resources>

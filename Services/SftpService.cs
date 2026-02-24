@@ -107,6 +107,16 @@ namespace RauskuClaw.Services
             });
         }
 
+        public async Task UploadFileToPathAsync(string localPath, string remotePath)
+        {
+            await ExecuteAsync(() =>
+            {
+                EnsureConnected();
+                using var stream = File.OpenRead(localPath);
+                _client!.UploadFile(stream, remotePath, canOverride: true);
+            });
+        }
+
         public async Task DownloadFileAsync(string remotePath, string localPath)
         {
             await ExecuteAsync(() =>

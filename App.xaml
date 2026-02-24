@@ -123,6 +123,32 @@
             <Setter Property="Margin" Value="0,0,6,0"/>
         </Style>
 
+        <DataTemplate x:Key="IconButtonContentTemplate">
+            <StackPanel Orientation="Horizontal">
+                <fa:IconBlock Icon="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Tag}"
+                              Style="{StaticResource FaIconInline}"/>
+                <TextBlock Text="{Binding}"
+                           Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="ContentTemplate" Value="{StaticResource IconButtonContentTemplate}"/>
+        </Style>
+
+        <Style x:Key="SecondaryIconButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="ContentTemplate" Value="{StaticResource IconButtonContentTemplate}"/>
+        </Style>
+
+        <Style x:Key="GreenIconButton" TargetType="Button" BasedOn="{StaticResource GreenButton}">
+            <Setter Property="ContentTemplate" Value="{StaticResource IconButtonContentTemplate}"/>
+        </Style>
+
+        <Style x:Key="RedIconButton" TargetType="Button" BasedOn="{StaticResource RedButton}">
+            <Setter Property="ContentTemplate" Value="{StaticResource IconButtonContentTemplate}"/>
+        </Style>
+
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="#9AA3B2"/>
             <Setter Property="Background" Value="{StaticResource TabInactive}"/>
