@@ -1,5 +1,8 @@
 # Task 10: Wizard Flow & Icon Pass
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-24  
 **Status:** Complete  
 **Build:** Success (`0 errors`; known `NU1701` warning for `FontAwesome.WPF`)
@@ -120,3 +123,9 @@ Used icon set:
   - Full custom path
   - Access info copy flow
   - Startup stage transitions and cancellation behavior
+## Code pointers
+
+- `GUI/Views/WizardWindow.xaml`
+- `GUI/ViewModels/Main/MainViewModel.cs`
+- `GUI/Views/MainWindow.xaml`
+- `GUI/Views/Settings.xaml`

@@ -1,0 +1,20 @@
+# Task Index (001-016)
+
+| Task | Status | Puuttuvat kohdat | Linkki |
+|---|---|---|---|
+| 001 | Completed | None (archived baseline scope) | [001-sprint1-mvp.md](001-sprint1-mvp.md) |
+| 002 | Partially Completed | Real SSH/Docker backend depth improvements tracked in 016 | [002-sprint2-advanced-features.md](002-sprint2-advanced-features.md) |
+| 003 | Completed | None | [003-sprint3-systemd-docker-service.md](003-sprint3-systemd-docker-service.md) |
+| 004 | Completed | None | [004-testing-checklist.md](004-testing-checklist.md) |
+| 005 | Completed | None | [005-ui-polish-fixes.md](005-ui-polish-fixes.md) |
+| 006 | Partially Completed | Browse dialogs and secret UX polish tracked in 016 | [006-settings-and-secrets.md](006-settings-and-secrets.md) |
+| 007 | Partially Completed | Custom template authoring/import-export tracked in 016 | [007-workspace-templates.md](007-workspace-templates.md) |
+| 008 | Completed | None | [008-post-sprint-stabilization-and-ssh.md](008-post-sprint-stabilization-and-ssh.md) |
+| 009 | Partially Completed | Template-flow integration follow-up tracked in 016 | [009-sftp-file-manager.md](009-sftp-file-manager.md) |
+| 010 | Completed | None | [010-wizard-flow-and-icon-pass.md](010-wizard-flow-and-icon-pass.md) |
+| 011 | Completed | None | [011-fontawesome-modernization.md](011-fontawesome-modernization.md) |
+| 012 | Completed | None | [012-iconbutton-standardization.md](012-iconbutton-standardization.md) |
+| 013 | Completed | Extended resilience smoke scenarios tracked in 016 | [013-wizard-port-collision-hardening.md](013-wizard-port-collision-hardening.md) |
+| 014 | Completed | None | [014-sftp-ux-and-hostpath.md](014-sftp-ux-and-hostpath.md) |
+| 015 | Completed | Hardening and regression verification tracked in 016 | [015-holvi-webview-tab-proposal.md](015-holvi-webview-tab-proposal.md) |
+| 016 | Partially Completed | Build warning clean baseline pending in dotnet-capable env | [016-hardening-and-regression-baseline.md](016-hardening-and-regression-baseline.md) |

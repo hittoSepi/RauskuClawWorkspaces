@@ -1,5 +1,8 @@
 # Sprint 3.1: Systemd Docker Service for RauskuClaw Stack
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Status:** ✅ Complete
 **Build:** Success (0 warnings, 0 errors)
 **Date:** 2025-02-23
@@ -98,6 +101,13 @@ The Arch Linux VM image must have:
 1. Systemd automatically starts `rauskuclaw-docker.service`
 2. Docker stack (API, Worker, UI v2, Ollama, Nginx) starts automatically
 
+## Code pointers
+
+- `Services/ProvisioningScriptBuilder.cs`
+- `Services/SeedIsoService.cs`
+- `Models/ProvisionProfile.cs`
+- `Services/QemuProcessManager.cs`
+
 ## Verification
 
 To verify the service is running inside the VM:
@@ -113,9 +123,4 @@ docker ps
 journalctl -u rauskuclaw-docker.service
 ```
 
-## Next Steps
-
-Remaining Sprint 3 items:
-- [ ] Workspace Templates (default.json, minimal.json, full-ai.json)
-- [ ] Settings & Configuration Persistence
-- [ ] Infisical/Holvi Secret Manager Integration
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

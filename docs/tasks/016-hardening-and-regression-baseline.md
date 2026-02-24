@@ -1,7 +1,8 @@
 # Task 16: Hardening & Regression Baseline
 
-**Date:** 2026-02-24  
-**Status:** In Progress
+Status: Partially Completed
+Last verified against code: 2026-02-24
+
 
 ## Why now
 
@@ -31,6 +32,22 @@ Establish a repeatable regression baseline that keeps startup/runtime flows stab
 3. Definition of Done guardrails
 - Require successful build + test run for changes in startup/runtime services.
 - Add a lightweight smoke checklist for manual VM lifecycle verification.
+
+## Code pointers
+
+- `docs/tasks/004-testing-checklist.md`
+- `RauskuClaw.Tests/PortAllocatorServiceTests.cs`
+- `RauskuClaw.Tests/SettingsServiceTests.cs`
+- `RauskuClaw.Tests/WorkspaceStartupOrchestratorTests.cs`
+- `README.md`
+
+
+## Carried forward items
+
+- Settings browse dialog polish and allocator/settings source-of-truth alignment (from Task 006).
+- Template creation/import-export/preview UX follow-ups (from Task 007).
+- Deeper SSH/Docker runtime integration gaps (from Task 002).
+- Additional startup resilience smoke scenarios (from Task 013).
 
 ## Acceptance criteria
 

@@ -1,5 +1,8 @@
 # UI Polish Fixes
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-23
 **Build Status:** ✅ Success (0 warnings, 0 errors)
 
@@ -108,10 +111,11 @@ The VM control buttons in the header already have proper spacing with `Margin="0
 - [x] SSH Terminal `$` prompt is properly aligned
 - [x] Button spacing in header looks correct
 - [x] Text alignment in headers and tabs is consistent
+## Code pointers
 
-## Next Steps
+- `GUI/Views/MainWindow.xaml`
+- `GUI/Views/ThemedDialogWindow.xaml`
+- `GUI/Views/VmActionProgressWindow.xaml`
+- `GUI/Converters/BoolToVisibilityConverter.cs`
 
-Remaining Sprint 3 items:
-- [ ] Workspace Templates (default.json, minimal.json, full-ai.json)
-- [ ] Settings & Configuration Persistence
-- [ ] Infisical/Holvi Secret Manager Integration
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

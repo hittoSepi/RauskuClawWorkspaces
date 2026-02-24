@@ -1,5 +1,8 @@
 # Task 12: IconButton Standardization
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-24  
 **Status:** Completed
 
@@ -42,6 +45,13 @@ Reduce repeated `StackPanel + icon + text` button markup and unify icon-button s
 2. Cleanup
 - Removed now-unused `xmlns:fa` declarations in views that no longer render inline icon elements directly.
 - Preserved special cases with direct icon usage where needed (warnings, status indicators, spinner, floating jump button).
+
+## Code pointers
+
+- `App.xaml`
+- `GUI/Views/MainWindow.xaml`
+- `GUI/Views/Settings.xaml`
+- `GUI/Views/SftpFiles.xaml`
 
 ## Validation
 
