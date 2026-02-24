@@ -1701,12 +1701,14 @@ runcmd:
       local env_file=""$dir/.env""
       local env_example=""$dir/.env.example""
       if [ -f ""$env_file"" ]; then
+        echo ""Env check: using existing $env_file""
         return
       fi
 
       if [ -f ""$env_example"" ]; then
         echo ""Creating $env_file from .env.example""
         cp ""$env_example"" ""$env_file""
+        echo ""Env check: created $env_file from template""
       else
         echo ""ERROR: Missing required env file: $env_file (and no .env.example found)."" >&2
         return 1
@@ -1773,6 +1775,8 @@ runcmd:
         echo ""ERROR: API_KEY/API_TOKEN are not ready in $env_file; refusing to start docker compose."" >&2
         return 1
       fi
+
+      echo ""Env check: API_KEY/API_TOKEN ready in $env_file""
     }}
 
     run_up() {{

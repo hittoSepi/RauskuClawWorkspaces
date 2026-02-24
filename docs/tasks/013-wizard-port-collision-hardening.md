@@ -62,6 +62,11 @@ Make wizard startup more resilient when host ports race/collide at VM start time
   - `docker-unavailable` is treated as transient daemon-not-ready state during warmup.
   - Added explicit `cloud-init status --wait` synchronization before runtime Env/Docker checks.
   - Enforced hard gate: if runtime `.env` is still not ready after wait window, startup fails before Docker stage instead of continuing.
+  - Serial-driven stage visibility improved: when `"Starting RauskuClaw Docker Stack..."` is detected, wizard now marks `Env` as `In progress` before Docker stage.
+  - Cloud-init env logs clarified:
+    - prints when existing `.env` is reused,
+    - prints when `.env` is created from `.env.example`,
+    - prints when `API_KEY/API_TOKEN` are confirmed ready.
 
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.

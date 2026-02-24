@@ -1833,6 +1833,7 @@ namespace RauskuClaw.GUI.ViewModels
             try
             {
                 var updatesHintSent = false;
+                var envHintSent = false;
                 var dockerHintSent = false;
                 using var client = new TcpClient();
                 await client.ConnectAsync("127.0.0.1", serialPort, ct);
@@ -1877,7 +1878,7 @@ namespace RauskuClaw.GUI.ViewModels
                         if (!string.IsNullOrWhiteSpace(normalized))
                         {
                             ReportLog(progress, $"[serial] {normalized}");
-                            PromoteWizardStageFromSerialLine(normalized, progress, ref updatesHintSent, ref dockerHintSent);
+                            PromoteWizardStageFromSerialLine(normalized, progress, ref updatesHintSent, ref envHintSent, ref dockerHintSent);
                         }
                         lastPartialFlushUtc = DateTime.UtcNow;
                     }
@@ -1892,7 +1893,7 @@ namespace RauskuClaw.GUI.ViewModels
                             if (!string.IsNullOrWhiteSpace(normalizedPartial))
                             {
                                 ReportLog(progress, $"[serial] {normalizedPartial}");
-                                PromoteWizardStageFromSerialLine(normalizedPartial, progress, ref updatesHintSent, ref dockerHintSent);
+                                PromoteWizardStageFromSerialLine(normalizedPartial, progress, ref updatesHintSent, ref envHintSent, ref dockerHintSent);
                             }
                         }
                         sb.Clear();
@@ -1956,6 +1957,7 @@ namespace RauskuClaw.GUI.ViewModels
             string serialLine,
             IProgress<string>? progress,
             ref bool updatesHintSent,
+            ref bool envHintSent,
             ref bool dockerHintSent)
         {
             if (!updatesHintSent
@@ -1970,6 +1972,12 @@ namespace RauskuClaw.GUI.ViewModels
             if (!dockerHintSent
                 && serialLine.Contains("Starting RauskuClaw Docker Stack", StringComparison.OrdinalIgnoreCase))
             {
+                if (!envHintSent)
+                {
+                    envHintSent = true;
+                    ReportStage(progress, "env", "in_progress", "Preparing runtime .env for Docker stack...");
+                }
+
                 dockerHintSent = true;
                 ReportStage(progress, "docker", "in_progress", "RauskuClaw Docker stack startup detected. This might take several minutes.");
             }
