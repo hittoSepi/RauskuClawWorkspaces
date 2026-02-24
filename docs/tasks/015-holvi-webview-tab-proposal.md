@@ -1,5 +1,8 @@
 # Task 15: HOLVI WebView Tab & Infisical Access Flow
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 ## Why this is the natural next step
 
 Most core runtime tasks are completed (wizard, VM lifecycle, SSH/Docker/SFTP/runtime tabs). The next UX bottleneck is secret onboarding: when VM is running, users still need a quick way to open Infisical/Holvi and input/update secrets without leaving the app.
@@ -32,6 +35,14 @@ Add a `HOLVI` runtime tab (WebView2) that opens a configurable Infisical/Holvi U
 - Keep secrets out of application logs.
 - Do not persist session cookies beyond WebView default profile unless explicitly required.
 - Show trust warning when URL is HTTP/non-localhost.
+
+## Code pointers
+
+- `GUI/ViewModels/HolviViewModel.cs`
+- `GUI/Views/HolviView.xaml`
+- `GUI/Views/MainWindow.xaml`
+- `Models/Settings.cs`
+- `Services/HolviService.cs`
 
 ## Acceptance criteria
 
@@ -67,3 +78,5 @@ Start with a simple single URL approach. If needed later, extend to:
 - environment-specific URLs,
 - per-workspace secret contexts,
 - direct postMessage bridge for prefilled metadata (without exposing secret values).
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

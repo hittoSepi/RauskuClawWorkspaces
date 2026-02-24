@@ -1,5 +1,8 @@
 # Task 13: Wizard Port Collision Hardening
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-24  
 **Status:** Completed
 
@@ -27,6 +30,13 @@ Make wizard startup more resilient when host ports race/collide at VM start time
 - Centralized VM profile creation into a helper.
 - Added local host-port probe helpers and deterministic next-free-port selection.
 
+## Code pointers
+
+- `Services/WorkspaceStartupOrchestrator.cs`
+- `GUI/ViewModels/Main/MainViewModel.cs`
+- `GUI/Views/MainWindow.xaml`
+- `RauskuClaw.Tests/WorkspaceStartupOrchestratorTests.cs`
+
 ## Validation
 
 - Build target:
@@ -42,7 +52,6 @@ Make wizard startup more resilient when host ports race/collide at VM start time
   - Seed ISO is generated under a workspace-specific artifact subdirectory to avoid file-lock collisions.
   - SFTP upload/download dialogs default to that host workspace directory.
 
-## TODO
 
 ## Addendum (2026-02-24)
 
@@ -71,3 +80,5 @@ Make wizard startup more resilient when host ports race/collide at VM start time
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.
   - Increase Minimize / Maximize / Close button hit area and visual size for better usability.
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

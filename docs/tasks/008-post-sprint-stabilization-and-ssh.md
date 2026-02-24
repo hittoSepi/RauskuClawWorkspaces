@@ -1,5 +1,8 @@
 # Post-Sprint Stabilization & SSH Runtime Integration
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-23  
 **Status:** Complete  
 **Build:** Success (0 warnings, 0 errors)
@@ -96,6 +99,13 @@ This update finalized workspace creation flow, stabilized VM control UX, and rep
 - Docker validation includes a retry window for transient `health: starting` states.
 - Wizard Step 4 success view shows compact access info (Web UI, API, SSH, token source).
 - Access info includes one-click copy to clipboard.
+
+## Code pointers
+
+- `Services/WorkspaceStartupOrchestrator.cs`
+- `Services/WorkspaceWarmupService.cs`
+- `GUI/ViewModels/Main/MainViewModel.cs`
+- `RauskuClaw.Tests/WorkspaceStartupOrchestratorTests.cs`
 
 ## Validation Update (2026-02-24)
 

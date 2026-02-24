@@ -1,5 +1,8 @@
 # Task 14: SFTP UX and Host Workspace Visibility
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-24  
 **Status:** Completed
 
@@ -36,6 +39,13 @@ Implemented SFTP workflow usability improvements and surfaced host workspace loc
   - Text-only editor
   - File size limit (2 MB)
   - Binary detection blocks editing
+
+## Code pointers
+
+- `GUI/ViewModels/SftpFilesViewModel.cs`
+- `GUI/Views/SftpFiles.xaml`
+- `GUI/Views/SftpFileEditorWindow.xaml`
+- `GUI/ViewModels/SettingsViewModel.cs`
 
 ## Validation
 

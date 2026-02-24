@@ -1,5 +1,8 @@
 # Sprint 3.3 & 3.4: Settings & Secret Manager Integration
 
+Status: Partially Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-23
 **Build Status:** ✅ Success (0 warnings, 0 errors)
 
@@ -211,18 +214,11 @@ Settings are stored in `Settings/settings.json`:
 
 ## Known Limitations
 
-1. **Browse Dialogs** - Not yet implemented (TODO comments in code)
+1. **Browse Dialogs** - Follow-up moved to Task 16 hardening backlog.
 2. **Settings Auto-load on Startup** - ✅ Settings are loaded on startup and used as wizard defaults (username/hostname/qemu/resources/paths/ports).
 3. **Secret Manager UI Integration** - ✅ End-to-end wizard startup integration now resolves remote secrets and falls back to local `.env` templates with status-only logging.
-4. **Port Allocation Integration** - PortAllocatorService still uses its own internal base range defaults; settings-defined starting ports are not yet fully the allocator source-of-truth.
+4. **Port Allocation Integration** - Follow-up moved to Task 16 hardening backlog (align allocator defaults with settings source-of-truth).
 
-## Next Steps
-
-Remaining Sprint 3 items:
-- [ ] Workspace Templates (default.json, minimal.json, full-ai.json)
-- [x] Integrate Settings into Workspace creation flow
-- [x] Integrate Secret Manager into cloud-init provisioning
-- [ ] Implement browse dialogs for QEMU and VM paths
 
 ## API Endpoints
 
@@ -241,3 +237,11 @@ Remaining Sprint 3 items:
 - Endpoints:
   - `POST /auth/universal-login` - Authenticate
   - `GET /secrets/raw/{environment}/{key}` - Get secret
+## Code pointers
+
+- `Models/Settings.cs`
+- `Services/SettingsService.cs`
+- `Services/SecretStorageService.cs`
+- `GUI/ViewModels/SettingsViewModel.cs`
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

@@ -1,7 +1,8 @@
 # Sprint 1: All Basics (MVP) - Task Report
 
-**Date**: 2026-02-23
-**Status**: ✅ **COMPLETED**
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Goal**: Working app with workspace management and embedded RauskuClaw UI.
 
 ## Progress
@@ -95,6 +96,13 @@
 
 ✅ **Build succeeded** with 0 warnings, 0 errors.
 
+## Code pointers
+
+- `Models/Workspace.cs`
+- `Services/PortAllocatorService.cs`
+- `Services/QemuProcessManager.cs`
+- `GUI/Views/MainWindow.xaml`
+
 ## Verification Steps
 
 ### Manual Testing Required
@@ -115,14 +123,6 @@
 - No settings persistence yet (Sprint 3)
 - No SSH/Docker/Serial console tabs yet (Sprint 2)
 
-## Next Steps (Sprint 2)
-
-1. Integrate Wizard dialog as "New Workspace" flow
-2. Add Serial Console tab
-3. Add Docker Containers tab
-4. Add SSH Terminal tab
-5. Implement QMP Pause/Resume/Snapshot UI controls
-6. Add proper workspace deletion confirmation
 
 ## Notes
 
@@ -131,3 +131,5 @@
 - Default ports align with RauskuClaw Docker stack (API:3001, UIv2:3003, UIv1:3002)
 - Forwarded host ports use 301x range to avoid conflicts with common services
 - All ViewModels follow MVVM pattern with clean separation of concerns
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

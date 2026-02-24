@@ -1,5 +1,8 @@
 # Task 11: FontAwesome Modernization
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-24  
 **Status:** Complete  
 **Build:** Success (0 warnings, 0 errors on `dotnet build -m:1`; preview SDK info message remains)
@@ -53,6 +56,13 @@ Replaced legacy `FontAwesome.WPF` with modern `FontAwesome.Sharp` to remove comp
 - `GUI/Views/Steps/Step3Review.xaml`
 - `GUI/Views/Steps/Step3Run.xaml`
 - `GUI/Views/Steps/Step4Access.xaml`
+
+## Code pointers
+
+- `GUI/Views/MainWindow.xaml`
+- `GUI/Views/Settings.xaml`
+- `GUI/Views/WizardWindow.xaml`
+- `GUI/Views/SftpFiles.xaml`
 
 ## Notes
 

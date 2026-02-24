@@ -1,5 +1,8 @@
 # Sprint 2: Advanced Features - Serial Console, Docker, SSH Terminal
 
+Status: Partially Completed
+Last verified against code: 2026-02-24
+
 **Status:** ✅ Complete
 **Build:** Success (0 warnings, 0 errors)
 **Date:** 2025-02-23
@@ -123,14 +126,13 @@ StopVmAsync() → SerialConsole.Disconnect()
 - **DockerService** has SSH structure but needs actual SSH client integration
 - **SerialService** is fully functional and ready for use
 
-## Next Steps (Sprint 3)
 
-1. **SSH Terminal** - Integrate actual SSH.NET library for real command execution
-2. **Docker Service** - Connect SSH.NET to execute Docker commands inside VM
-3. **QMP Controls** - Add Pause/Resume/Snapshot buttons to MainWindow header
-4. **Workspace Templates** - Create template system for reproducible workspaces
-5. **Settings Persistence** - Save/Load application settings
-6. **Infisical/Holvi** - Secret manager integration for secure credentials
+## Code pointers
+
+- `Services/SerialService.cs`
+- `Services/DockerService.cs`
+- `GUI/ViewModels/SshTerminalViewModel.cs`
+- `GUI/Views/MainWindow.xaml`
 
 ## Verification Checklist
 
@@ -142,3 +144,5 @@ StopVmAsync() → SerialConsole.Disconnect()
 - ✅ Auto-connect logic in place for VM lifecycle
 - ⏳ Actual SSH connection testing (requires running VM)
 - ⏳ Docker container management testing (requires SSH.NET integration)
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

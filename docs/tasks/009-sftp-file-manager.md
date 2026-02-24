@@ -1,5 +1,8 @@
 # Task 9: SFTP File Manager
 
+Status: Partially Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-23  
 **Status:** Complete  
 **Build:** Success (0 warnings, 0 errors)
@@ -70,6 +73,13 @@ Implement a built-in SFTP file manager for workspaces so files can be transferre
 - [x] Stop VM while tab open; verify UI updates to disconnected state.
 - [x] Start VM again; verify reconnect and refresh works.
 
+## Code pointers
+
+- `Services/SftpService.cs`
+- `GUI/ViewModels/SftpFilesViewModel.cs`
+- `GUI/Views/SftpFiles.xaml`
+- `GUI/Views/MainWindow.xaml`
+
 ## Validation Update (2026-02-24)
 
 - SFTP endpoint validated against running workspace:
@@ -94,5 +104,6 @@ Implement a built-in SFTP file manager for workspaces so files can be transferre
 
 - Default remote directory should be `Workspace.RepoTargetDir` when available, fallback `/home/<user>`.
 - Reuse existing app theming and command patterns (`RelayCommand`, `BoolToVisibilityConverter`).
-- TODO (separate follow-up): workspace templates are currently not fully in active use in the main wizard/workspace flow; bring template selection + application path into production flow.
 - Runtime note: Docker tab now monitors expected stack containers (`rauskuclaw-api`, `rauskuclaw-worker`, `rauskuclaw-ollama`, `rauskuclaw-ui`, `rauskuclaw-ui-v2`) and shows missing services explicitly even when `docker ps` returns an empty set.
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.

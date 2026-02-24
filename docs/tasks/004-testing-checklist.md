@@ -1,5 +1,8 @@
 # Testing & Verification Checklist (Current Baseline)
 
+Status: Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-24
 **Build Status:** ✅ See quality gates in `README.md`
 
@@ -52,3 +55,8 @@
 
 - Task baseline: `docs/tasks/016-hardening-and-regression-baseline.md`
 - Quality gates: `README.md` (Quality gates section)
+## Code pointers
+
+- `docs/tasks/004-testing-checklist.md`
+- `README.md`
+- `RauskuClaw.Tests/WorkspaceStartupOrchestratorTests.cs`

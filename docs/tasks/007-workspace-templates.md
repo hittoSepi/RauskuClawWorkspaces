@@ -1,5 +1,8 @@
 # Sprint 3.5: Workspace Templates
 
+Status: Partially Completed
+Last verified against code: 2026-02-24
+
 **Date:** 2026-02-23
 **Build Status:** ✅ Success (0 warnings, 0 errors)
 
@@ -215,31 +218,14 @@ The `Step0Template.xaml` provides a visual template selector that can be integra
 - [x] Service tags show with correct colors
 - [x] Selection state changes visual appearance
 
-### Custom Templates
-- [ ] Users can create custom templates via UI (TODO)
-- [ ] Custom templates are saved to `Templates/` directory (TODO)
-- [ ] Custom templates appear in template list (TODO)
-
 ## Known Limitations
 
 1. **Wizard Integration** - ✅ Wired into WizardViewModel flow (template selection now applies defaults and is persisted into created workspace metadata).
-2. **Template Creation UI** - No UI for users to create/edit custom templates
-3. **Template Import/Export** - No way to import/export templates as files
-4. **Template Preview** - No way to preview all settings before selecting
+2. **Template Creation UI** - Follow-up moved to Task 16 hardening backlog.
+3. **Template Import/Export** - Follow-up moved to Task 16 hardening backlog.
+4. **Template Preview** - Follow-up moved to Task 16 hardening backlog.
 
-## TODO
 
-- Workspace templates are active in wizard flow; remaining work is custom template authoring/import-export and richer preview/validation UX.
-
-## Next Steps
-
-Future enhancements:
-- [ ] Wire template selection into wizard flow (update WizardViewModel)
-- [ ] Add template creation/editing UI
-- [ ] Implement template import/export
-- [ ] Add template validation (port conflicts, resource limits)
-- [ ] Add template categories filtering in UI
-- [ ] Add search functionality for templates
 
 ## Usage Example
 
@@ -289,3 +275,11 @@ var customTemplate = new WorkspaceTemplate
 var templateService = new WorkspaceTemplateService();
 templateService.SaveTemplate(customTemplate);
 ```
+## Code pointers
+
+- `Models/WorkspaceTemplate.cs`
+- `Services/WorkspaceTemplateService.cs`
+- `GUI/ViewModels/TemplateManagementViewModel.cs`
+- `GUI/Views/WizardWindow.xaml`
+
+> Remaining follow-up items are tracked in `docs/tasks/016-hardening-and-regression-baseline.md`.
