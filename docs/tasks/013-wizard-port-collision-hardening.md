@@ -56,6 +56,10 @@ Make wizard startup more resilient when host ports race/collide at VM start time
   - New `QcowImageService` creates per-workspace overlay disk from base `arch.qcow2` via `qemu-img`.
   - Legacy/shared disk paths are migrated to workspace-specific overlays when possible.
   - Startup now refuses to run if another active workspace is already using the same disk path.
+- Startup timing hardening for cloud-init provisioning:
+  - Runtime `.env` validation now waits with retries instead of failing immediately while cloud-init is still writing files.
+  - Docker readiness wait window increased (45s -> 180s).
+  - `docker-unavailable` is treated as transient daemon-not-ready state during warmup.
 
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.

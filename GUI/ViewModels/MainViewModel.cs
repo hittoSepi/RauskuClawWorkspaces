@@ -40,6 +40,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly Dictionary<string, CancellationTokenSource> _workspaceWarmupRetries = new();
         private readonly object _startPortReservationLock = new();
         private readonly HashSet<int> _activeStartPortReservations = new();
+        private readonly HashSet<string> _activeWorkspaceStarts = new();
         private bool _isVmStopping;
         private bool _isVmRestarting;
         private ObservableCollection<Workspace> _workspaces;
@@ -719,6 +720,10 @@ namespace RauskuClaw.GUI.ViewModels
             _workspaceBootSignals[workspace.Id] = false;
             workspace.Status = VmStatus.Starting;
             ReportStage(progress, "qemu", "in_progress", $"Starting VM: {workspace.Name}...");
+            lock (_startPortReservationLock)
+            {
+                _activeWorkspaceStarts.Add(workspace.Id);
+            }
 
             try
             {
@@ -930,10 +935,7 @@ namespace RauskuClaw.GUI.ViewModels
                 }
                 else
                 {
-                    var envCheck = await RunSshCommandAsync(
-                        workspace,
-                        $"if [ -f '{EscapeSingleQuotes(workspace.RepoTargetDir)}/.env' ] && grep -q '^API_KEY=' '{EscapeSingleQuotes(workspace.RepoTargetDir)}/.env' && grep -q '^API_TOKEN=' '{EscapeSingleQuotes(workspace.RepoTargetDir)}/.env'; then echo env-ok; else exit 9; fi",
-                        ct);
+                    var envCheck = await WaitForRuntimeEnvReadyAsync(workspace, progress, ct);
                     if (!envCheck.Success)
                     {
                         ReportStage(progress, "env", "failed", "Runtime .env missing or incomplete.");
@@ -1071,6 +1073,14 @@ namespace RauskuClaw.GUI.ViewModels
                 }
 
                 ReleaseReservedStartPorts(reservedStartPorts);
+                lock (_startPortReservationLock)
+                {
+                    _activeWorkspaceStarts.Remove(workspace.Id);
+                    if (_activeWorkspaceStarts.Count == 0 && _activeStartPortReservations.Count > 0)
+                    {
+                        _activeStartPortReservations.Clear();
+                    }
+                }
                 _workspaceBootSignals[workspace.Id] = bootSignalSeen;
             }
         }
@@ -1105,6 +1115,12 @@ namespace RauskuClaw.GUI.ViewModels
 
             lock (_startPortReservationLock)
             {
+                if (_activeWorkspaceStarts.Count == 0 && _activeStartPortReservations.Count > 0)
+                {
+                    // Self-heal stale in-memory reservations after aborted/finished starts.
+                    _activeStartPortReservations.Clear();
+                }
+
                 var conflicts = ports.Where(port => _activeStartPortReservations.Contains(port)).Distinct().ToList();
                 if (conflicts.Count > 0)
                 {
@@ -1518,6 +1534,11 @@ namespace RauskuClaw.GUI.ViewModels
                 ct);
             if (!dockerPs.Success)
             {
+                if (dockerPs.Message.Contains("docker-unavailable", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (false, "Docker daemon is not ready yet.");
+                }
+
                 return (false, $"Docker stack check failed: {dockerPs.Message}");
             }
 
@@ -1633,7 +1654,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private async Task<(bool Success, string Message)> WaitForDockerStackReadyAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
         {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(45);
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(180);
             var attempt = 0;
             var lastMessage = "Docker stack is not ready yet.";
 
@@ -1658,6 +1679,41 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (false, $"Docker stack did not become healthy in time: {lastMessage}");
+        }
+
+        private async Task<(bool Success, string Message)> WaitForRuntimeEnvReadyAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
+        {
+            var escapedRepoDir = EscapeSingleQuotes(workspace.RepoTargetDir);
+            var envPath = $"{escapedRepoDir}/.env";
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(150);
+            var attempt = 0;
+            var lastMessage = "Runtime .env not ready yet.";
+
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                attempt++;
+
+                var probe = await RunSshCommandAsync(
+                    workspace,
+                    $"if [ -f '{envPath}' ] && grep -q '^API_KEY=' '{envPath}' && grep -q '^API_TOKEN=' '{envPath}' && ! grep -q '^API_KEY=change-me-please$' '{envPath}' && ! grep -q '^API_TOKEN=change-me-please$' '{envPath}'; then echo env-ok; else exit 9; fi",
+                    ct);
+
+                if (probe.Success)
+                {
+                    return (true, "Runtime .env is ready.");
+                }
+
+                lastMessage = probe.Message;
+                if (attempt == 1 || attempt % 4 == 0)
+                {
+                    ReportLog(progress, $"Env warmup: {lastMessage}");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            }
+
+            return (false, $"Runtime .env missing or incomplete after wait window: {lastMessage}");
         }
 
         private async Task<(bool Success, string Message)> WaitForSshReadyAsync(Workspace workspace, CancellationToken ct)
