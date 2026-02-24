@@ -120,6 +120,13 @@
                                 Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Button
                                 Style="{StaticResource SecondaryIconButton}"
+                                Tag="Wrench"
+                                Content="Fix Problems"
+                                Command="{Binding FixProblemsCommand}"
+                                Margin="0,0,8,0"
+                                Visibility="{Binding ShowFixProblemsButton, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Button
+                                Style="{StaticResource SecondaryIconButton}"
                                 Tag="Check"
                                 Content="Close"
                                 Command="{Binding CloseCommand}"

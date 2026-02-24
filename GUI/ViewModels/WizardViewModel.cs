@@ -92,6 +92,7 @@ namespace RauskuClaw.GUI.ViewModels
             CopyAccessInfoCommand = new RelayCommand(CopyAccessInfo, () => HasAccessInfo);
             SelectCustomCommand = new RelayCommand(SelectCustomTemplate, () => !IsRunning);
             EditConfigurationCommand = new RelayCommand(EditConfiguration, () => !IsRunning && StepIndex == 3);
+            FixProblemsCommand = new RelayCommand(() => _ = FixProblemsAsync(), CanFixProblems);
 
             StepIndex = 0;
             Status = "Ready";
@@ -139,6 +140,7 @@ namespace RauskuClaw.GUI.ViewModels
         public RelayCommand CopyAccessInfoCommand { get; }
         public RelayCommand SelectCustomCommand { get; }
         public RelayCommand EditConfigurationCommand { get; }
+        public RelayCommand FixProblemsCommand { get; }
 
         public ObservableCollection<WorkspaceTemplateOptionViewModel> Templates => _templates;
 
@@ -199,6 +201,8 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_status == value) return;
                 _status = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowFixProblemsButton));
+                RaiseCommands();
             }
         }
 
@@ -381,6 +385,8 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_runLog == value) return;
                 _runLog = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowFixProblemsButton));
+                RaiseCommands();
             }
         }
 
@@ -551,6 +557,8 @@ namespace RauskuClaw.GUI.ViewModels
                 _failureReason = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasFailureReason));
+                OnPropertyChanged(nameof(ShowFixProblemsButton));
+                RaiseCommands();
             }
         }
 
@@ -600,6 +608,7 @@ namespace RauskuClaw.GUI.ViewModels
         public bool ShowNextButton => StepIndex < 3;
         public bool ShowStartButton => StepIndex == 3;
         public bool ShowRetryStartButton => StepIndex == 4 && !IsRunning && !StartSucceeded;
+        public bool ShowFixProblemsButton => StepIndex == 4 && !IsRunning && !StartSucceeded && HasPortConflictFailure;
         public bool ShowCancelButton => IsRunning;
         public bool ShowCloseButton => (StepIndex == 4 || StepIndex == 5) && !IsRunning;
 
@@ -650,6 +659,7 @@ namespace RauskuClaw.GUI.ViewModels
             CopyAccessInfoCommand.RaiseCanExecuteChanged();
             SelectCustomCommand.RaiseCanExecuteChanged();
             EditConfigurationCommand.RaiseCanExecuteChanged();
+            FixProblemsCommand.RaiseCanExecuteChanged();
         }
 
         private void Next()
@@ -1115,6 +1125,40 @@ namespace RauskuClaw.GUI.ViewModels
 
         private Task RetryStartAsync() => StartAndCreateWorkspaceAsync();
 
+        private bool CanFixProblems() => StepIndex == 4 && !IsRunning && !StartSucceeded && HasPortConflictFailure;
+
+        private bool HasPortConflictFailure
+        {
+            get
+            {
+                var combined = $"{FailureReason}\n{Status}\n{RunLog}";
+                return combined.Contains("Host port(s) in use", StringComparison.OrdinalIgnoreCase)
+                    || combined.Contains("Use Auto Assign Ports", StringComparison.OrdinalIgnoreCase)
+                    || combined.Contains("already in use", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private async Task FixProblemsAsync()
+        {
+            if (!HasPortConflictFailure)
+            {
+                Status = "No automatic fix is available for this failure.";
+                return;
+            }
+
+            AppendRunLog("Fix Problems: attempting automatic port re-assignment...");
+            if (!TryAutoAssignPorts(out var error))
+            {
+                Status = $"Fix Problems failed: {error}";
+                AppendRunLog(Status);
+                return;
+            }
+
+            Status = "Ports re-assigned. Retrying startup...";
+            AppendRunLog(Status);
+            await RetryStartAsync();
+        }
+
         private void CancelOrCloseWizard()
         {
             if (IsRunning)
@@ -1165,6 +1209,7 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(ShowNextButton));
             OnPropertyChanged(nameof(ShowStartButton));
             OnPropertyChanged(nameof(ShowRetryStartButton));
+            OnPropertyChanged(nameof(ShowFixProblemsButton));
             OnPropertyChanged(nameof(ShowCancelButton));
             OnPropertyChanged(nameof(ShowCloseButton));
         }
@@ -1422,6 +1467,17 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void AutoAssignPorts()
         {
+            if (TryAutoAssignPorts(out var error))
+            {
+                Status = "Ports auto-assigned from available local ports.";
+                return;
+            }
+
+            Status = $"Auto assign failed: {error}";
+        }
+
+        private bool TryAutoAssignPorts(out string error)
+        {
             try
             {
                 var used = new HashSet<int>();
@@ -1447,11 +1503,13 @@ namespace RauskuClaw.GUI.ViewModels
                 HostUiV2Port = uiV2Port;
                 HostQmpPort = qmpPort;
                 HostSerialPort = serialPort;
-                Status = "Ports auto-assigned from available local ports.";
+                error = string.Empty;
+                return true;
             }
             catch (Exception ex)
             {
-                Status = $"Auto assign failed: {ex.Message}";
+                error = ex.Message;
+                return false;
             }
         }
 

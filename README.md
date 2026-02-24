@@ -14,6 +14,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Legacy shared `VM\seed.iso` paths are auto-migrated to workspace-specific seed paths to avoid file-lock collisions.
 - Startup progress stages with readiness/failure reporting.
 - Startup-time host-port collision hardening with UI-v2 auto-remap retry path.
+- Failed startup due to host-port conflicts now offers a `Fix Problems` one-click recovery path in wizard (auto-assign ports + retry).
 - Startup port reservation now uses a concurrent-safe in-process guard to reduce race collisions across parallel starts.
 - Dedicated post-start `Access Info` step with copy action.
 - SSH stabilization phase with degraded warmup mode (`Running (SSH warming up)`).

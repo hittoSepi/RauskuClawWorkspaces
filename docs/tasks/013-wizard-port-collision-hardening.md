@@ -48,6 +48,10 @@ Make wizard startup more resilient when host ports race/collide at VM start time
 
 - Added startup-time in-process port reservation guard in `MainViewModel` to reduce collisions during parallel workspace starts.
 - UI-v2 remap candidate search now includes currently reserved startup ports to avoid selecting ports concurrently claimed by another startup flow.
+- Added wizard `Fix Problems` action in failed Start step:
+  - Detects host-port conflict failures.
+  - Runs the same auto-assign port logic as Resources step.
+  - Automatically retries startup after successful reassignment.
 
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.
