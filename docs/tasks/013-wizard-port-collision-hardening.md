@@ -61,6 +61,7 @@ Make wizard startup more resilient when host ports race/collide at VM start time
   - Docker readiness wait window increased (45s -> 180s).
   - `docker-unavailable` is treated as transient daemon-not-ready state during warmup.
   - Added explicit `cloud-init status --wait` synchronization before runtime Env/Docker checks.
+  - Enforced hard gate: if runtime `.env` is still not ready after wait window, startup fails before Docker stage instead of continuing.
 
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.
