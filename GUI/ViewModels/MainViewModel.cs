@@ -1981,6 +1981,17 @@ namespace RauskuClaw.GUI.ViewModels
                 dockerHintSent = true;
                 ReportStage(progress, "docker", "in_progress", "RauskuClaw Docker stack startup detected. This might take several minutes.");
             }
+
+            if (!envHintSent
+                && (serialLine.Contains("Repository setup:", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("Web UI build step", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("npm ", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("vite v", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("Env check:", StringComparison.OrdinalIgnoreCase)))
+            {
+                envHintSent = true;
+                ReportStage(progress, "env", "in_progress", "Preparing repository and runtime env inside VM...");
+            }
         }
 
         private static bool IsHex(ReadOnlySpan<char> value)

@@ -1649,6 +1649,7 @@ runcmd:
     fi
   # Ensure git exists and deploy/update repository
   - |
+    echo ""Repository setup: starting git sync into {escapedRepoTargetDir}""
     if ! command -v git >/dev/null 2>&1; then
       pacman -Sy --noconfirm git
     fi
@@ -1665,6 +1666,7 @@ runcmd:
       chown -R ""{escapedUsername}:{escapedUsername}"" ""{escapedRepoTargetDir}"" || true
       chmod -R u+rwX ""{escapedRepoTargetDir}"" || true
     fi{buildWebUiSection}{deployWebUiSection}
+    echo ""Repository setup: git sync done for {escapedRepoTargetDir}""
   # Ensure Docker engine is installed and running
   - |
     if ! command -v docker >/dev/null 2>&1; then
