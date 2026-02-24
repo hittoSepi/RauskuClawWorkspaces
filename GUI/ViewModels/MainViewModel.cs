@@ -928,6 +928,16 @@ namespace RauskuClaw.GUI.ViewModels
 
                 var startupWarnings = new List<string>();
 
+                if (!allowDegradedStartup)
+                {
+                    ReportLog(progress, "Waiting for cloud-init finalization before runtime checks...");
+                    var cloudInitReady = await WaitForCloudInitFinalizationAsync(workspace, progress, ct);
+                    if (!cloudInitReady.Success)
+                    {
+                        AppendLog($"cloud-init wait note: {cloudInitReady.Message}");
+                    }
+                }
+
                 ReportStage(progress, "env", "in_progress", "Validating runtime .env inside VM...");
                 if (allowDegradedStartup)
                 {
@@ -1714,6 +1724,34 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (false, $"Runtime .env missing or incomplete after wait window: {lastMessage}");
+        }
+
+        private async Task<(bool Success, string Message)> WaitForCloudInitFinalizationAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
+        {
+            var probe = await RunSshCommandAsync(
+                workspace,
+                "set -e; OUT=$(cloud-init status --wait --long 2>/dev/null || cloud-init status --wait 2>/dev/null || cloud-init status --long 2>/dev/null || true); echo \"$OUT\"",
+                ct);
+
+            if (!probe.Success)
+            {
+                return (false, $"cloud-init status probe failed: {probe.Message}");
+            }
+
+            var text = probe.Message ?? string.Empty;
+            if (text.Contains("status: done", StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, "cloud-init final stage completed.");
+            }
+
+            if (text.Contains("running", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("not run", StringComparison.OrdinalIgnoreCase))
+            {
+                ReportLog(progress, $"cloud-init status: {text.Replace('\r', ' ').Replace('\n', ' ').Trim()}");
+                return (false, "cloud-init is not fully done yet.");
+            }
+
+            return (true, "cloud-init status probe completed.");
         }
 
         private async Task<(bool Success, string Message)> WaitForSshReadyAsync(Workspace workspace, CancellationToken ct)
