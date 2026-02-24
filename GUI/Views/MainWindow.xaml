@@ -142,6 +142,27 @@
                         </Style>
                     </ListBox.ItemContainerStyle>
                 </ListBox>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,16">
+                    <TextBlock Text="General" FontSize="12" Foreground="#9AA3B2" Margin="4,0,0,8"/>
+                    <Button Command="{Binding ShowWorkspaceViewsCommand}"
+                            Style="{StaticResource SecondaryIconButton}"
+                            Tag="Desktop"
+                            Content="Workspace Views"
+                            Padding="10,8"
+                            Margin="0,0,0,6"/>
+                    <Button Command="{Binding ShowTemplatesCommand}"
+                            Style="{StaticResource SecondaryIconButton}"
+                            Tag="Clone"
+                            Content="Templates"
+                            Padding="10,8"
+                            Margin="0,0,0,6"/>
+                    <Button Command="{Binding ShowGeneralSettingsCommand}"
+                            Style="{StaticResource SecondaryIconButton}"
+                            Tag="Cog"
+                            Content="General Settings"
+                            Padding="10,8"/>
+                </StackPanel>
             </DockPanel>
         </Border>
 
@@ -149,6 +170,7 @@
         <DockPanel DockPanel.Dock="Right">
             <!-- Header: Workspace info + VM controls -->
             <Border DockPanel.Dock="Top"
+                    Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="#151A22"
                     Padding="16,12"
                     BorderBrush="#2A3240"
@@ -256,6 +278,7 @@
 
             <!-- Quick Info Bar -->
             <Border DockPanel.Dock="Top"
+                    Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="#0F1115"
                     Padding="12,8"
                     BorderBrush="#2A3240"
@@ -288,7 +311,7 @@
             </Border>
 
             <!-- Tab Control: Views -->
-            <TabControl Background="#0F1115" BorderThickness="0">
+            <TabControl Background="#0F1115" BorderThickness="0" Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
                 <TabItem Padding="16,8">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
@@ -382,36 +405,6 @@
                 <TabItem Padding="16,8">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <fa:IconBlock Icon="Clone" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Templates"/>
-                        </StackPanel>
-                    </TabItem.Header>
-                    <ContentControl Content="{Binding TemplateManagement}">
-                        <ContentControl.ContentTemplate>
-                            <DataTemplate>
-                                <views:TemplateManagement/>
-                            </DataTemplate>
-                        </ContentControl.ContentTemplate>
-                    </ContentControl>
-                </TabItem>
-                <TabItem Padding="16,8">
-                    <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
-                            <fa:IconBlock Icon="Cog" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Settings"/>
-                        </StackPanel>
-                    </TabItem.Header>
-                    <ContentControl Content="{Binding Settings}">
-                        <ContentControl.ContentTemplate>
-                            <DataTemplate>
-                                <views:Settings/>
-                            </DataTemplate>
-                        </ContentControl.ContentTemplate>
-                    </ContentControl>
-                </TabItem>
-                <TabItem Padding="16,8">
-                    <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
                             <fa:IconBlock Icon="ListAlt" Style="{StaticResource FaIconInline}"/>
                             <TextBlock Text="VM Logs"/>
                         </StackPanel>
@@ -427,6 +420,42 @@
                              VerticalScrollBarVisibility="Auto"/>
                 </TabItem>
             </TabControl>
+
+            <ContentControl Content="{Binding TemplateManagement}">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsTemplateSection}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+                <ContentControl.ContentTemplate>
+                    <DataTemplate>
+                        <views:TemplateManagement/>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+
+            <ContentControl Content="{Binding Settings}">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSettingsSection}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+                <ContentControl.ContentTemplate>
+                    <DataTemplate>
+                        <views:Settings/>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
         </DockPanel>
             </DockPanel>
         </Grid>

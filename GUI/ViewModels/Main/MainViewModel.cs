@@ -26,6 +26,13 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public partial class MainViewModel : INotifyPropertyChanged
     {
+        public enum MainContentSection
+        {
+            WorkspaceTabs,
+            TemplateManagement,
+            Settings
+        }
+
         private readonly IWorkspaceService _workspaceService;
         private readonly IQemuProcessManager _qemuManager;
         private readonly QmpClient _qmpClient;
@@ -56,6 +63,7 @@ namespace RauskuClaw.GUI.ViewModels
         private string _vmLog = "";
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
+        private MainContentSection _selectedMainSection = MainContentSection.WorkspaceTabs;
 
         public MainViewModel() : this(
             settingsService: null,
@@ -101,6 +109,9 @@ namespace RauskuClaw.GUI.ViewModels
             StopVmCommand = new RelayCommand(async () => await StopVmAsync(), () => (SelectedWorkspace?.CanStop ?? false) && !_isVmStopping && !_isVmRestarting);
             RestartVmCommand = new RelayCommand(async () => await RestartVmAsync(), () => (SelectedWorkspace?.IsRunning ?? false) && !_isVmStopping && !_isVmRestarting);
             DeleteWorkspaceCommand = new RelayCommand(async () => await DeleteWorkspaceAsync(), () => SelectedWorkspace != null && !_isVmStopping && !_isVmRestarting);
+            ShowWorkspaceViewsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.WorkspaceTabs);
+            ShowTemplatesCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.TemplateManagement);
+            ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
         }
 
         public ObservableCollection<Workspace> Workspaces => _workspaces;
@@ -263,12 +274,37 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        public MainContentSection SelectedMainSection
+        {
+            get => _selectedMainSection;
+            set
+            {
+                if (_selectedMainSection == value)
+                {
+                    return;
+                }
+
+                _selectedMainSection = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsWorkspaceViewsSection));
+                OnPropertyChanged(nameof(IsTemplateSection));
+                OnPropertyChanged(nameof(IsSettingsSection));
+            }
+        }
+
+        public bool IsWorkspaceViewsSection => SelectedMainSection == MainContentSection.WorkspaceTabs;
+        public bool IsTemplateSection => SelectedMainSection == MainContentSection.TemplateManagement;
+        public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
+
         // Commands
         public ICommand NewWorkspaceCommand { get; }
         public ICommand StartVmCommand { get; }
         public ICommand StopVmCommand { get; }
         public ICommand RestartVmCommand { get; }
         public ICommand DeleteWorkspaceCommand { get; }
+        public ICommand ShowWorkspaceViewsCommand { get; }
+        public ICommand ShowTemplatesCommand { get; }
+        public ICommand ShowGeneralSettingsCommand { get; }
 
         private async void ShowNewWorkspaceDialog()
         {
