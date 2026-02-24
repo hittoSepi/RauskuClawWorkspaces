@@ -51,9 +51,20 @@ namespace RauskuClaw.Services
                 return null;
             }
 
-            var cipherBytes = Convert.FromBase64String(protectedValue);
-            var plainBytes = ProtectedData.Unprotect(cipherBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(plainBytes);
+            try
+            {
+                var cipherBytes = Convert.FromBase64String(protectedValue);
+                var plainBytes = ProtectedData.Unprotect(cipherBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(plainBytes);
+            }
+            catch (FormatException)
+            {
+                return null;
+            }
+            catch (CryptographicException)
+            {
+                return null;
+            }
         }
 
         public void DeleteSecret(string? key)
