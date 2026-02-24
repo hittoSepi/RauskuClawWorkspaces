@@ -1,7 +1,7 @@
 # Task 16: Hardening & Regression Baseline
 
 **Date:** 2026-02-24  
-**Status:** Proposed
+**Status:** In Progress
 
 ## Why now
 
@@ -34,13 +34,15 @@ Establish a repeatable regression baseline that keeps startup/runtime flows stab
 
 ## Acceptance criteria
 
-- [ ] Testing checklist reflects current runtime tabs and startup behavior.
-- [ ] At least one automated regression test exists for each of:
-  - [ ] startup/port flow,
-  - [ ] settings persistence,
-  - [ ] startup error/retry path.
-- [ ] CI/local verification path is documented as a short command sequence.
+- [x] Testing checklist reflects current runtime tabs and startup behavior.
+- [x] At least one automated regression test exists for each of:
+  - [x] startup/port flow,
+  - [x] settings persistence,
+  - [x] startup error/retry path.
+- [x] CI/local verification path is documented as a short command sequence.
 - [ ] No new warnings introduced in baseline build.
+
+> Note: final baseline completion is blocked until build warnings can be verified in an environment with `dotnet` available.
 
 ## Suggested implementation files
 

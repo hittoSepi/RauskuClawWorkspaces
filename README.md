@@ -49,6 +49,18 @@ Build: Success (`0 warnings`, `0 errors`).
 - Port configuration validation with warning badges and save guardrails.
 - Private key path `Browse...` support.
 
+
+## Quality gates
+
+Run these before merging startup/runtime related changes:
+
+```bash
+dotnet build RauskuClaw.slnx -m:1
+dotnet test RauskuClaw.Tests/RauskuClaw.Tests.csproj -m:1
+```
+
+Manual verification checklist: `docs/tasks/004-testing-checklist.md`.
+
 ## Documentation
 
 - [Sprint 1 MVP Report](docs/tasks/001-sprint1-mvp.md)
