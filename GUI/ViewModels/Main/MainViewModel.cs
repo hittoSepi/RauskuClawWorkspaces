@@ -1387,7 +1387,7 @@ namespace RauskuClaw.GUI.ViewModels
             _inlineNoticeCts?.Dispose();
             _inlineNoticeCts = null;
 
-            foreach (var workspaceId in _workspaceWarmupRetries.Keys.ToList())
+            foreach (var workspaceId in _warmupService.GetActiveWarmupRetryWorkspaceIds().ToList())
             {
                 CancelWarmupRetry(workspaceId);
             }
