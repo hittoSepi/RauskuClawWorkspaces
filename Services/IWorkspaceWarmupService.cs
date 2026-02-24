@@ -16,5 +16,6 @@ namespace RauskuClaw.Services
             Action onFailed);
 
         void CancelWarmupRetry(string workspaceId);
+
     }
 }
