@@ -42,6 +42,12 @@ Establish a repeatable regression baseline that keeps startup/runtime flows stab
 - `README.md`
 
 
+## Port allocation source-of-truth (updated)
+
+- Runtime port allocation now treats `Settings.Starting*Port` values as the primary source-of-truth for the first workspace slot.
+- Deterministic workspace slots are derived from those starting values with `+100` increments per additional workspace instance.
+- Fallback to built-in defaults is only used when configured start ports are missing/invalid, and that fallback path is explicitly logged.
+
 ## Carried forward items
 
 - Settings browse dialog polish and allocator/settings source-of-truth alignment (from Task 006).

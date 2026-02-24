@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using RauskuClaw.Models;
 
 namespace RauskuClaw.Services
@@ -13,11 +14,41 @@ namespace RauskuClaw.Services
         private readonly HashSet<int> _allocatedPorts = new();
         private readonly int _portRangeStart;
         private readonly int _portRangeEnd;
+        private readonly PortAllocation _startingPorts;
+        private readonly int _slotIncrement;
 
-        public PortAllocatorService(int portRangeStart = 2222, int portRangeEnd = 5000)
+        public PortAllocatorService(Settings? settings = null, int portRangeStart = 2222, int portRangeEnd = 5000)
         {
-            _portRangeStart = portRangeStart;
+            _slotIncrement = 100;
             _portRangeEnd = portRangeEnd;
+
+            if (IsValidSettingsStart(settings, _portRangeEnd))
+            {
+                _portRangeStart = settings!.StartingSshPort;
+                _startingPorts = new PortAllocation
+                {
+                    Ssh = settings.StartingSshPort,
+                    Api = settings.StartingApiPort,
+                    UiV2 = settings.StartingUiV2Port,
+                    UiV1 = settings.StartingUiV1Port,
+                    Qmp = settings.StartingQmpPort,
+                    Serial = settings.StartingSerialPort
+                };
+            }
+            else
+            {
+                Trace.TraceWarning($"PortAllocatorService fallback: using built-in defaults because settings start ports were missing or invalid (StartingSshPort={settings?.StartingSshPort.ToString() ?? "<null>"}, rangeEnd={_portRangeEnd}).");
+                _portRangeStart = portRangeStart;
+                _startingPorts = new PortAllocation
+                {
+                    Ssh = portRangeStart,
+                    Api = 3011,
+                    UiV2 = 3013,
+                    UiV1 = 3012,
+                    Qmp = 4444,
+                    Serial = 5555
+                };
+            }
         }
 
         /// <summary>
@@ -39,55 +70,53 @@ namespace RauskuClaw.Services
 
         private PortAllocation AllocateNextAvailable()
         {
-            int basePort = FindAvailableBasePort();
-            var allocation = new PortAllocation
-            {
-                Ssh = basePort,
-                Api = basePort + 10,      // 2232, 2332, 2432... (for 2222 base: 2232, but we want 3011+)
-                UiV2 = basePort + 791,    // Offset to reach 3013 from 2222
-                UiV1 = basePort + 790,    // Offset to reach 3012 from 2222
-                Qmp = basePort + 2222,    // Offset to reach 4444 from 2222
-                Serial = basePort + 3333  // Offset to reach 5555 from 2222
-            };
-
-            // For the first workspace (basePort = 2222), use defaults
-            if (basePort == _portRangeStart)
-            {
-                allocation.Api = 3011;
-                allocation.UiV2 = 3013;
-                allocation.UiV1 = 3012;
-                allocation.Qmp = 4444;
-                allocation.Serial = 5555;
-            }
+            var allocation = FindAvailableAllocation();
 
             MarkPortsAllocated(allocation);
             return allocation;
         }
 
-        private int FindAvailableBasePort()
+        private PortAllocation FindAvailableAllocation()
         {
-            for (var port = _portRangeStart; port <= _portRangeEnd; port += 100)
+            for (var ssh = _portRangeStart; ssh <= _portRangeEnd; ssh += _slotIncrement)
             {
-                // Check if this base port would conflict with any allocated ports
-                int ssh = port;
-                int api = port == _portRangeStart ? 3011 : port + 10;
-                int uiV2 = port == _portRangeStart ? 3013 : port + 791;
-                int uiV1 = port == _portRangeStart ? 3012 : port + 790;
-                int qmp = port == _portRangeStart ? 4444 : port + 2222;
-                int serial = port == _portRangeStart ? 5555 : port + 3333;
-
-                if (!_allocatedPorts.Contains(ssh) &&
-                    !_allocatedPorts.Contains(api) &&
-                    !_allocatedPorts.Contains(uiV2) &&
-                    !_allocatedPorts.Contains(uiV1) &&
-                    !_allocatedPorts.Contains(qmp) &&
-                    !_allocatedPorts.Contains(serial))
+                var slot = (ssh - _portRangeStart) / _slotIncrement;
+                var candidate = new PortAllocation
                 {
-                    return port;
+                    Ssh = _startingPorts.Ssh + (slot * _slotIncrement),
+                    Api = _startingPorts.Api + (slot * _slotIncrement),
+                    UiV2 = _startingPorts.UiV2 + (slot * _slotIncrement),
+                    UiV1 = _startingPorts.UiV1 + (slot * _slotIncrement),
+                    Qmp = _startingPorts.Qmp + (slot * _slotIncrement),
+                    Serial = _startingPorts.Serial + (slot * _slotIncrement)
+                };
+
+                if (ArePortsAvailable(candidate))
+                {
+                    return candidate;
                 }
             }
+
             throw new InvalidOperationException($"No available ports in range {_portRangeStart}-{_portRangeEnd}");
         }
+
+        private static bool IsValidSettingsStart(Settings? settings, int portRangeEnd)
+        {
+            if (settings == null)
+            {
+                return false;
+            }
+
+            return IsValidPort(settings.StartingSshPort)
+                && IsValidPort(settings.StartingApiPort)
+                && IsValidPort(settings.StartingUiV2Port)
+                && IsValidPort(settings.StartingUiV1Port)
+                && IsValidPort(settings.StartingQmpPort)
+                && IsValidPort(settings.StartingSerialPort)
+                && settings.StartingSshPort <= portRangeEnd;
+        }
+
+        private static bool IsValidPort(int value) => value is >= 1 and <= 65535;
 
         private bool ArePortsAvailable(PortAllocation ports)
         {
