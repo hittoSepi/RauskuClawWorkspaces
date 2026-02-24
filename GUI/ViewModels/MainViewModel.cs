@@ -37,6 +37,8 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
         private readonly Dictionary<string, CancellationTokenSource> _workspaceWarmupRetries = new();
+        private readonly object _startPortReservationLock = new();
+        private readonly HashSet<int> _activeStartPortReservations = new();
         private bool _isVmStopping;
         private bool _isVmRestarting;
         private ObservableCollection<Workspace> _workspaces;
@@ -269,6 +271,7 @@ namespace RauskuClaw.GUI.ViewModels
                 }
 
                 EnsureWorkspaceHostDirectory(workspace);
+                EnsureWorkspaceSeedIsoPath(workspace);
                 _workspaces.Add(workspace);
                 SelectedWorkspace = workspace;
 
@@ -290,6 +293,11 @@ namespace RauskuClaw.GUI.ViewModels
             foreach (var workspace in _workspaces)
             {
                 if (EnsureWorkspaceHostDirectory(workspace))
+                {
+                    changed = true;
+                }
+
+                if (EnsureWorkspaceSeedIsoPath(workspace))
                 {
                     changed = true;
                 }
@@ -328,6 +336,72 @@ namespace RauskuClaw.GUI.ViewModels
 
             workspace.HostWorkspacePath = hostDir;
             return true;
+        }
+
+        private bool EnsureWorkspaceSeedIsoPath(Workspace workspace)
+        {
+            var current = (workspace.SeedIsoPath ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(current))
+            {
+                current = Path.Combine("VM", "seed.iso");
+            }
+
+            var resolvedCurrent = ResolveWorkspacePath(current);
+            var currentDir = Path.GetDirectoryName(resolvedCurrent) ?? ResolveWorkspacePath("VM");
+            Directory.CreateDirectory(currentDir);
+
+            if (!IsLegacySharedSeedPath(resolvedCurrent))
+            {
+                workspace.SeedIsoPath = resolvedCurrent;
+                return !string.Equals(current, resolvedCurrent, StringComparison.Ordinal);
+            }
+
+            var artifactDirName = BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id);
+            var workspaceArtifactDir = Path.Combine(currentDir, artifactDirName);
+            Directory.CreateDirectory(workspaceArtifactDir);
+            var uniqueSeedPath = Path.Combine(workspaceArtifactDir, "seed.iso");
+
+            if (File.Exists(resolvedCurrent) && !File.Exists(uniqueSeedPath))
+            {
+                try
+                {
+                    File.Copy(resolvedCurrent, uniqueSeedPath);
+                }
+                catch
+                {
+                    // Best-effort migration; startup paths will regenerate seed when needed.
+                }
+            }
+
+            workspace.SeedIsoPath = uniqueSeedPath;
+            return !string.Equals(current, uniqueSeedPath, StringComparison.Ordinal);
+        }
+
+        private static bool IsLegacySharedSeedPath(string seedPath)
+        {
+            if (string.IsNullOrWhiteSpace(seedPath))
+            {
+                return true;
+            }
+
+            if (!string.Equals(Path.GetFileName(seedPath), "seed.iso", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var parent = Path.GetFileName(Path.GetDirectoryName(seedPath) ?? string.Empty);
+            return string.Equals(parent, "VM", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string BuildWorkspaceArtifactDirectoryName(string workspaceName, string workspaceId)
+        {
+            var safeName = SanitizePathSegment(workspaceName);
+            if (string.IsNullOrWhiteSpace(safeName))
+            {
+                safeName = "workspace";
+            }
+
+            return $"{safeName}-{BuildWorkspaceShortId(workspaceId)}";
         }
 
         private static string BuildWorkspaceShortId(string? workspaceId)
@@ -569,6 +643,7 @@ namespace RauskuClaw.GUI.ViewModels
             var bootSignalSeen = false;
             var repoPending = false;
             CancellationTokenSource? serialDiagCts = null;
+            HashSet<int>? reservedStartPorts = null;
             _workspaceBootSignals[workspace.Id] = false;
             workspace.Status = VmStatus.Starting;
             ReportStage(progress, "qemu", "in_progress", $"Starting VM: {workspace.Name}...");
@@ -582,6 +657,14 @@ namespace RauskuClaw.GUI.ViewModels
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
                     return (false, portPreflight.Message);
+                }
+
+                if (!TryReserveStartPorts(workspace, out reservedStartPorts, out var reserveError))
+                {
+                    ReportStage(progress, "qemu", "failed", reserveError);
+                    workspace.Status = VmStatus.Error;
+                    workspace.IsRunning = false;
+                    return (false, reserveError);
                 }
 
                 var profile = BuildVmProfile(workspace);
@@ -605,6 +688,9 @@ namespace RauskuClaw.GUI.ViewModels
                         return (false, fail);
                     }
 
+                    ReleaseReservedStartPorts(reservedStartPorts);
+                    reservedStartPorts = null;
+
                     var retryPreflight = EnsureStartPortsReady(workspace, progress);
                     if (!retryPreflight.Success)
                     {
@@ -612,6 +698,14 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         return (false, retryPreflight.Message);
+                    }
+
+                    if (!TryReserveStartPorts(workspace, out reservedStartPorts, out reserveError))
+                    {
+                        ReportStage(progress, "qemu", "failed", reserveError);
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        return (false, reserveError);
                     }
 
                     profile = BuildVmProfile(workspace);
@@ -879,6 +973,8 @@ namespace RauskuClaw.GUI.ViewModels
                     serialDiagCts.Cancel();
                     serialDiagCts.Dispose();
                 }
+
+                ReleaseReservedStartPorts(reservedStartPorts);
                 _workspaceBootSignals[workspace.Id] = bootSignalSeen;
             }
         }
@@ -900,6 +996,67 @@ namespace RauskuClaw.GUI.ViewModels
                 HostUiV1Port = workspace.Ports?.UiV1 ?? 3012,
                 HostUiV2Port = workspace.Ports?.UiV2 ?? 3013
             };
+        }
+
+        private bool TryReserveStartPorts(Workspace workspace, out HashSet<int> reservedPorts, out string error)
+        {
+            reservedPorts = new HashSet<int>();
+            var ports = GetWorkspaceHostPorts(workspace)
+                .Select(p => p.Port)
+                .Where(p => p is > 0 and <= 65535)
+                .Distinct()
+                .ToList();
+
+            lock (_startPortReservationLock)
+            {
+                var conflicts = ports.Where(port => _activeStartPortReservations.Contains(port)).Distinct().ToList();
+                if (conflicts.Count > 0)
+                {
+                    error = $"Host port reservation conflict: {string.Join(", ", conflicts.Select(p => $"127.0.0.1:{p}"))}.";
+                    return false;
+                }
+
+                foreach (var port in ports)
+                {
+                    _activeStartPortReservations.Add(port);
+                    reservedPorts.Add(port);
+                }
+            }
+
+            var busy = ports.Where(port => !IsPortAvailable(port)).Distinct().ToList();
+            if (busy.Count > 0)
+            {
+                ReleaseReservedStartPorts(reservedPorts);
+                error = $"Host port(s) in use: {string.Join(", ", busy.Select(p => $"127.0.0.1:{p}"))}.";
+                return false;
+            }
+
+            error = string.Empty;
+            return true;
+        }
+
+        private void ReleaseReservedStartPorts(HashSet<int>? reservedPorts)
+        {
+            if (reservedPorts == null || reservedPorts.Count == 0)
+            {
+                return;
+            }
+
+            lock (_startPortReservationLock)
+            {
+                foreach (var port in reservedPorts)
+                {
+                    _activeStartPortReservations.Remove(port);
+                }
+            }
+        }
+
+        private HashSet<int> SnapshotReservedStartPorts()
+        {
+            lock (_startPortReservationLock)
+            {
+                return new HashSet<int>(_activeStartPortReservations);
+            }
         }
 
         private (bool Success, string Message) EnsureStartPortsReady(Workspace workspace, IProgress<string>? progress)
@@ -950,6 +1107,8 @@ namespace RauskuClaw.GUI.ViewModels
                 GetWorkspaceHostPorts(workspace)
                     .Where(p => !string.Equals(p.Name, "UIv2", StringComparison.OrdinalIgnoreCase))
                     .Select(p => p.Port));
+            reserved.UnionWith(SnapshotReservedStartPorts());
+            reserved.Remove(currentUiV2);
 
             int nextUiV2;
             try
@@ -1425,6 +1584,8 @@ namespace RauskuClaw.GUI.ViewModels
         {
             try
             {
+                var updatesHintSent = false;
+                var dockerHintSent = false;
                 using var client = new TcpClient();
                 await client.ConnectAsync("127.0.0.1", serialPort, ct);
                 using var stream = client.GetStream();
@@ -1468,6 +1629,7 @@ namespace RauskuClaw.GUI.ViewModels
                         if (!string.IsNullOrWhiteSpace(normalized))
                         {
                             ReportLog(progress, $"[serial] {normalized}");
+                            PromoteWizardStageFromSerialLine(normalized, progress, ref updatesHintSent, ref dockerHintSent);
                         }
                         lastPartialFlushUtc = DateTime.UtcNow;
                     }
@@ -1482,6 +1644,7 @@ namespace RauskuClaw.GUI.ViewModels
                             if (!string.IsNullOrWhiteSpace(normalizedPartial))
                             {
                                 ReportLog(progress, $"[serial] {normalizedPartial}");
+                                PromoteWizardStageFromSerialLine(normalizedPartial, progress, ref updatesHintSent, ref dockerHintSent);
                             }
                         }
                         sb.Clear();
@@ -1532,6 +1695,29 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return line[..360] + "...";
+        }
+
+        private void PromoteWizardStageFromSerialLine(
+            string serialLine,
+            IProgress<string>? progress,
+            ref bool updatesHintSent,
+            ref bool dockerHintSent)
+        {
+            if (!updatesHintSent
+                && (serialLine.Contains("Synchronizing package databases", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("Retrieving packages", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("looking for conflicting packages", StringComparison.OrdinalIgnoreCase)))
+            {
+                updatesHintSent = true;
+                ReportStage(progress, "updates", "in_progress", "Applying package updates inside VM...");
+            }
+
+            if (!dockerHintSent
+                && serialLine.Contains("Starting RauskuClaw Docker Stack", StringComparison.OrdinalIgnoreCase))
+            {
+                dockerHintSent = true;
+                ReportStage(progress, "docker", "in_progress", "RauskuClaw Docker stack startup detected. This might take several minutes.");
+            }
         }
 
         private static bool IsHex(ReadOnlySpan<char> value)

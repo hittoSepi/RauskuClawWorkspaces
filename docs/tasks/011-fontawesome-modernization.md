@@ -57,3 +57,11 @@ Replaced legacy `FontAwesome.WPF` with modern `FontAwesome.Sharp` to remove comp
 ## Notes
 
 - Incremental WPF builds may still occasionally hit transient `BG1002/CS2001` generated-file issues under current preview SDK; rerunning with clean and single-proc build (`-m:1`) remains reliable.
+
+## Addendum (2026-02-24)
+
+- Main window custom title bar now uses FontAwesome icons for window controls:
+  - Minimize: `Minus`
+  - Maximize: `WindowMaximize`
+  - Close: `Times`
+- This replaced temporary text glyphs (`-`, `[ ]`, `X`) to avoid clipping/encoding issues and align with wizard/main visual style.

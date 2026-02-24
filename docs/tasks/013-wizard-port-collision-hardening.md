@@ -44,6 +44,11 @@ Make wizard startup more resilient when host ports race/collide at VM start time
 
 ## TODO
 
+## Addendum (2026-02-24)
+
+- Added startup-time in-process port reservation guard in `MainViewModel` to reduce collisions during parallel workspace starts.
+- UI-v2 remap candidate search now includes currently reserved startup ports to avoid selecting ports concurrently claimed by another startup flow.
+
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.
   - Increase Minimize / Maximize / Close button hit area and visual size for better usability.

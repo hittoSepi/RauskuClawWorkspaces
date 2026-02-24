@@ -11,8 +11,10 @@ Build: Success (`0 warnings`, `0 errors`).
 ### Wizard and workspace lifecycle
 - Real wizard-driven `+ New Workspace` flow.
 - Cloud-init seed generation and QEMU start flow.
+- Legacy shared `VM\seed.iso` paths are auto-migrated to workspace-specific seed paths to avoid file-lock collisions.
 - Startup progress stages with readiness/failure reporting.
 - Startup-time host-port collision hardening with UI-v2 auto-remap retry path.
+- Startup port reservation now uses a concurrent-safe in-process guard to reduce race collisions across parallel starts.
 - Dedicated post-start `Access Info` step with copy action.
 - SSH stabilization phase with degraded warmup mode (`Running (SSH warming up)`).
 - Themed progress/confirmation dialogs.
@@ -36,6 +38,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup ensures required external Docker network (`holvi_holvi_net`) before compose startup.
 - Startup Docker readiness checks include retry logic and expected-container health parsing.
 - Validated runtime result: Docker stack reaches `healthy (5/5 expected containers)`.
+- Wizard stage telemetry now promotes serial-detected package/docker activity into `Updates` / `Docker` stage hints for clearer progress mapping.
 
 ### Settings and UX
 - CPU and RAM resource inputs aligned between Wizard and Settings.

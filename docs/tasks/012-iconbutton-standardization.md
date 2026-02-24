@@ -57,3 +57,15 @@ Build result: success (0 warnings, 0 errors).
 ## Follow-up (optional)
 
 - Add compact icon-only button style for dense headers/toolbars where label text is redundant.
+
+## Addendum (2026-02-24)
+
+1. Window title bar style unification
+- Added shared app-level title bar button styles:
+  - `WindowTitleBarButtonStyle`
+  - `WindowTitleBarCloseButtonStyle`
+- Main window now consumes shared styles for minimize/maximize/close controls.
+
+2. Main shell hierarchy cleanup
+- Large app branding was moved from left sidebar into top title bar.
+- Sidebar header simplified to `Workspaces` for cleaner vertical layout and less duplication.
