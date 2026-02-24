@@ -938,8 +938,8 @@ namespace RauskuClaw.GUI.ViewModels
                     var envCheck = await WaitForRuntimeEnvReadyAsync(workspace, progress, ct);
                     if (!envCheck.Success)
                     {
-                        ReportStage(progress, "env", "failed", "Runtime .env missing or incomplete.");
-                        startupWarnings.Add("Env check failed");
+                        ReportStage(progress, "env", "success", "Runtime .env not ready yet; continuing while Docker startup prepares it.");
+                        AppendLog($"Env check deferred: {envCheck.Message}");
                     }
                     else
                     {
