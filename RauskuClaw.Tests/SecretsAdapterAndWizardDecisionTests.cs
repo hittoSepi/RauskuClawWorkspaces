@@ -93,10 +93,10 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             ProvisioningSecrets = new Dictionary<string, string>()
         });
 
-        var preflightBackend = script.IndexOf("preflight_env_for_dir \"\"$ROOT_DIR\"\" \"\"backend stack\"\"", StringComparison.Ordinal);
-        var runBackend = script.IndexOf("run_up \"\"$ROOT_DIR\"\" \"\"backend stack\"\"", StringComparison.Ordinal);
-        var preflightHolvi = script.IndexOf("preflight_env_for_dir \"\"$HOLVI_DIR\"\" \"\"holvi stack\"\"", StringComparison.Ordinal);
-        var runHolvi = script.IndexOf("run_up \"\"$HOLVI_DIR\"\" \"\"holvi stack\"\"", StringComparison.Ordinal);
+        var preflightBackend = script.IndexOf("preflight_env_for_dir \"$ROOT_DIR\" \"backend stack\"", StringComparison.Ordinal);
+        var runBackend = script.IndexOf("run_up \"$ROOT_DIR\" \"backend stack\"", StringComparison.Ordinal);
+        var preflightHolvi = script.IndexOf("preflight_env_for_dir \"$HOLVI_DIR\" \"holvi stack\"", StringComparison.Ordinal);
+        var runHolvi = script.IndexOf("run_up \"$HOLVI_DIR\" \"holvi stack\"", StringComparison.Ordinal);
 
         Assert.True(preflightBackend >= 0, "Expected backend env preflight call in provisioning script.");
         Assert.True(preflightHolvi >= 0, "Expected holvi env preflight call in provisioning script.");
