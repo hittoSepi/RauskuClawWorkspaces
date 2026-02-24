@@ -205,15 +205,15 @@ Settings are stored in `Settings/settings.json`:
 ## Known Limitations
 
 1. **Browse Dialogs** - Not yet implemented (TODO comments in code)
-2. **Settings Auto-load on Startup** - Settings loaded but not applied to workspace creation yet
-3. **Secret Manager UI Integration** - Services created but not connected to workspace provisioning
-4. **Port Allocation Integration** - Port settings not yet used by PortAllocatorService
+2. **Settings Auto-load on Startup** - ✅ Settings are loaded on startup and used as wizard defaults (username/hostname/qemu/resources/paths/ports).
+3. **Secret Manager UI Integration** - Service clients and secure local secret storage exist, but end-to-end provisioning injection still needs completion.
+4. **Port Allocation Integration** - PortAllocatorService still uses its own internal base range defaults; settings-defined starting ports are not yet fully the allocator source-of-truth.
 
 ## Next Steps
 
 Remaining Sprint 3 items:
 - [ ] Workspace Templates (default.json, minimal.json, full-ai.json)
-- [ ] Integrate Settings into Workspace creation flow
+- [x] Integrate Settings into Workspace creation flow
 - [ ] Integrate Secret Manager into cloud-init provisioning
 - [ ] Implement browse dialogs for QEMU and VM paths
 
