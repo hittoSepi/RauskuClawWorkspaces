@@ -1934,7 +1934,7 @@ runcmd:
                 new("ssh", "SSH", "Pending", "#6A7382"),
                 new("ssh_stable", "SSH Stabilization", "Pending", "#6A7382"),
                 new("updates", "Updates", "Pending", "#6A7382"),
-                new("env", "Env", "Pending", "#6A7382"),
+                new("env", "Provisioning", "Pending", "#6A7382"),
                 new("docker", "Docker", "Pending", "#6A7382"),
                 new("api", "API", "Pending", "#6A7382"),
                 new("webui", "WebUI", "Pending", "#6A7382"),
