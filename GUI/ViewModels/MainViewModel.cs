@@ -936,6 +936,18 @@ namespace RauskuClaw.GUI.ViewModels
                     {
                         AppendLog($"cloud-init wait note: {cloudInitReady.Message}");
                     }
+
+                    var rootFsCheck = await DetectGuestReadOnlyRootAsync(workspace, ct);
+                    if (rootFsCheck.ReadOnly)
+                    {
+                        var fail = $"Guest root filesystem is read-only (disk I/O issue): {rootFsCheck.Message}";
+                        ReportStage(progress, "env", "failed", fail);
+                        ReportStage(progress, "docker", "failed", "Skipped due to guest filesystem read-only error.");
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        TryKillTrackedProcess(workspace, force: true);
+                        return (false, fail);
+                    }
                 }
 
                 ReportStage(progress, "env", "in_progress", "Validating runtime .env inside VM...");
@@ -1718,6 +1730,15 @@ namespace RauskuClaw.GUI.ViewModels
                     return (true, "Runtime .env is ready.");
                 }
 
+                if (attempt == 1 || attempt % 4 == 0)
+                {
+                    var rootFsCheck = await DetectGuestReadOnlyRootAsync(workspace, ct);
+                    if (rootFsCheck.ReadOnly)
+                    {
+                        return (false, $"Guest root filesystem is read-only (disk I/O issue): {rootFsCheck.Message}");
+                    }
+                }
+
                 lastMessage = probe.Message;
                 if (attempt == 1 || attempt % 4 == 0)
                 {
@@ -1728,6 +1749,28 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (false, $"Runtime .env missing or incomplete after wait window: {lastMessage}");
+        }
+
+        private async Task<(bool ReadOnly, string Message)> DetectGuestReadOnlyRootAsync(Workspace workspace, CancellationToken ct)
+        {
+            var probe = await RunSshCommandAsync(
+                workspace,
+                "set -e; if findmnt -no OPTIONS / 2>/dev/null | grep -Eq '(^|,)ro(,|$)'; then echo root-ro; findmnt -no SOURCE,FSTYPE,OPTIONS / 2>/dev/null || true; exit 0; fi; if grep -E '\\s/\\s' /proc/mounts 2>/dev/null | grep -q ' ro[, ]'; then echo root-ro; grep -E '\\s/\\s' /proc/mounts 2>/dev/null | head -n 1; exit 0; fi; echo root-rw",
+                ct);
+
+            if (!probe.Success)
+            {
+                return (false, probe.Message);
+            }
+
+            var text = (probe.Message ?? string.Empty).Trim();
+            if (text.Contains("root-ro", StringComparison.OrdinalIgnoreCase))
+            {
+                var detail = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
+                return (true, string.IsNullOrWhiteSpace(detail) ? "root mount reported read-only" : detail);
+            }
+
+            return (false, "root mount is writable");
         }
 
         private async Task<(bool Success, string Message)> WaitForCloudInitFinalizationAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
