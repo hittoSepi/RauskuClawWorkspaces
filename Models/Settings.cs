@@ -25,10 +25,10 @@ namespace RauskuClaw.Models
         private bool _autoStartVms = false;
         private bool _minimizeToTray = false;
         private bool _checkUpdates = true;
-        private string? _holviApiKey;
-        private string? _holviProjectId;
-        private string? _infisicalClientId;
-        private string? _infisicalClientSecret;
+        private string? _holviApiKeySecretRef;
+        private string? _holviProjectIdSecretRef;
+        private string? _infisicalClientIdSecretRef;
+        private string? _infisicalClientSecretSecretRef;
 
         // QEMU Settings
         public string QemuPath
@@ -131,29 +131,29 @@ namespace RauskuClaw.Models
         }
 
         // Secret Manager Settings (Holvi)
-        public string? HolviApiKey
+        public string? HolviApiKeySecretRef
         {
-            get => _holviApiKey;
-            set { _holviApiKey = value; OnPropertyChanged(); }
+            get => _holviApiKeySecretRef;
+            set { _holviApiKeySecretRef = value; OnPropertyChanged(); }
         }
 
-        public string? HolviProjectId
+        public string? HolviProjectIdSecretRef
         {
-            get => _holviProjectId;
-            set { _holviProjectId = value; OnPropertyChanged(); }
+            get => _holviProjectIdSecretRef;
+            set { _holviProjectIdSecretRef = value; OnPropertyChanged(); }
         }
 
         // Secret Manager Settings (Infisical)
-        public string? InfisicalClientId
+        public string? InfisicalClientIdSecretRef
         {
-            get => _infisicalClientId;
-            set { _infisicalClientId = value; OnPropertyChanged(); }
+            get => _infisicalClientIdSecretRef;
+            set { _infisicalClientIdSecretRef = value; OnPropertyChanged(); }
         }
 
-        public string? InfisicalClientSecret
+        public string? InfisicalClientSecretSecretRef
         {
-            get => _infisicalClientSecret;
-            set { _infisicalClientSecret = value; OnPropertyChanged(); }
+            get => _infisicalClientSecretSecretRef;
+            set { _infisicalClientSecretSecretRef = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
