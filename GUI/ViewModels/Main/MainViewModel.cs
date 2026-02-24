@@ -26,19 +26,18 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public class MainViewModel : INotifyPropertyChanged
     {
-        private const int MaxWarmupRetryAttempts = 18;
-        private static readonly TimeSpan WarmupRetryInterval = TimeSpan.FromSeconds(12);
-        private readonly WorkspaceService _workspaceService;
-        private readonly QemuProcessManager _qemuManager;
+        private readonly IWorkspaceService _workspaceService;
+        private readonly IQemuProcessManager _qemuManager;
         private readonly QmpClient _qmpClient;
-        private readonly PortAllocatorService _portAllocator;
+        private readonly IPortAllocatorService _portAllocator;
+        private readonly IWorkspaceStartupOrchestrator _startupOrchestrator;
+        private readonly IWorkspaceWarmupService _warmupService;
         private readonly QcowImageService _qcowImageService;
         private readonly SettingsService _settingsService;
         private readonly AppPathResolver _pathResolver;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
-        private readonly Dictionary<string, CancellationTokenSource> _workspaceWarmupRetries = new();
         private readonly object _startPortReservationLock = new();
         private readonly HashSet<int> _activeStartPortReservations = new();
         private readonly HashSet<string> _activeWorkspaceStarts = new();
@@ -56,6 +55,38 @@ namespace RauskuClaw.GUI.ViewModels
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
 
+<<<<<<< HEAD:GUI/ViewModels/Main/MainViewModel.cs
+        public MainViewModel() : this(
+            new WorkspaceService(),
+            new QemuProcessManager(),
+            new QmpClient(),
+            new PortAllocatorService(),
+            new QcowImageService(),
+            new SettingsService(),
+            new WorkspaceStartupOrchestrator(),
+            new WorkspaceWarmupService())
+        {
+        }
+
+        public MainViewModel(
+            IWorkspaceService workspaceService,
+            IQemuProcessManager qemuManager,
+            QmpClient qmpClient,
+            IPortAllocatorService portAllocator,
+            QcowImageService qcowImageService,
+            SettingsService settingsService,
+            IWorkspaceStartupOrchestrator startupOrchestrator,
+            IWorkspaceWarmupService warmupService)
+        {
+            _workspaceService = workspaceService;
+            _qemuManager = qemuManager;
+            _qmpClient = qmpClient;
+            _portAllocator = portAllocator;
+            _qcowImageService = qcowImageService;
+            _settingsService = settingsService;
+            _startupOrchestrator = startupOrchestrator;
+            _warmupService = warmupService;
+=======
         public MainViewModel(SettingsService? settingsService = null, AppPathResolver? pathResolver = null, WorkspaceService? workspaceService = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
@@ -65,6 +96,7 @@ namespace RauskuClaw.GUI.ViewModels
             _qmpClient = new QmpClient();
             _portAllocator = new PortAllocatorService();
             _qcowImageService = new QcowImageService();
+>>>>>>> origin/main:GUI/ViewModels/MainViewModel.cs
             _appSettings = _settingsService.LoadSettings();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
@@ -240,7 +272,7 @@ namespace RauskuClaw.GUI.ViewModels
                             portsPrepared = true;
                         }
 
-                        return await StartWorkspaceInternalAsync(workspace, progress, ct);
+                        return await _startupOrchestrator.StartWorkspaceAsync(workspace, progress, ct, StartWorkspaceInternalAsync);
                     }
                     catch (Exception ex)
                     {
@@ -525,7 +557,7 @@ namespace RauskuClaw.GUI.ViewModels
                 _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
             }
 
-            var result = await StartWorkspaceInternalAsync(SelectedWorkspace, progress: null, CancellationToken.None);
+            var result = await _startupOrchestrator.StartWorkspaceAsync(SelectedWorkspace, progress: null, CancellationToken.None, StartWorkspaceInternalAsync);
             if (!result.Success)
             {
                 AppendLog($"Start failed for '{SelectedWorkspace.Name}': {result.Message}");
@@ -599,7 +631,7 @@ namespace RauskuClaw.GUI.ViewModels
 
                 progressWindow.UpdateStatus("Starting VM...");
                 await Task.Delay(500);
-                var result = await StartWorkspaceInternalAsync(workspace, progress: null, CancellationToken.None);
+                var result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, CancellationToken.None, StartWorkspaceInternalAsync);
                 if (!result.Success)
                 {
                     ThemedDialogWindow.ShowInfo(
@@ -2238,85 +2270,33 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void StartWarmupRetry(Workspace workspace)
         {
-            CancelWarmupRetry(workspace.Id);
-            var cts = new CancellationTokenSource();
-            _workspaceWarmupRetries[workspace.Id] = cts;
-
-            _ = Task.Run(async () =>
-            {
-                try
+            _warmupService.StartWarmupRetry(
+                workspace,
+                (w, token) => RunSshCommandAsync(w, "echo warmup-ready", token),
+                onReady: () =>
                 {
-                    var attempts = 0;
-                    while (!cts.IsCancellationRequested && workspace.IsRunning)
-                    {
-                        if (attempts >= MaxWarmupRetryAttempts)
-                        {
-                            workspace.Status = VmStatus.WarmingUpTimeout;
-                            _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
-                            AppendLog($"Warmup retry timeout for '{workspace.Name}'. SSH did not stabilize.");
-                            SetInlineNotice($"'{workspace.Name}' is running, but SSH did not stabilize. Check Serial Console / VM Logs.");
-                            break;
-                        }
-
-                        await Task.Delay(WarmupRetryInterval, cts.Token);
-                        if (cts.IsCancellationRequested || !workspace.IsRunning)
-                        {
-                            break;
-                        }
-
-                        attempts++;
-                        var probe = await RunSshCommandAsync(workspace, "echo warmup-ready", cts.Token);
-                        if (!probe.Success)
-                        {
-                            if (!string.Equals(probe.Message, "SSH command cancelled.", StringComparison.OrdinalIgnoreCase))
-                            {
-                                AppendLog($"Warmup retry: SSH still not ready for '{workspace.Name}' ({probe.Message}).");
-                            }
-                            continue;
-                        }
-
-                        workspace.Status = VmStatus.Running;
-                        _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
-                        TriggerWebUiRefreshSequence(workspace);
-                        TriggerDockerRefreshSequence(workspace);
-                        AppendLog($"Warmup complete: SSH stabilized for '{workspace.Name}'.");
-                        SetInlineNotice($"'{workspace.Name}' is fully ready. SSH stabilized and tools connected.");
-                        ScheduleWorkspaceClientsAutoConnect(workspace, includeSshAndDocker: true);
-                        CancelWarmupRetry(workspace.Id);
-                        break;
-                    }
-                }
-                catch (OperationCanceledException)
+                    workspace.Status = VmStatus.Running;
+                    _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                    TriggerWebUiRefreshSequence(workspace);
+                    TriggerDockerRefreshSequence(workspace);
+                    AppendLog($"Warmup complete: SSH stabilized for '{workspace.Name}'.");
+                    SetInlineNotice($"'{workspace.Name}' is fully ready. SSH stabilized and tools connected.");
+                    ScheduleWorkspaceClientsAutoConnect(workspace, includeSshAndDocker: true);
+                },
+                log: message => AppendLog(message),
+                setInlineNotice: message => SetInlineNotice(message),
+                onFailed: () =>
                 {
-                    // Ignore cancellation in retry loop.
-                }
-                catch (Exception ex)
-                {
-                    AppendLog($"Warmup retry loop failed: {ex.Message}");
-                }
-            }, cts.Token);
+                    workspace.Status = VmStatus.WarmingUpTimeout;
+                    _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                    AppendLog($"Warmup retry timeout for '{workspace.Name}'. SSH did not stabilize.");
+                    SetInlineNotice($"'{workspace.Name}' is running, but SSH did not stabilize. Check Serial Console / VM Logs.");
+                });
         }
 
         private void CancelWarmupRetry(string workspaceId)
         {
-            if (!_workspaceWarmupRetries.TryGetValue(workspaceId, out var cts))
-            {
-                return;
-            }
-
-            try
-            {
-                cts.Cancel();
-                cts.Dispose();
-            }
-            catch
-            {
-                // Best-effort cleanup.
-            }
-            finally
-            {
-                _workspaceWarmupRetries.Remove(workspaceId);
-            }
+            _warmupService.CancelWarmupRetry(workspaceId);
         }
 
         private void TriggerWebUiRefreshSequence(Workspace workspace)

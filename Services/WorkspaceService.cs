@@ -16,7 +16,7 @@ namespace RauskuClaw.Services
     /// <summary>
     /// Service for managing workspaces - save, load, delete.
     /// </summary>
-    public class WorkspaceService
+    public class WorkspaceService : IWorkspaceService
     {
         private readonly WorkspaceServiceOptions _options;
         private readonly AppPathResolver _pathResolver;
