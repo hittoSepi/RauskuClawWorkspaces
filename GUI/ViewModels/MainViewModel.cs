@@ -937,12 +937,12 @@ namespace RauskuClaw.GUI.ViewModels
                         AppendLog($"cloud-init wait note: {cloudInitReady.Message}");
                     }
 
-                    var rootFsCheck = await DetectGuestReadOnlyRootAsync(workspace, ct);
-                    if (rootFsCheck.ReadOnly)
+                    var storageCheck = await DetectGuestStorageIssueAsync(workspace, ct);
+                    if (storageCheck.HasIssue)
                     {
-                        var fail = $"Guest root filesystem is read-only (disk I/O issue): {rootFsCheck.Message}";
+                        var fail = $"Guest filesystem issue detected: {storageCheck.Message}";
                         ReportStage(progress, "env", "failed", fail);
-                        ReportStage(progress, "docker", "failed", "Skipped due to guest filesystem read-only error.");
+                        ReportStage(progress, "docker", "failed", "Skipped due to guest filesystem error.");
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         TryKillTrackedProcess(workspace, force: true);
@@ -1732,10 +1732,10 @@ namespace RauskuClaw.GUI.ViewModels
 
                 if (attempt == 1 || attempt % 4 == 0)
                 {
-                    var rootFsCheck = await DetectGuestReadOnlyRootAsync(workspace, ct);
-                    if (rootFsCheck.ReadOnly)
+                    var storageCheck = await DetectGuestStorageIssueAsync(workspace, ct);
+                    if (storageCheck.HasIssue)
                     {
-                        return (false, $"Guest root filesystem is read-only (disk I/O issue): {rootFsCheck.Message}");
+                        return (false, $"Guest filesystem issue detected: {storageCheck.Message}");
                     }
                 }
 
@@ -1751,11 +1751,11 @@ namespace RauskuClaw.GUI.ViewModels
             return (false, $"Runtime .env missing or incomplete after wait window: {lastMessage}");
         }
 
-        private async Task<(bool ReadOnly, string Message)> DetectGuestReadOnlyRootAsync(Workspace workspace, CancellationToken ct)
+        private async Task<(bool HasIssue, string Message)> DetectGuestStorageIssueAsync(Workspace workspace, CancellationToken ct)
         {
             var probe = await RunSshCommandAsync(
                 workspace,
-                "set -e; if findmnt -no OPTIONS / 2>/dev/null | grep -Eq '(^|,)ro(,|$)'; then echo root-ro; findmnt -no SOURCE,FSTYPE,OPTIONS / 2>/dev/null || true; exit 0; fi; if grep -E '\\s/\\s' /proc/mounts 2>/dev/null | grep -q ' ro[, ]'; then echo root-ro; grep -E '\\s/\\s' /proc/mounts 2>/dev/null | head -n 1; exit 0; fi; echo root-rw",
+                "set -e; ROOT_OPTS=$(findmnt -no OPTIONS / 2>/dev/null || true); if [ -z \"$ROOT_OPTS\" ]; then ROOT_OPTS=$(awk '$2==\"/\"{print $4; exit}' /proc/mounts 2>/dev/null || true); fi; ROOT_MODE=rw; if printf '%s' \"$ROOT_OPTS\" | grep -Eq '(^|,)ro(,|$)'; then ROOT_MODE=ro; fi; PROBE_FILE=\"/var/tmp/rauskuclaw-write-probe.$$\"; PROBE_ERR=\"\"; PROBE_STATE=ok; if ! sh -c \"echo probe > '$PROBE_FILE'\" 2>/tmp/rauskuclaw-write-probe.err; then PROBE_STATE=fail; PROBE_ERR=$(tr '\\n' ' ' </tmp/rauskuclaw-write-probe.err 2>/dev/null || true); else rm -f \"$PROBE_FILE\"; fi; DF_K=$(df -Pk / 2>/dev/null | tail -n 1 || true); DF_I=$(df -Pi / 2>/dev/null | tail -n 1 || true); echo \"root_mode=$ROOT_MODE opts=$ROOT_OPTS\"; echo \"write_probe=$PROBE_STATE err=$PROBE_ERR\"; echo \"df_k=$DF_K\"; echo \"df_i=$DF_I\"",
                 ct);
 
             if (!probe.Success)
@@ -1763,14 +1763,56 @@ namespace RauskuClaw.GUI.ViewModels
                 return (false, probe.Message);
             }
 
-            var text = (probe.Message ?? string.Empty).Trim();
-            if (text.Contains("root-ro", StringComparison.OrdinalIgnoreCase))
+            var text = (probe.Message ?? string.Empty).Replace('\r', ' ').Trim();
+            if (string.IsNullOrWhiteSpace(text))
             {
-                var detail = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
-                return (true, string.IsNullOrWhiteSpace(detail) ? "root mount reported read-only" : detail);
+                return (false, "storage probe returned no output");
             }
 
-            return (false, "root mount is writable");
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var rootLine = lines.FirstOrDefault(l => l.StartsWith("root_mode=", StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+            var writeLine = lines.FirstOrDefault(l => l.StartsWith("write_probe=", StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+            var dfKLine = lines.FirstOrDefault(l => l.StartsWith("df_k=", StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+            var dfILine = lines.FirstOrDefault(l => l.StartsWith("df_i=", StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+
+            var rootReadOnly = rootLine.Contains("root_mode=ro", StringComparison.OrdinalIgnoreCase);
+            var writeFailed = writeLine.Contains("write_probe=fail", StringComparison.OrdinalIgnoreCase);
+
+            if (!rootReadOnly && !writeFailed)
+            {
+                return (false, "guest filesystem writable");
+            }
+
+            // Report observed facts only.
+            var reason = "filesystem write failure";
+            if (writeLine.Contains("No space left on device", StringComparison.OrdinalIgnoreCase))
+            {
+                reason = "No space left on device";
+            }
+            else if (writeLine.Contains("Read-only file system", StringComparison.OrdinalIgnoreCase) || rootReadOnly)
+            {
+                reason = "Read-only file system";
+            }
+
+            var detailParts = new List<string> { reason };
+            if (!string.IsNullOrWhiteSpace(rootLine))
+            {
+                detailParts.Add(rootLine);
+            }
+            if (!string.IsNullOrWhiteSpace(writeLine))
+            {
+                detailParts.Add(writeLine);
+            }
+            if (!string.IsNullOrWhiteSpace(dfKLine))
+            {
+                detailParts.Add(dfKLine);
+            }
+            if (!string.IsNullOrWhiteSpace(dfILine))
+            {
+                detailParts.Add(dfILine);
+            }
+
+            return (true, string.Join(" | ", detailParts));
         }
 
         private async Task<(bool Success, string Message)> WaitForCloudInitFinalizationAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
