@@ -253,16 +253,26 @@ namespace RauskuClaw.Services
               echo ""Env check: API_KEY/API_TOKEN ready in $env_file""
             }}
 
+            preflight_env_for_dir() {{
+              local dir=""$1""
+              local label=""$2""
+              if ! has_compose ""$dir""; then
+                return
+              fi
+
+              echo ""Env check (preflight): validating runtime env for $label in $dir...""
+              ensure_env_for_dir ""$dir""
+              apply_provisioning_secrets ""$dir""
+              ensure_api_tokens_for_dir ""$dir""
+              echo ""Env check (preflight): runtime env ready for $label in $dir.""
+            }}
+
             run_up() {{
               local dir=""$1""
               local label=""$2""
               if has_compose ""$dir""; then
                 echo ""Starting $label from $dir...""
-                echo ""Env check: validating runtime env in $dir...""
-                ensure_env_for_dir ""$dir""
-                apply_provisioning_secrets ""$dir""
-                ensure_api_tokens_for_dir ""$dir""
-                echo ""Env check: runtime env ready in $dir. Starting docker compose up --build...""
+                echo ""Env check: runtime env already preflighted for $label. Starting docker compose up --build...""
                 cd ""$dir""
                 docker compose up -d --build
                 echo ""Docker compose: $label started successfully.""
@@ -277,6 +287,8 @@ namespace RauskuClaw.Services
               echo ""External network holvi_holvi_net missing; creating...""
               docker network create holvi_holvi_net >/dev/null 2>&1 || true
             fi
+            preflight_env_for_dir ""$ROOT_DIR"" ""backend stack""
+            preflight_env_for_dir ""$HOLVI_DIR"" ""holvi stack""
             run_up ""$ROOT_DIR"" ""backend stack""
             if ! run_up ""$HOLVI_DIR"" ""holvi stack""; then
               echo ""Holvi stack failed to start (non-fatal). Continuing startup.""

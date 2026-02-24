@@ -74,6 +74,36 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         Assert.DoesNotContain("super-secret-value", message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProvisioningScript_PreflightsEnvBeforeDockerComposeStartup()
+    {
+        var builder = new ProvisioningScriptBuilder();
+        var script = builder.BuildUserData(new ProvisioningScriptRequest
+        {
+            Username = "tester",
+            Hostname = "rausku-test",
+            SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey",
+            RepoUrl = "https://example.invalid/repo.git",
+            RepoBranch = "main",
+            RepoTargetDir = "/opt/rauskuclaw",
+            BuildWebUi = false,
+            WebUiBuildCommand = "npm ci && npm run build",
+            DeployWebUiStatic = false,
+            WebUiBuildOutputDir = "dist",
+            ProvisioningSecrets = new Dictionary<string, string>()
+        });
+
+        var preflightBackend = script.IndexOf("preflight_env_for_dir \"$ROOT_DIR\" \"backend stack\"", StringComparison.Ordinal);
+        var runBackend = script.IndexOf("run_up \"$ROOT_DIR\" \"backend stack\"", StringComparison.Ordinal);
+        var preflightHolvi = script.IndexOf("preflight_env_for_dir \"$HOLVI_DIR\" \"holvi stack\"", StringComparison.Ordinal);
+        var runHolvi = script.IndexOf("run_up \"$HOLVI_DIR\" \"holvi stack\"", StringComparison.Ordinal);
+
+        Assert.True(preflightBackend >= 0, "Expected backend env preflight call in provisioning script.");
+        Assert.True(preflightHolvi >= 0, "Expected holvi env preflight call in provisioning script.");
+        Assert.True(runBackend > preflightBackend, "Backend docker compose startup should happen after env preflight.");
+        Assert.True(runHolvi > preflightHolvi, "Holvi docker compose startup should happen after env preflight.");
+    }
+
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
