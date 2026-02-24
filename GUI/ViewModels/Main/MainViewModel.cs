@@ -55,48 +55,39 @@ namespace RauskuClaw.GUI.ViewModels
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
 
-<<<<<<< HEAD:GUI/ViewModels/Main/MainViewModel.cs
         public MainViewModel() : this(
-            new WorkspaceService(),
-            new QemuProcessManager(),
-            new QmpClient(),
-            new PortAllocatorService(),
-            new QcowImageService(),
-            new SettingsService(),
-            new WorkspaceStartupOrchestrator(),
-            new WorkspaceWarmupService())
+            settingsService: null,
+            pathResolver: null,
+            workspaceService: null,
+            qemuManager: null,
+            qmpClient: null,
+            portAllocator: null,
+            qcowImageService: null,
+            startupOrchestrator: null,
+            warmupService: null)
         {
         }
 
         public MainViewModel(
-            IWorkspaceService workspaceService,
-            IQemuProcessManager qemuManager,
-            QmpClient qmpClient,
-            IPortAllocatorService portAllocator,
-            QcowImageService qcowImageService,
-            SettingsService settingsService,
-            IWorkspaceStartupOrchestrator startupOrchestrator,
-            IWorkspaceWarmupService warmupService)
-        {
-            _workspaceService = workspaceService;
-            _qemuManager = qemuManager;
-            _qmpClient = qmpClient;
-            _portAllocator = portAllocator;
-            _qcowImageService = qcowImageService;
-            _settingsService = settingsService;
-            _startupOrchestrator = startupOrchestrator;
-            _warmupService = warmupService;
-=======
-        public MainViewModel(SettingsService? settingsService = null, AppPathResolver? pathResolver = null, WorkspaceService? workspaceService = null)
+            SettingsService? settingsService = null,
+            AppPathResolver? pathResolver = null,
+            IWorkspaceService? workspaceService = null,
+            IQemuProcessManager? qemuManager = null,
+            QmpClient? qmpClient = null,
+            IPortAllocatorService? portAllocator = null,
+            QcowImageService? qcowImageService = null,
+            IWorkspaceStartupOrchestrator? startupOrchestrator = null,
+            IWorkspaceWarmupService? warmupService = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
             _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
             _workspaceService = workspaceService ?? new WorkspaceService(pathResolver: _pathResolver);
-            _qemuManager = new QemuProcessManager();
-            _qmpClient = new QmpClient();
-            _portAllocator = new PortAllocatorService();
-            _qcowImageService = new QcowImageService();
->>>>>>> origin/main:GUI/ViewModels/MainViewModel.cs
+            _qemuManager = qemuManager ?? new QemuProcessManager();
+            _qmpClient = qmpClient ?? new QmpClient();
+            _portAllocator = portAllocator ?? new PortAllocatorService();
+            _qcowImageService = qcowImageService ?? new QcowImageService();
+            _startupOrchestrator = startupOrchestrator ?? new WorkspaceStartupOrchestrator();
+            _warmupService = warmupService ?? new WorkspaceWarmupService();
             _appSettings = _settingsService.LoadSettings();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
