@@ -52,6 +52,7 @@ namespace RauskuClaw.GUI.ViewModels
         private SftpFilesViewModel? _sftpFiles;
         private HolviViewModel? _holviViewModel;
         private SettingsViewModel? _settingsViewModel;
+        private TemplateManagementViewModel? _templateManagementViewModel;
         private string _vmLog = "";
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
@@ -248,6 +249,16 @@ namespace RauskuClaw.GUI.ViewModels
                 _settingsViewModel = value;
                 _settingsViewModel?.SetSelectedWorkspace(SelectedWorkspace);
                 _holviViewModel?.SetSettingsViewModel(_settingsViewModel);
+                OnPropertyChanged();
+            }
+        }
+
+        public TemplateManagementViewModel? TemplateManagement
+        {
+            get => _templateManagementViewModel;
+            set
+            {
+                _templateManagementViewModel = value;
                 OnPropertyChanged();
             }
         }

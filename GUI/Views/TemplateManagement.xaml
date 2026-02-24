@@ -1,0 +1,65 @@
+<UserControl x:Class="RauskuClaw.GUI.Views.TemplateManagement"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="500" d:DesignWidth="900">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBox Width="240" Margin="0,0,8,0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Hae nimellä, kategorialla tai palvelulla"/>
+            <ComboBox Width="180" Margin="0,0,8,0" ItemsSource="{Binding Categories}" SelectedItem="{Binding CategoryFilter}"/>
+            <Button Content="New" Command="{Binding NewTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Save" Command="{Binding SaveTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Delete" Command="{Binding DeleteTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Import" Command="{Binding ImportTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Export" Command="{Binding ExportTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Refresh" Command="{Binding RefreshCommand}"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <ListBox Grid.Column="0" ItemsSource="{Binding FilteredTemplates}" SelectedItem="{Binding SelectedTemplate}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="4">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding Category}" FontSize="11"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel Grid.Column="2" DataContext="{Binding SelectedTemplate}">
+                <TextBlock Text="Template details" FontWeight="Bold" Margin="0,0,0,8"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBox Width="120" Margin="0,0,8,6" Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Width="120" Margin="0,0,0,6" Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <TextBox Margin="0,0,0,6" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="Ports (Name:Port, comma separated)" FontSize="11"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding DataContext.PortsCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="Enabled services (comma separated)" FontSize="11"/>
+                <TextBox Text="{Binding DataContext.ServicesCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Margin="0,8,0,0"/>
+    </Grid>
+</UserControl>

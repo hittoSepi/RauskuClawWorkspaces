@@ -382,6 +382,21 @@
                 <TabItem Padding="16,8">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
+                            <fa:IconBlock Icon="Clone" Style="{StaticResource FaIconInline}"/>
+                            <TextBlock Text="Templates"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ContentControl Content="{Binding TemplateManagement}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate>
+                                <views:TemplateManagement/>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </TabItem>
+                <TabItem Padding="16,8">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
                             <fa:IconBlock Icon="Cog" Style="{StaticResource FaIconInline}"/>
                             <TextBlock Text="Settings"/>
                         </StackPanel>

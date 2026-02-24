@@ -30,6 +30,7 @@ namespace RauskuClaw.GUI.Views
                 vm.SshTerminal = new SshTerminalViewModel();
                 vm.SftpFiles = new SftpFilesViewModel();
                 vm.Holvi = new HolviViewModel(vm.Settings);
+                vm.TemplateManagement = new TemplateManagementViewModel();
             }
         }
 
