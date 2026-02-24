@@ -10,7 +10,7 @@ namespace RauskuClaw.Services
     /// <summary>
     /// Service for managing workspaces - save, load, delete.
     /// </summary>
-    public class WorkspaceService
+    public class WorkspaceService : IWorkspaceService
     {
         private const string WorkspacesDir = "Workspaces";
         private const string WorkspaceFile = "workspaces.json";

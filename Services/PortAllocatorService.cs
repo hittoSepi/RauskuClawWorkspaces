@@ -8,7 +8,7 @@ namespace RauskuClaw.Services
     /// Auto-assigns ports from a configurable range, but allows manual override.
     /// Hybrid approach: auto-assign by default, but user can specify custom ports.
     /// </summary>
-    public class PortAllocatorService
+    public class PortAllocatorService : IPortAllocatorService
     {
         private readonly HashSet<int> _allocatedPorts = new();
         private readonly int _portRangeStart;

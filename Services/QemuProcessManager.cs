@@ -6,7 +6,7 @@ using System.Text;
 
 namespace RauskuClaw.Services
 {
-    public sealed class QemuProcessManager
+    public sealed class QemuProcessManager : IQemuProcessManager
     {
         public Process StartVm(VmProfile p)
         {
