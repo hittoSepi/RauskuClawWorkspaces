@@ -32,6 +32,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly QemuProcessManager _qemuManager;
         private readonly QmpClient _qmpClient;
         private readonly PortAllocatorService _portAllocator;
+        private readonly QcowImageService _qcowImageService;
         private readonly SettingsService _settingsService;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
@@ -59,6 +60,7 @@ namespace RauskuClaw.GUI.ViewModels
             _qemuManager = new QemuProcessManager();
             _qmpClient = new QmpClient();
             _portAllocator = new PortAllocatorService();
+            _qcowImageService = new QcowImageService();
             _settingsService = new SettingsService();
             _appSettings = _settingsService.LoadSettings();
 
@@ -272,6 +274,11 @@ namespace RauskuClaw.GUI.ViewModels
 
                 EnsureWorkspaceHostDirectory(workspace);
                 EnsureWorkspaceSeedIsoPath(workspace);
+                var diskMigration = EnsureWorkspaceDiskPath(workspace);
+                if (!diskMigration.Success)
+                {
+                    AppendLog($"Disk migration skipped for '{workspace.Name}': {diskMigration.Error}");
+                }
                 _workspaces.Add(workspace);
                 SelectedWorkspace = workspace;
 
@@ -298,6 +305,16 @@ namespace RauskuClaw.GUI.ViewModels
                 }
 
                 if (EnsureWorkspaceSeedIsoPath(workspace))
+                {
+                    changed = true;
+                }
+
+                var diskMigration = EnsureWorkspaceDiskPath(workspace);
+                if (!diskMigration.Success)
+                {
+                    AppendLog($"Disk migration skipped for '{workspace.Name}': {diskMigration.Error}");
+                }
+                else if (diskMigration.Changed)
                 {
                     changed = true;
                 }
@@ -402,6 +419,54 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return $"{safeName}-{BuildWorkspaceShortId(workspaceId)}";
+        }
+
+        private (bool Success, bool Changed, string Error) EnsureWorkspaceDiskPath(Workspace workspace)
+        {
+            var baseDisk = ResolveWorkspacePath(Path.Combine(_appSettings.VmBasePath, "arch.qcow2"));
+            var current = (workspace.DiskPath ?? string.Empty).Trim();
+            var currentResolved = string.IsNullOrWhiteSpace(current)
+                ? baseDisk
+                : ResolveWorkspacePath(current);
+
+            var sharedByOthers = _workspaces.Any(w =>
+                !string.Equals(w.Id, workspace.Id, StringComparison.OrdinalIgnoreCase)
+                && PathsEqual(w.DiskPath, currentResolved));
+
+            var requiresOverlay =
+                string.IsNullOrWhiteSpace(current)
+                || PathsEqual(currentResolved, baseDisk)
+                || sharedByOthers;
+
+            if (!requiresOverlay)
+            {
+                workspace.DiskPath = currentResolved;
+                return (true, !string.Equals(current, currentResolved, StringComparison.Ordinal), string.Empty);
+            }
+
+            var overlayDir = Path.Combine(Path.GetDirectoryName(baseDisk) ?? ResolveWorkspacePath(_appSettings.VmBasePath), BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id));
+            var overlayDisk = Path.Combine(overlayDir, "arch.qcow2");
+            var qemuSystem = !string.IsNullOrWhiteSpace(workspace.QemuExe) ? workspace.QemuExe : _appSettings.QemuPath;
+
+            if (!_qcowImageService.EnsureOverlayDisk(qemuSystem, baseDisk, overlayDisk, out var error))
+            {
+                return (false, false, error);
+            }
+
+            workspace.DiskPath = overlayDisk;
+            return (true, !string.Equals(current, overlayDisk, StringComparison.Ordinal), string.Empty);
+        }
+
+        private static bool PathsEqual(string? left, string? right)
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+            {
+                return false;
+            }
+
+            var l = Path.GetFullPath(left);
+            var r = Path.GetFullPath(right);
+            return string.Equals(l, r, StringComparison.OrdinalIgnoreCase);
         }
 
         private static string BuildWorkspaceShortId(string? workspaceId)
@@ -630,7 +695,14 @@ namespace RauskuClaw.GUI.ViewModels
             if (deleteFiles)
             {
                 TryDeleteFile(workspaceToDelete.SeedIsoPath);
-                TryDeleteFile(workspaceToDelete.DiskPath);
+                if (!IsDiskReferencedByOtherWorkspace(workspaceToDelete))
+                {
+                    TryDeleteFile(workspaceToDelete.DiskPath);
+                }
+                else
+                {
+                    AppendLog($"Skipping disk delete for shared disk: {workspaceToDelete.DiskPath}");
+                }
                 TryDeleteDirectory(workspaceToDelete.HostWorkspacePath);
             }
         }
@@ -657,6 +729,30 @@ namespace RauskuClaw.GUI.ViewModels
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
                     return (false, portPreflight.Message);
+                }
+
+                var diskCheck = EnsureWorkspaceDiskPath(workspace);
+                if (!diskCheck.Success)
+                {
+                    var fail = $"Workspace disk preparation failed: {diskCheck.Error}";
+                    ReportStage(progress, "qemu", "failed", fail);
+                    workspace.Status = VmStatus.Error;
+                    workspace.IsRunning = false;
+                    return (false, fail);
+                }
+
+                if (diskCheck.Changed)
+                {
+                    _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                }
+
+                if (TryGetRunningWorkspaceWithSameDisk(workspace, out var conflictingWorkspaceName))
+                {
+                    var fail = $"Disk image is already in use by running workspace '{conflictingWorkspaceName}'. Each running workspace needs its own qcow2 overlay.";
+                    ReportStage(progress, "qemu", "failed", fail);
+                    workspace.Status = VmStatus.Error;
+                    workspace.IsRunning = false;
+                    return (false, fail);
                 }
 
                 if (!TryReserveStartPorts(workspace, out reservedStartPorts, out var reserveError))
@@ -1152,6 +1248,60 @@ namespace RauskuClaw.GUI.ViewModels
                 ("QMP", workspace.Ports?.Qmp ?? 4444),
                 ("Serial", workspace.Ports?.Serial ?? 5555)
             };
+        }
+
+        private bool TryGetRunningWorkspaceWithSameDisk(Workspace workspace, out string workspaceName)
+        {
+            workspaceName = string.Empty;
+            var targetDisk = workspace.DiskPath;
+            if (string.IsNullOrWhiteSpace(targetDisk))
+            {
+                return false;
+            }
+
+            foreach (var other in _workspaces)
+            {
+                if (string.Equals(other.Id, workspace.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!_workspaceProcesses.TryGetValue(other.Id, out var process) || process.HasExited)
+                {
+                    continue;
+                }
+
+                if (PathsEqual(other.DiskPath, targetDisk))
+                {
+                    workspaceName = other.Name;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsDiskReferencedByOtherWorkspace(Workspace workspace)
+        {
+            if (string.IsNullOrWhiteSpace(workspace.DiskPath))
+            {
+                return false;
+            }
+
+            foreach (var other in _workspaces)
+            {
+                if (string.Equals(other.Id, workspace.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (PathsEqual(other.DiskPath, workspace.DiskPath))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static int FindNextAvailablePort(int startPort, HashSet<int> reserved)

@@ -52,6 +52,10 @@ Make wizard startup more resilient when host ports race/collide at VM start time
   - Detects host-port conflict failures.
   - Runs the same auto-assign port logic as Resources step.
   - Automatically retries startup after successful reassignment.
+- Added golden-image disk safety hardening:
+  - New `QcowImageService` creates per-workspace overlay disk from base `arch.qcow2` via `qemu-img`.
+  - Legacy/shared disk paths are migrated to workspace-specific overlays when possible.
+  - Startup now refuses to run if another active workspace is already using the same disk path.
 
 - Main window title bar v2:
   - Move the larger RauskuClaw logo + app title from left sidebar/header area into the custom window title bar.

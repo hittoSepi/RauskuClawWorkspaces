@@ -12,6 +12,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Real wizard-driven `+ New Workspace` flow.
 - Cloud-init seed generation and QEMU start flow.
 - Legacy shared `VM\seed.iso` paths are auto-migrated to workspace-specific seed paths to avoid file-lock collisions.
+- Golden-image disk model: shared base disk (`VM\arch.qcow2`) + per-workspace qcow2 overlay (`VM\<workspace>\arch.qcow2`).
 - Startup progress stages with readiness/failure reporting.
 - Startup-time host-port collision hardening with UI-v2 auto-remap retry path.
 - Failed startup due to host-port conflicts now offers a `Fix Problems` one-click recovery path in wizard (auto-assign ports + retry).
@@ -40,6 +41,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup Docker readiness checks include retry logic and expected-container health parsing.
 - Validated runtime result: Docker stack reaches `healthy (5/5 expected containers)`.
 - Wizard stage telemetry now promotes serial-detected package/docker activity into `Updates` / `Docker` stage hints for clearer progress mapping.
+- Start flow now blocks running two workspaces on the same disk image path and reports a clear error.
 
 ### Settings and UX
 - CPU and RAM resource inputs aligned between Wizard and Settings.
