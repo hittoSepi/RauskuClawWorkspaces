@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using RauskuClaw.Models;
@@ -18,6 +17,5 @@ namespace RauskuClaw.Services
 
         void CancelWarmupRetry(string workspaceId);
 
-        IReadOnlyCollection<string> GetActiveWarmupRetryWorkspaceIds();
     }
 }

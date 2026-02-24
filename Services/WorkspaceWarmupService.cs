@@ -76,10 +76,5 @@ namespace RauskuClaw.Services
                 _workspaceWarmupRetries.Remove(workspaceId);
             }
         }
-
-        public IReadOnlyCollection<string> GetActiveWarmupRetryWorkspaceIds()
-        {
-            return _workspaceWarmupRetries.Keys;
-        }
     }
 }
