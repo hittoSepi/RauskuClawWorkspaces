@@ -4,6 +4,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using RauskuClaw.Services;
 
 namespace RauskuClaw.GUI.ViewModels
@@ -15,7 +17,7 @@ namespace RauskuClaw.GUI.ViewModels
             return _provisioningScriptBuilder.BuildMetaData(Hostname);
         }
 
-        private string BuildUserData()
+        private string BuildUserData(ProvisioningSecretsResult provisioningSecrets)
         {
             return _provisioningScriptBuilder.BuildUserData(new ProvisioningScriptRequest
             {
@@ -28,8 +30,32 @@ namespace RauskuClaw.GUI.ViewModels
                 BuildWebUi = BuildWebUi,
                 WebUiBuildCommand = WebUiBuildCommand,
                 DeployWebUiStatic = DeployWebUiStatic,
-                WebUiBuildOutputDir = WebUiBuildOutputDir
+                WebUiBuildOutputDir = WebUiBuildOutputDir,
+                ProvisioningSecrets = provisioningSecrets.Secrets
             });
+        }
+
+        private async Task<ProvisioningSecretsResult> LoadProvisioningSecretsAsync(IProgress<string> progress, CancellationToken cancellationToken)
+        {
+            UpdateStage("env", "in_progress", "Loading runtime secrets for provisioning...");
+            var requestedKeys = new[] { "API_KEY", "API_TOKEN" };
+            var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, cancellationToken);
+            UpdateStage("env", "success", BuildSecretsStageMessage(result));
+
+            return result;
+        }
+
+        internal static string BuildSecretsStageMessage(ProvisioningSecretsResult result)
+        {
+            var source = result.Source.ToString();
+            return result.Status switch
+            {
+                ProvisioningSecretStatus.Success => $"Secrets source={source} status=success.",
+                ProvisioningSecretStatus.PartialSecretSet => $"Secrets source={source} status=partial-set, missing keys fallback to local template.",
+                ProvisioningSecretStatus.MissingCredentials => "Secrets source=LocalTemplate status=missing-credentials.",
+                ProvisioningSecretStatus.TimeoutOrAuthFailure => "Secrets source=LocalTemplate status=timeout-or-auth-failure.",
+                _ => "Secrets source=LocalTemplate status=fallback."
+            };
         }
 
         private void AppendRunLog(string line)

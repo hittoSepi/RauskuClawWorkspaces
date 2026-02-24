@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace RauskuClaw.Services
 {
@@ -30,6 +32,7 @@ namespace RauskuClaw.Services
             var WebUiBuildCommand = request.WebUiBuildCommand;
             var DeployWebUiStatic = request.DeployWebUiStatic;
             var WebUiBuildOutputDir = request.WebUiBuildOutputDir;
+            var provisionedSecretsSection = BuildProvisionedSecretsSection(request.ProvisioningSecrets);
 
                     var escapedRepoUrl = RepoUrl.Trim().Replace("\"", "\\\"");
                     var escapedRepoBranch = RepoBranch.Trim().Replace("\"", "\\\"");
@@ -191,6 +194,12 @@ namespace RauskuClaw.Services
               fi
             }}
 
+            apply_provisioning_secrets() {{
+              local dir=""$1""
+              local env_file=""$dir/.env""
+{provisionedSecretsSection}
+            }}
+
             random_hex_32() {{
               if command -v openssl >/dev/null 2>&1; then
                 openssl rand -hex 32
@@ -251,6 +260,7 @@ namespace RauskuClaw.Services
                 echo ""Starting $label from $dir...""
                 echo ""Env check: validating runtime env in $dir...""
                 ensure_env_for_dir ""$dir""
+                apply_provisioning_secrets ""$dir""
                 ensure_api_tokens_for_dir ""$dir""
                 echo ""Env check: runtime env ready in $dir. Starting docker compose up --build...""
                 cd ""$dir""
@@ -358,6 +368,35 @@ namespace RauskuClaw.Services
             fi
         ";
         }
+
+        private static string BuildProvisionedSecretsSection(IReadOnlyDictionary<string, string>? secrets)
+        {
+            if (secrets == null || secrets.Count == 0)
+            {
+                return "              echo \"\"Secrets source: local template fallback\"\"\n";
+            }
+
+            var sb = new StringBuilder();
+            foreach (var pair in secrets)
+            {
+                if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+                {
+                    continue;
+                }
+
+                var key = pair.Key.Trim().Replace("\"", "");
+                var value = pair.Value.Trim().Replace("\"", "\\\"");
+                sb.Append("              set_env_var \"\"$env_file\"\" \"\"").Append(key).Append("\"\" \"\"").Append(value).Append("\"\"\n");
+            }
+
+            if (sb.Length == 0)
+            {
+                return "              echo \"\"Secrets source: local template fallback\"\"\n";
+            }
+
+            sb.Append("              echo \"\"Secrets source: remote values applied\"\"\n");
+            return sb.ToString();
+        }
     }
 
     public sealed class ProvisioningScriptRequest
@@ -372,5 +411,6 @@ namespace RauskuClaw.Services
         public string WebUiBuildCommand { get; init; } = string.Empty;
         public bool DeployWebUiStatic { get; init; }
         public string WebUiBuildOutputDir { get; init; } = string.Empty;
+        public IReadOnlyDictionary<string, string>? ProvisioningSecrets { get; init; }
     }
 }

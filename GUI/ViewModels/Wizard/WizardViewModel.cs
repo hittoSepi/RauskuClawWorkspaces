@@ -26,6 +26,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly SeedIsoService _seedIsoService = new();
         private readonly WorkspaceTemplateService _templateService = new();
         private readonly IProvisioningScriptBuilder _provisioningScriptBuilder;
+        private readonly IProvisioningSecretsService _provisioningSecretsService;
 
         private readonly Dictionary<int, UserControl> _viewCache = new();
 
@@ -74,13 +75,19 @@ namespace RauskuClaw.GUI.ViewModels
         private int _reviewBackStep = 2;
 
         public WizardViewModel(Settings? settings = null, PortAllocation? suggestedPorts = null)
-            : this(new ProvisioningScriptBuilder(), settings, suggestedPorts)
+            : this(new ProvisioningScriptBuilder(), new ProvisioningSecretsService(), settings, suggestedPorts)
         {
         }
 
         public WizardViewModel(IProvisioningScriptBuilder provisioningScriptBuilder, Settings? settings = null, PortAllocation? suggestedPorts = null)
+            : this(provisioningScriptBuilder, new ProvisioningSecretsService(), settings, suggestedPorts)
+        {
+        }
+
+        public WizardViewModel(IProvisioningScriptBuilder provisioningScriptBuilder, IProvisioningSecretsService provisioningSecretsService, Settings? settings = null, PortAllocation? suggestedPorts = null)
         {
             _provisioningScriptBuilder = provisioningScriptBuilder;
+            _provisioningSecretsService = provisioningSecretsService;
             ApplyDefaults(settings, suggestedPorts);
 
             GenerateKeyCommand = new RelayCommand(GenerateKey, () => !IsRunning);
@@ -1078,8 +1085,10 @@ namespace RauskuClaw.GUI.ViewModels
                     HandleProgress(line);
                 });
 
+                var provisioningSecrets = await LoadProvisioningSecretsAsync(progress, _startCts.Token);
+
                 UpdateStage("seed", "in_progress", "Creating cloud-init seed ISO...");
-                _seedIsoService.CreateSeedIso(CreatedWorkspace.SeedIsoPath, BuildUserData(), BuildMetaData());
+                _seedIsoService.CreateSeedIso(CreatedWorkspace.SeedIsoPath, BuildUserData(provisioningSecrets), BuildMetaData());
                 UpdateStage("seed", "success", "Seed ISO generated.");
 
                 if (StartWorkspaceAsyncHandler == null)
