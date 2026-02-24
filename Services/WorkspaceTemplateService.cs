@@ -10,10 +10,22 @@ namespace RauskuClaw.Services
     /// <summary>
     /// Service for managing workspace templates.
     /// </summary>
+    public sealed class WorkspaceTemplateServiceOptions
+    {
+        public string TemplatesDirectory { get; init; } = "Templates";
+        public string DefaultTemplatesDirectory { get; init; } = "DefaultTemplates";
+    }
+
     public class WorkspaceTemplateService
     {
-        private const string TemplatesDir = "Templates";
-        private const string DefaultTemplatesDir = "DefaultTemplates";
+        private readonly WorkspaceTemplateServiceOptions _options;
+        private readonly AppPathResolver _pathResolver;
+
+        public WorkspaceTemplateService(WorkspaceTemplateServiceOptions? options = null, AppPathResolver? pathResolver = null)
+        {
+            _options = options ?? new WorkspaceTemplateServiceOptions();
+            _pathResolver = pathResolver ?? new AppPathResolver();
+        }
 
         /// <summary>
         /// Load all templates from file system.
@@ -23,11 +35,14 @@ namespace RauskuClaw.Services
             var templates = new List<WorkspaceTemplate>();
 
             // Ensure user templates directory exists
-            if (!Directory.Exists(TemplatesDir))
-                Directory.CreateDirectory(TemplatesDir);
+            var templatesDir = _pathResolver.ResolveTemplateDirectory(_options.TemplatesDirectory);
+            var defaultTemplatesDir = _pathResolver.ResolveDefaultTemplateDirectory(_options.DefaultTemplatesDirectory);
+
+            if (!Directory.Exists(templatesDir))
+                Directory.CreateDirectory(templatesDir);
 
             // Load user templates
-            var userTemplateFiles = Directory.GetFiles(TemplatesDir, "*.json");
+            var userTemplateFiles = Directory.GetFiles(templatesDir, "*.json");
             foreach (var file in userTemplateFiles)
             {
                 try
@@ -43,9 +58,9 @@ namespace RauskuClaw.Services
             }
 
             // Load default templates (embedded or from DefaultTemplates folder)
-            if (Directory.Exists(DefaultTemplatesDir))
+            if (Directory.Exists(defaultTemplatesDir))
             {
-                var defaultTemplateFiles = Directory.GetFiles(DefaultTemplatesDir, "*.json");
+                var defaultTemplateFiles = Directory.GetFiles(defaultTemplatesDir, "*.json");
                 foreach (var file in defaultTemplateFiles)
                 {
                     try
@@ -112,8 +127,9 @@ namespace RauskuClaw.Services
         /// </summary>
         public void SaveTemplate(WorkspaceTemplate template)
         {
-            if (!Directory.Exists(TemplatesDir))
-                Directory.CreateDirectory(TemplatesDir);
+            var templatesDir = _pathResolver.ResolveTemplateDirectory(_options.TemplatesDirectory);
+            if (!Directory.Exists(templatesDir))
+                Directory.CreateDirectory(templatesDir);
 
             var data = new TemplateData
             {
@@ -133,7 +149,7 @@ namespace RauskuClaw.Services
 
             var options = new JsonSerializerOptions { WriteIndented = true };
             var json = JsonSerializer.Serialize(data, options);
-            var filePath = Path.Combine(TemplatesDir, $"{template.Id}.json");
+            var filePath = Path.Combine(templatesDir, $"{template.Id}.json");
             File.WriteAllText(filePath, json);
         }
 
@@ -226,8 +242,9 @@ namespace RauskuClaw.Services
         /// </summary>
         private void SaveDefaultTemplates(List<WorkspaceTemplate> templates)
         {
-            if (!Directory.Exists(DefaultTemplatesDir))
-                Directory.CreateDirectory(DefaultTemplatesDir);
+            var defaultTemplatesDir = _pathResolver.ResolveDefaultTemplateDirectory(_options.DefaultTemplatesDirectory);
+            if (!Directory.Exists(defaultTemplatesDir))
+                Directory.CreateDirectory(defaultTemplatesDir);
 
             foreach (var template in templates)
             {
@@ -249,7 +266,7 @@ namespace RauskuClaw.Services
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 var json = JsonSerializer.Serialize(data, options);
-                var filePath = Path.Combine(DefaultTemplatesDir, $"{template.Id}.json");
+                var filePath = Path.Combine(defaultTemplatesDir, $"{template.Id}.json");
                 File.WriteAllText(filePath, json);
             }
         }

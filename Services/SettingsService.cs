@@ -5,13 +5,25 @@ using RauskuClaw.Models;
 
 namespace RauskuClaw.Services
 {
+    public sealed class SettingsServiceOptions
+    {
+        public string SettingsDirectory { get; init; } = "Settings";
+        public string SettingsFileName { get; init; } = "settings.json";
+    }
+
     /// <summary>
     /// Service for managing application settings - save, load, reset.
     /// </summary>
     public class SettingsService
     {
-        private const string SettingsDir = "Settings";
-        private const string SettingsFile = "settings.json";
+        private readonly SettingsServiceOptions _options;
+        private readonly AppPathResolver _pathResolver;
+
+        public SettingsService(SettingsServiceOptions? options = null, AppPathResolver? pathResolver = null)
+        {
+            _options = options ?? new SettingsServiceOptions();
+            _pathResolver = pathResolver ?? new AppPathResolver();
+        }
 
         /// <summary>
         /// Load settings from disk. Returns default settings if file doesn't exist.
@@ -19,14 +31,14 @@ namespace RauskuClaw.Services
         public Settings LoadSettings()
         {
             var settings = new Settings();
+            var settingsDir = _pathResolver.ResolveSettingsDirectory(_options.SettingsDirectory);
 
-            if (!Directory.Exists(SettingsDir))
-                Directory.CreateDirectory(SettingsDir);
+            if (!Directory.Exists(settingsDir))
+                Directory.CreateDirectory(settingsDir);
 
-            var filePath = Path.Combine(SettingsDir, SettingsFile);
+            var filePath = _pathResolver.ResolveSettingsFilePath(_options.SettingsDirectory, _options.SettingsFileName);
             if (!File.Exists(filePath))
             {
-                // Save default settings on first run
                 SaveSettings(settings);
                 return settings;
             }
@@ -59,22 +71,19 @@ namespace RauskuClaw.Services
                     settings.InfisicalClientSecret = data.InfisicalClientSecret;
                 }
             }
-            catch (Exception)
+            catch
             {
-                // If loading fails, return default settings
                 SaveSettings(settings);
             }
 
             return settings;
         }
 
-        /// <summary>
-        /// Save settings to disk.
-        /// </summary>
         public void SaveSettings(Settings settings)
         {
-            if (!Directory.Exists(SettingsDir))
-                Directory.CreateDirectory(SettingsDir);
+            var settingsDir = _pathResolver.ResolveSettingsDirectory(_options.SettingsDirectory);
+            if (!Directory.Exists(settingsDir))
+                Directory.CreateDirectory(settingsDir);
 
             var data = new SettingsData
             {
@@ -102,13 +111,10 @@ namespace RauskuClaw.Services
 
             var options = new JsonSerializerOptions { WriteIndented = true };
             var json = JsonSerializer.Serialize(data, options);
-            var filePath = Path.Combine(SettingsDir, SettingsFile);
+            var filePath = _pathResolver.ResolveSettingsFilePath(_options.SettingsDirectory, _options.SettingsFileName);
             File.WriteAllText(filePath, json);
         }
 
-        /// <summary>
-        /// Reset settings to defaults.
-        /// </summary>
         public Settings ResetSettings()
         {
             var settings = new Settings();

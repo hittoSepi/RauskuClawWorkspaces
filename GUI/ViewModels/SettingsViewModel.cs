@@ -22,6 +22,7 @@ namespace RauskuClaw.GUI.ViewModels
         private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
         private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
         private readonly SettingsService _settingsService;
+        private readonly AppPathResolver _pathResolver;
         private Settings _settings;
         private Workspace? _selectedWorkspace;
         private string _statusMessage = "Ready";
@@ -29,9 +30,10 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly ObservableCollection<int> _defaultCpuCoreOptions = new();
         private readonly ObservableCollection<int> _defaultMemoryOptions = new();
 
-        public SettingsViewModel()
+        public SettingsViewModel(SettingsService? settingsService = null, AppPathResolver? pathResolver = null)
         {
-            _settingsService = new SettingsService();
+            _pathResolver = pathResolver ?? new AppPathResolver();
+            _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
             _settings = _settingsService.LoadSettings();
             BuildCpuCoreOptions();
             BuildMemoryOptions();
@@ -91,16 +93,19 @@ namespace RauskuClaw.GUI.ViewModels
         public string VmBasePath
         {
             get => _settings.VmBasePath;
-            set { _settings.VmBasePath = value; OnPropertyChanged(); }
+            set { _settings.VmBasePath = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResolvedVmBasePath)); }
         }
 
         public string WorkspaceRootPath
         {
             get => _settings.WorkspacePath;
-            set { _settings.WorkspacePath = value; OnPropertyChanged(); }
+            set { _settings.WorkspacePath = value; OnPropertyChanged(); OnPropertyChanged(nameof(ResolvedWorkspaceRootPath)); }
         }
 
         public string SelectedWorkspaceHostPath => _selectedWorkspace?.HostWorkspacePath ?? "(no workspace selected)";
+
+        public string ResolvedVmBasePath => _pathResolver.ResolveVmBasePath(_settings);
+        public string ResolvedWorkspaceRootPath => _pathResolver.ResolveWorkspaceRootPath(_settings);
 
         // Default VM Settings
         public int DefaultMemoryMb
@@ -274,6 +279,12 @@ namespace RauskuClaw.GUI.ViewModels
                     return;
                 }
 
+                if (!TryValidateWritablePaths(out var pathError))
+                {
+                    StatusMessage = $"Save failed: {pathError}";
+                    return;
+                }
+
                 _settingsService.SaveSettings(_settings);
                 StatusMessage = $"Saved at {DateTime.Now:HH:mm:ss}";
             }
@@ -290,6 +301,8 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(VmBasePath));
             OnPropertyChanged(nameof(WorkspaceRootPath));
             OnPropertyChanged(nameof(DefaultMemoryMb));
+            OnPropertyChanged(nameof(ResolvedVmBasePath));
+            OnPropertyChanged(nameof(ResolvedWorkspaceRootPath));
             OnPropertyChanged(nameof(DefaultCpuCores));
             OnPropertyChanged(nameof(DefaultUsername));
             OnPropertyChanged(nameof(DefaultHostname));
@@ -556,6 +569,27 @@ namespace RauskuClaw.GUI.ViewModels
             if (unique.Count != ports.Length)
             {
                 error = "Ports must be unique (duplicate values found).";
+                return false;
+            }
+
+            error = string.Empty;
+            return true;
+        }
+
+
+        private bool TryValidateWritablePaths(out string error)
+        {
+            var vmPath = _pathResolver.ResolveVmBasePath(_settings);
+            if (!_pathResolver.TryValidateWritableDirectory(vmPath, out var vmError))
+            {
+                error = $"VM base path '{vmPath}' is not writable: {vmError}";
+                return false;
+            }
+
+            var workspacePath = _pathResolver.ResolveWorkspaceRootPath(_settings);
+            if (!_pathResolver.TryValidateWritableDirectory(workspacePath, out var workspaceError))
+            {
+                error = $"Workspace path '{workspacePath}' is not writable: {workspaceError}";
                 return false;
             }
 

@@ -34,6 +34,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly IWorkspaceWarmupService _warmupService;
         private readonly QcowImageService _qcowImageService;
         private readonly SettingsService _settingsService;
+        private readonly AppPathResolver _pathResolver;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
@@ -54,6 +55,7 @@ namespace RauskuClaw.GUI.ViewModels
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
 
+<<<<<<< HEAD:GUI/ViewModels/Main/MainViewModel.cs
         public MainViewModel() : this(
             new WorkspaceService(),
             new QemuProcessManager(),
@@ -84,6 +86,17 @@ namespace RauskuClaw.GUI.ViewModels
             _settingsService = settingsService;
             _startupOrchestrator = startupOrchestrator;
             _warmupService = warmupService;
+=======
+        public MainViewModel(SettingsService? settingsService = null, AppPathResolver? pathResolver = null, WorkspaceService? workspaceService = null)
+        {
+            _pathResolver = pathResolver ?? new AppPathResolver();
+            _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
+            _workspaceService = workspaceService ?? new WorkspaceService(pathResolver: _pathResolver);
+            _qemuManager = new QemuProcessManager();
+            _qmpClient = new QmpClient();
+            _portAllocator = new PortAllocatorService();
+            _qcowImageService = new QcowImageService();
+>>>>>>> origin/main:GUI/ViewModels/MainViewModel.cs
             _appSettings = _settingsService.LoadSettings();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
@@ -353,13 +366,13 @@ namespace RauskuClaw.GUI.ViewModels
             var current = (workspace.HostWorkspacePath ?? string.Empty).Trim();
             if (!string.IsNullOrWhiteSpace(current))
             {
-                var resolvedExisting = ResolveWorkspacePath(current);
+                var resolvedExisting = ResolveConfiguredPath(current, "Workspaces");
                 Directory.CreateDirectory(resolvedExisting);
                 workspace.HostWorkspacePath = resolvedExisting;
                 return !string.Equals(current, resolvedExisting, StringComparison.Ordinal);
             }
 
-            var root = ResolveWorkspacePath(_appSettings.WorkspacePath);
+            var root = _pathResolver.ResolveWorkspaceRootPath(_appSettings);
             Directory.CreateDirectory(root);
 
             var shortId = BuildWorkspaceShortId(workspace.Id);
@@ -385,8 +398,8 @@ namespace RauskuClaw.GUI.ViewModels
                 current = Path.Combine("VM", "seed.iso");
             }
 
-            var resolvedCurrent = ResolveWorkspacePath(current);
-            var currentDir = Path.GetDirectoryName(resolvedCurrent) ?? ResolveWorkspacePath("VM");
+            var resolvedCurrent = ResolveConfiguredPath(current, "VM");
+            var currentDir = Path.GetDirectoryName(resolvedCurrent) ?? ResolveConfiguredPath("VM", "VM");
             Directory.CreateDirectory(currentDir);
 
             if (!IsLegacySharedSeedPath(resolvedCurrent))
@@ -445,11 +458,11 @@ namespace RauskuClaw.GUI.ViewModels
 
         private (bool Success, bool Changed, string Error) EnsureWorkspaceDiskPath(Workspace workspace)
         {
-            var baseDisk = ResolveWorkspacePath(Path.Combine(_appSettings.VmBasePath, "arch.qcow2"));
+            var baseDisk = ResolveConfiguredPath(Path.Combine(_appSettings.VmBasePath, "arch.qcow2"), Path.Combine("VM", "arch.qcow2"));
             var current = (workspace.DiskPath ?? string.Empty).Trim();
             var currentResolved = string.IsNullOrWhiteSpace(current)
                 ? baseDisk
-                : ResolveWorkspacePath(current);
+                : ResolveConfiguredPath(current, Path.Combine("VM", "arch.qcow2"));
 
             var sharedByOthers = _workspaces.Any(w =>
                 !string.Equals(w.Id, workspace.Id, StringComparison.OrdinalIgnoreCase)
@@ -466,7 +479,7 @@ namespace RauskuClaw.GUI.ViewModels
                 return (true, !string.Equals(current, currentResolved, StringComparison.Ordinal), string.Empty);
             }
 
-            var overlayDir = Path.Combine(Path.GetDirectoryName(baseDisk) ?? ResolveWorkspacePath(_appSettings.VmBasePath), BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id));
+            var overlayDir = Path.Combine(Path.GetDirectoryName(baseDisk) ?? _pathResolver.ResolveVmBasePath(_appSettings), BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id));
             var overlayDisk = Path.Combine(overlayDir, "arch.qcow2");
             var qemuSystem = !string.IsNullOrWhiteSpace(workspace.QemuExe) ? workspace.QemuExe : _appSettings.QemuPath;
 
@@ -530,16 +543,9 @@ namespace RauskuClaw.GUI.ViewModels
             return sb.ToString().Trim('-');
         }
 
-        private static string ResolveWorkspacePath(string path)
+        private string ResolveConfiguredPath(string path, string fallbackRelative)
         {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return Path.GetFullPath("Workspaces");
-            }
-
-            return Path.IsPathRooted(path)
-                ? path
-                : Path.GetFullPath(path);
+            return _pathResolver.ResolvePath(path, fallbackRelative);
         }
 
         private async Task StartVmAsync()
