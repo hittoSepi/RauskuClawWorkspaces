@@ -1889,6 +1889,13 @@ namespace RauskuClaw.GUI.ViewModels
                 return string.Empty;
             }
 
+            // Noise from systemd user session churn during provisioning.
+            if (line.Contains("Started Session", StringComparison.OrdinalIgnoreCase)
+                && line.Contains("of User", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+
             // Drop qemu terminal-query noise like "+q6E616D65".
             if (line.Length > 3 && line[0] == '+' && line[1] == 'q' && IsHex(line.AsSpan(2)))
             {
