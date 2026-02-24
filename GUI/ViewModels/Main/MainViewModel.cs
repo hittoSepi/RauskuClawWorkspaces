@@ -307,6 +307,7 @@ namespace RauskuClaw.GUI.ViewModels
                     if (wizard.ViewModel.CreatedWorkspace != null)
                     {
                         TryKillTrackedProcess(wizard.ViewModel.CreatedWorkspace, force: true);
+                        CleanupAbandonedWorkspaceArtifacts(wizard.ViewModel.CreatedWorkspace);
                     }
                     _portAllocator.ReleasePorts(reservedPorts);
                     return;
@@ -1475,6 +1476,76 @@ namespace RauskuClaw.GUI.ViewModels
             catch (Exception ex)
             {
                 AppendLog($"Could not delete directory '{path}': {ex.Message}");
+            }
+        }
+
+        private void CleanupAbandonedWorkspaceArtifacts(Workspace workspace)
+        {
+            if (workspace == null)
+            {
+                return;
+            }
+
+            TryDeleteFile(workspace.SeedIsoPath);
+
+            if (!IsDiskReferencedByOtherWorkspace(workspace) && IsWorkspaceOwnedArtifactPath(workspace.DiskPath, workspace))
+            {
+                TryDeleteFile(workspace.DiskPath);
+            }
+
+            var seedDir = SafeGetDirectoryName(workspace.SeedIsoPath);
+            var diskDir = SafeGetDirectoryName(workspace.DiskPath);
+            if (!string.IsNullOrWhiteSpace(seedDir) && PathsEqual(seedDir, diskDir))
+            {
+                TryDeleteDirectory(seedDir);
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(seedDir))
+                {
+                    TryDeleteDirectory(seedDir);
+                }
+
+                if (!string.IsNullOrWhiteSpace(diskDir) && IsWorkspaceOwnedArtifactPath(workspace.DiskPath, workspace))
+                {
+                    TryDeleteDirectory(diskDir);
+                }
+            }
+
+            TryDeleteDirectory(workspace.HostWorkspacePath);
+        }
+
+        private static bool IsWorkspaceOwnedArtifactPath(string? path, Workspace workspace)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return false;
+            }
+
+            var parentDir = Path.GetFileName(SafeGetDirectoryName(path));
+            if (string.IsNullOrWhiteSpace(parentDir))
+            {
+                return false;
+            }
+
+            var expectedDir = BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id);
+            return string.Equals(parentDir, expectedDir, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string SafeGetDirectoryName(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                return Path.GetDirectoryName(path) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 
