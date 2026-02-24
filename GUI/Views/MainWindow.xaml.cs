@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using RauskuClaw.GUI.ViewModels;
+using RauskuClaw.Services;
 
 namespace RauskuClaw.GUI.Views
 {
@@ -14,7 +15,9 @@ namespace RauskuClaw.GUI.Views
         public MainWindow()
         {
             InitializeComponent();
-            _mainViewModel = new MainViewModel();
+            var pathResolver = new AppPathResolver();
+            var settingsService = new SettingsService(pathResolver: pathResolver);
+            _mainViewModel = new MainViewModel(settingsService, pathResolver);
             DataContext = _mainViewModel;
 
             // Initialize child ViewModels
@@ -25,7 +28,7 @@ namespace RauskuClaw.GUI.Views
                 vm.DockerContainers = new DockerContainersViewModel();
                 vm.SshTerminal = new SshTerminalViewModel();
                 vm.SftpFiles = new SftpFilesViewModel();
-                vm.Settings = new SettingsViewModel();
+                vm.Settings = new SettingsViewModel(settingsService, pathResolver);
             }
         }
 

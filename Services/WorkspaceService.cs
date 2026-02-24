@@ -7,22 +7,35 @@ using System.Text.Json;
 
 namespace RauskuClaw.Services
 {
+    public sealed class WorkspaceServiceOptions
+    {
+        public string WorkspaceDirectory { get; init; } = "Workspaces";
+        public string WorkspaceFileName { get; init; } = "workspaces.json";
+    }
+
     /// <summary>
     /// Service for managing workspaces - save, load, delete.
     /// </summary>
     public class WorkspaceService
     {
-        private const string WorkspacesDir = "Workspaces";
-        private const string WorkspaceFile = "workspaces.json";
+        private readonly WorkspaceServiceOptions _options;
+        private readonly AppPathResolver _pathResolver;
+
+        public WorkspaceService(WorkspaceServiceOptions? options = null, AppPathResolver? pathResolver = null)
+        {
+            _options = options ?? new WorkspaceServiceOptions();
+            _pathResolver = pathResolver ?? new AppPathResolver();
+        }
 
         public List<Workspace> LoadWorkspaces()
         {
             var workspaces = new List<Workspace>();
+            var workspaceDir = _pathResolver.ResolveWorkspaceDataDirectory(_options.WorkspaceDirectory);
 
-            if (!Directory.Exists(WorkspacesDir))
-                Directory.CreateDirectory(WorkspacesDir);
+            if (!Directory.Exists(workspaceDir))
+                Directory.CreateDirectory(workspaceDir);
 
-            var filePath = Path.Combine(WorkspacesDir, WorkspaceFile);
+            var filePath = _pathResolver.ResolveWorkspaceDataFilePath(_options.WorkspaceDirectory, _options.WorkspaceFileName);
             if (!File.Exists(filePath))
                 return workspaces;
 
@@ -70,8 +83,9 @@ namespace RauskuClaw.Services
 
         public void SaveWorkspaces(List<Workspace> workspaces)
         {
-            if (!Directory.Exists(WorkspacesDir))
-                Directory.CreateDirectory(WorkspacesDir);
+            var workspaceDir = _pathResolver.ResolveWorkspaceDataDirectory(_options.WorkspaceDirectory);
+            if (!Directory.Exists(workspaceDir))
+                Directory.CreateDirectory(workspaceDir);
 
             var data = workspaces.Select(w => new WorkspaceData
             {
@@ -97,7 +111,7 @@ namespace RauskuClaw.Services
 
             var options = new JsonSerializerOptions { WriteIndented = true };
             var json = JsonSerializer.Serialize(data, options);
-            var filePath = Path.Combine(WorkspacesDir, WorkspaceFile);
+            var filePath = _pathResolver.ResolveWorkspaceDataFilePath(_options.WorkspaceDirectory, _options.WorkspaceFileName);
             File.WriteAllText(filePath, json);
         }
 
