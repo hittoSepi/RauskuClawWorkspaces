@@ -25,6 +25,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
                     <TextBox Grid.Column="1"
+                             x:Name="PathInputTextBox"
                              Text="{Binding PathInput, UpdateSourceTrigger=PropertyChanged}"
                              Margin="8,0,8,0"
                              VerticalContentAlignment="Center"
@@ -39,6 +40,7 @@
                         Margin="0,6,0,0"
                         Visibility="{Binding IsPathSuggestionsOpen, Converter={StaticResource BoolToVisibilityConverter}}">
                     <ListBox ItemsSource="{Binding PathSuggestions}"
+                             x:Name="PathSuggestionsListBox"
                              SelectedItem="{Binding SelectedPathSuggestion}"
                              Background="#0A0C0E"
                              Foreground="#E6EAF2"

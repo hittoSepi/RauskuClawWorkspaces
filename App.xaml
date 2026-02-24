@@ -149,6 +149,43 @@
             <Setter Property="ContentTemplate" Value="{StaticResource IconButtonContentTemplate}"/>
         </Style>
 
+        <Style x:Key="WindowTitleBarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#151A22"/>
+            <Setter Property="Foreground" Value="#E6EAF2"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2A3240"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1F2733"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="WindowTitleBarCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowTitleBarButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C42B1C"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#8F1D14"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="#9AA3B2"/>
             <Setter Property="Background" Value="{StaticResource TabInactive}"/>

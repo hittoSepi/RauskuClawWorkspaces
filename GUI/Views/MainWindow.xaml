@@ -17,48 +17,10 @@
         MinWidth="1000"
         MinHeight="620"
         Background="#0F1115">
-    <Window.Resources>
-        <Style x:Key="TitleBarButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#151A22"/>
-            <Setter Property="Foreground" Value="#E6EAF2"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Width" Value="36"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2A3240"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#1F2733"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="TitleBarCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource TitleBarButtonStyle}">
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#C42B1C"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#8F1D14"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
-
     <Border BorderBrush="#2A3240" BorderThickness="1" Background="#0F1115">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="46"/>
+                <RowDefinition Height="64"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -70,18 +32,44 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <DockPanel Grid.Column="0" Margin="12,0,0,0" VerticalAlignment="Center">
-                    <Image Width="16" Height="16" Source="pack://application:,,,/Assets/rausku-icon-64.png" Margin="0,0,8,0"/>
-                    <TextBlock Text="RauskuClaw - AI Workspaces"
-                               VerticalAlignment="Center"
-                               Foreground="#E6EAF2"
-                               FontSize="13"/>
-                </DockPanel>
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Margin="12,0,0,0"
+                            VerticalAlignment="Center">
+                    <Image Width="32" Height="32" Source="pack://application:,,,/Assets/rausku-icon-64.png" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="RauskuClaw"
+                                   Foreground="#4DA3FF"
+                                   FontSize="27"
+                                   FontWeight="Bold"
+                                   LineHeight="27"/>
+                        <TextBlock Text="AI Workspaces"
+                                   Foreground="#9AA3B2"
+                                   FontSize="11"
+                                   Margin="0,-4,0,0"/>
+                    </StackPanel>
+                </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-                    <Button Style="{StaticResource TitleBarButtonStyle}" Content="−" Click="MinimizeButton_OnClick"/>
-                    <Button Style="{StaticResource TitleBarButtonStyle}" Content="□" Margin="4,0,0,0" Click="MaximizeRestoreButton_OnClick"/>
-                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Content="X" Margin="4,0,0,0" Click="CloseButton_OnClick"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MinimizeButton_OnClick">
+                        <fa:IconBlock Icon="Minus"
+                                      Width="10"
+                                      Height="10"
+                                      Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                    <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MaximizeRestoreButton_OnClick">
+                        <fa:IconBlock Icon="WindowMaximize"
+                                      Width="11"
+                                      Height="11"
+                                      VerticalAlignment="Center"
+                                      Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                    <Button Style="{StaticResource WindowTitleBarCloseButtonStyle}" Click="CloseButton_OnClick">
+                        <fa:IconBlock Icon="Times"
+                                      Width="10"
+                                      Height="10"
+                                      Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -91,11 +79,7 @@
             <DockPanel>
                 <!-- Header: App title + New button -->
                 <StackPanel DockPanel.Dock="Top" Margin="16">
-                    <DockPanel Margin="0,0,0,8">
-                        <Image Width="64" Height="64" Source="pack://application:,,,/Assets/rausku-icon-64.png" DockPanel.Dock="Left" Margin="0,0,8,0"/>
-                        <TextBlock Text="RauskuClaw" FontSize="22" Foreground="#4DA3FF" FontWeight="Bold" VerticalAlignment="Center"/>
-                    </DockPanel>
-                    <TextBlock Text="AI Workspaces" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12"/>
+                    <TextBlock Text="Workspaces" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12"/>
                     <Button Command="{Binding NewWorkspaceCommand}"
                             Style="{StaticResource SecondaryIconButton}"
                             Tag="Plus"
@@ -418,4 +402,5 @@
         </Grid>
     </Border>
 </Window>
+
 

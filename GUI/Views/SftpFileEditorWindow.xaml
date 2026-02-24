@@ -6,62 +6,127 @@
         Width="920"
         MinHeight="420"
         MinWidth="640"
+        WindowStyle="None"
+        ResizeMode="CanResize"
         WindowStartupLocation="CenterOwner"
         Background="#0F1115"
         Foreground="#E6EAF2">
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Window.Resources>
+        <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#151A22"/>
+            <Setter Property="Foreground" Value="#E6EAF2"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2A3240"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1F2733"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="TitleBarCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource TitleBarButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C42B1C"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#8F1D14"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Border BorderBrush="#2A3240" BorderThickness="1" Background="#0F1115">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="46"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="10" Margin="0,0,0,8">
-            <StackPanel>
-                <TextBlock Text="Remote file" Foreground="#9AA3B2"/>
-                <TextBlock x:Name="RemotePathTextBlock" Foreground="#E6EAF2" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="Local temp file" Foreground="#9AA3B2" Margin="0,8,0,0"/>
-                <TextBlock x:Name="TempPathTextBlock" Foreground="#E6EAF2" TextTrimming="CharacterEllipsis"/>
-            </StackPanel>
-        </Border>
+            <Grid Grid.Row="0" Background="#151A22" MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="SFTP File Editor"
+                           VerticalAlignment="Center"
+                           Foreground="#E6EAF2"
+                           FontSize="13"
+                           Margin="12,0,0,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Content="−" Click="MinimizeButton_OnClick"/>
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Content="□" Margin="4,0,0,0" Click="MaximizeRestoreButton_OnClick"/>
+                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Content="X" Margin="4,0,0,0" Click="CloseButton_OnClick"/>
+                </StackPanel>
+            </Grid>
 
-        <TextBox Grid.Row="1"
-                 x:Name="EditorTextBox"
-                 AcceptsReturn="True"
-                 AcceptsTab="True"
-                 TextWrapping="NoWrap"
-                 VerticalScrollBarVisibility="Auto"
-                 HorizontalScrollBarVisibility="Auto"
-                 FontFamily="Consolas"
-                 FontSize="12"
-                 Background="#0A0C0E"
-                 Foreground="#E6EAF2"
-                 BorderBrush="#2A3240"
-                 BorderThickness="1"/>
+            <Grid Grid.Row="1" Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="2" Margin="0,8,0,0">
-            <TextBlock x:Name="StatusTextBlock"
-                       DockPanel.Dock="Left"
-                       VerticalAlignment="Center"
-                       Foreground="#9AA3B2"
-                       Text="Ready"/>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="Save Temp"
-                        Style="{StaticResource SecondaryButton}"
-                        Padding="12,6"
-                        Margin="0,0,8,0"
-                        Click="SaveTempButton_OnClick"/>
-                <Button x:Name="UploadButton"
-                        Content="Upload to Server"
-                        Style="{StaticResource GreenButton}"
-                        Padding="12,6"
-                        Margin="0,0,8,0"
-                        Click="UploadButton_OnClick"/>
-                <Button Content="Close"
-                        Style="{StaticResource SecondaryButton}"
-                        Padding="12,6"
-                        Click="CloseButton_OnClick"/>
-            </StackPanel>
-        </DockPanel>
-    </Grid>
+                <Border Grid.Row="0" Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="10" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="Remote file" Foreground="#9AA3B2"/>
+                        <TextBlock x:Name="RemotePathTextBlock" Foreground="#E6EAF2" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="Local temp file" Foreground="#9AA3B2" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="TempPathTextBlock" Foreground="#E6EAF2" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBox Grid.Row="1"
+                         x:Name="EditorTextBox"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         FontFamily="Consolas"
+                         FontSize="12"
+                         Background="#0A0C0E"
+                         Foreground="#E6EAF2"
+                         BorderBrush="#2A3240"
+                         BorderThickness="1"/>
+
+                <DockPanel Grid.Row="2" Margin="0,8,0,0">
+                    <TextBlock x:Name="StatusTextBlock"
+                               DockPanel.Dock="Left"
+                               VerticalAlignment="Center"
+                               Foreground="#9AA3B2"
+                               Text="Ready"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Save Temp"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="12,6"
+                                Margin="0,0,8,0"
+                                Click="SaveTempButton_OnClick"/>
+                        <Button x:Name="UploadButton"
+                                Content="Upload to Server"
+                                Style="{StaticResource GreenButton}"
+                                Padding="12,6"
+                                Margin="0,0,8,0"
+                                Click="UploadButton_OnClick"/>
+                        <Button Content="Close"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="12,6"
+                                Click="CloseButton_OnClick"/>
+                    </StackPanel>
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

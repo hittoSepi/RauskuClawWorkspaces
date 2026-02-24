@@ -220,22 +220,7 @@ namespace RauskuClaw.GUI.ViewModels
             IsBusy = true;
             try
             {
-                var list = await _sftpService.ListDirectoryAsync(CurrentPath);
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    Entries.Clear();
-                    if (!string.Equals(CurrentPath, "/", StringComparison.Ordinal))
-                    {
-                        var parent = GetParentPath(CurrentPath);
-                        Entries.Add(SftpEntryItemViewModel.CreateParentShortcut(parent));
-                    }
-                    foreach (var entry in list)
-                    {
-                        Entries.Add(new SftpEntryItemViewModel(entry));
-                    }
-                });
-                var visibleCount = Entries.Count(e => !e.IsParentShortcut);
-                StatusText = $"Connected ({visibleCount} entries)";
+                await RefreshCurrentPathCoreAsync();
             }
             catch (Exception ex)
             {
@@ -245,15 +230,7 @@ namespace RauskuClaw.GUI.ViewModels
                     CurrentPath = fallback;
                     try
                     {
-                        var retry = await _sftpService.ListDirectoryAsync(CurrentPath);
-                        await Application.Current.Dispatcher.InvokeAsync(() =>
-                        {
-                            Entries.Clear();
-                            foreach (var entry in retry)
-                            {
-                                Entries.Add(new SftpEntryItemViewModel(entry));
-                            }
-                        });
+                        await RefreshCurrentPathCoreAsync();
                         StatusText = $"Path not found, switched to {CurrentPath}";
                         return;
                     }
@@ -273,6 +250,26 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 IsBusy = false;
             }
+        }
+
+        private async Task RefreshCurrentPathCoreAsync()
+        {
+            var list = await _sftpService.ListDirectoryAsync(CurrentPath);
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                Entries.Clear();
+                if (!string.Equals(CurrentPath, "/", StringComparison.Ordinal))
+                {
+                    var parent = GetParentPath(CurrentPath);
+                    Entries.Add(SftpEntryItemViewModel.CreateParentShortcut(parent));
+                }
+                foreach (var entry in list)
+                {
+                    Entries.Add(new SftpEntryItemViewModel(entry));
+                }
+            });
+            var visibleCount = Entries.Count(e => !e.IsParentShortcut);
+            StatusText = $"Connected ({visibleCount} entries)";
         }
 
         public void Disconnect()
@@ -437,7 +434,7 @@ namespace RauskuClaw.GUI.ViewModels
 
                 CurrentPath = path;
                 IsPathSuggestionsOpen = false;
-                await RefreshAsync();
+                await RefreshCurrentPathCoreAsync();
             }
             catch (Exception ex)
             {
@@ -474,6 +471,20 @@ namespace RauskuClaw.GUI.ViewModels
             var (parent, prefix) = SplitSuggestionScope(raw);
             try
             {
+                var parentExists = await _sftpService.PathExistsAsync(parent);
+                if (!parentExists)
+                {
+                    if (version != _pathSuggestionVersion)
+                    {
+                        return;
+                    }
+
+                    PathSuggestions.Clear();
+                    IsPathSuggestionsOpen = false;
+                    SelectedPathSuggestion = null;
+                    return;
+                }
+
                 var entries = await _sftpService.ListDirectoryAsync(parent);
                 if (version != _pathSuggestionVersion)
                 {
@@ -495,6 +506,17 @@ namespace RauskuClaw.GUI.ViewModels
                 }
 
                 IsPathSuggestionsOpen = PathSuggestions.Count > 0;
+                if (IsPathSuggestionsOpen)
+                {
+                    if (string.IsNullOrWhiteSpace(SelectedPathSuggestion) || !PathSuggestions.Contains(SelectedPathSuggestion))
+                    {
+                        SelectedPathSuggestion = PathSuggestions[0];
+                    }
+                }
+                else
+                {
+                    SelectedPathSuggestion = null;
+                }
             }
             catch
             {
@@ -505,6 +527,7 @@ namespace RauskuClaw.GUI.ViewModels
 
                 PathSuggestions.Clear();
                 IsPathSuggestionsOpen = false;
+                SelectedPathSuggestion = null;
             }
         }
 

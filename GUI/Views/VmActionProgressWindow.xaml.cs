@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 
 namespace RauskuClaw.GUI.Views
 {
@@ -22,6 +23,19 @@ namespace RauskuClaw.GUI.Views
         public void AllowClose()
         {
             _allowClose = true;
+        }
+
+        private void TitleBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                DragMove();
+            }
+        }
+
+        private void CloseButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
 
         protected override void OnClosing(CancelEventArgs e)

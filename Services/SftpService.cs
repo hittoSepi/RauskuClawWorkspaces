@@ -76,13 +76,24 @@ namespace RauskuClaw.Services
             return await ExecuteAsync(() =>
             {
                 EnsureConnected();
-                var entries = _client!.ListDirectory(path)
-                    .Where(f => f.Name != "." && f.Name != "..")
-                    .Select(MapEntry)
-                    .OrderByDescending(e => e.IsDirectory)
-                    .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                return (IReadOnlyList<SftpEntry>)entries;
+                try
+                {
+                    var entries = _client!.ListDirectory(path)
+                        .Where(f => f.Name != "." && f.Name != "..")
+                        .Select(MapEntry)
+                        .OrderByDescending(e => e.IsDirectory)
+                        .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    return (IReadOnlyList<SftpEntry>)entries;
+                }
+                catch (SftpPermissionDeniedException ex)
+                {
+                    throw new UnauthorizedAccessException($"Permission denied: '{path}'.", ex);
+                }
+                catch (SftpPathNotFoundException ex)
+                {
+                    throw new DirectoryNotFoundException($"Path not found: '{path}'.", ex);
+                }
             });
         }
 
