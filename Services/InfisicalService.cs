@@ -17,12 +17,12 @@ namespace RauskuClaw.Services
         private readonly string? _clientSecret;
         private string? _accessToken;
 
-        public InfisicalService(string? clientId, string? clientSecret)
+        public InfisicalService(string? clientId, string? clientSecret, HttpClient? httpClient = null)
         {
             _clientId = clientId;
             _clientSecret = clientSecret;
-            _httpClient = new HttpClient();
-            _httpClient.BaseAddress = new Uri("https://api.infisical.com/api/v1/");
+            _httpClient = httpClient ?? new HttpClient();
+            _httpClient.BaseAddress ??= new Uri("https://api.infisical.com/api/v1/");
         }
 
         /// <summary>
@@ -35,8 +35,7 @@ namespace RauskuClaw.Services
 
             try
             {
-                var authClient = new HttpClient { BaseAddress = new Uri("https://api.infisical.com/api/v1/") };
-                var response = await authClient.PostAsJsonAsync("auth/universal-login", new
+                var response = await _httpClient.PostAsJsonAsync("auth/universal-login", new
                 {
                     clientId = _clientId,
                     clientSecret = _clientSecret

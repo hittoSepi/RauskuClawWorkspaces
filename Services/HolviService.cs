@@ -17,12 +17,12 @@ namespace RauskuClaw.Services
         private readonly string? _apiKey;
         private readonly string? _projectId;
 
-        public HolviService(string? apiKey, string? projectId)
+        public HolviService(string? apiKey, string? projectId, HttpClient? httpClient = null)
         {
             _apiKey = apiKey;
             _projectId = projectId;
-            _httpClient = new HttpClient();
-            _httpClient.BaseAddress = new Uri("https://api.holvi.io/v1/");
+            _httpClient = httpClient ?? new HttpClient();
+            _httpClient.BaseAddress ??= new Uri("https://api.holvi.io/v1/");
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             _httpClient.DefaultRequestHeaders.Add("X-Project-Id", _projectId ?? "");
         }

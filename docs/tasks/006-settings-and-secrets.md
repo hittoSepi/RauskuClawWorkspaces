@@ -193,20 +193,27 @@ Settings are stored in `Settings/settings.json`:
 - [ ] Reset button restores defaults
 
 ### Secret Manager Integration (Holvi)
-- [ ] Holvi service can fetch secrets with valid API key
-- [ ] Holvi service handles missing API key gracefully
-- [ ] Holvi service handles invalid credentials gracefully
+- [x] Holvi service can fetch secrets with valid API key
+- [x] Holvi service handles missing API key gracefully
+- [x] Holvi service handles invalid credentials gracefully
 
 ### Secret Manager Integration (Infisical)
-- [ ] Infisical service authenticates successfully
-- [ ] Infisical service can fetch secrets
-- [ ] Infisical service handles missing credentials gracefully
+- [x] Infisical service authenticates successfully
+- [x] Infisical service can fetch secrets
+- [x] Infisical service handles missing credentials gracefully
+
+### Wizard Startup Secret Flow
+- [x] Wizard resolves secrets through `SettingsService` and secure secret refs
+- [x] Holvi/Infisical remote fetch is attempted before startup provisioning
+- [x] Fallback to local `.env`/`.env.example` flow when remote fetch fails
+- [x] Stage reporting only logs source/status (no secret values)
+- [x] Error paths covered: missing credentials, timeout/auth failure, partial secret set
 
 ## Known Limitations
 
 1. **Browse Dialogs** - Not yet implemented (TODO comments in code)
 2. **Settings Auto-load on Startup** - ✅ Settings are loaded on startup and used as wizard defaults (username/hostname/qemu/resources/paths/ports).
-3. **Secret Manager UI Integration** - Service clients and secure local secret storage exist, but end-to-end provisioning injection still needs completion.
+3. **Secret Manager UI Integration** - ✅ End-to-end wizard startup integration now resolves remote secrets and falls back to local `.env` templates with status-only logging.
 4. **Port Allocation Integration** - PortAllocatorService still uses its own internal base range defaults; settings-defined starting ports are not yet fully the allocator source-of-truth.
 
 ## Next Steps
@@ -214,7 +221,7 @@ Settings are stored in `Settings/settings.json`:
 Remaining Sprint 3 items:
 - [ ] Workspace Templates (default.json, minimal.json, full-ai.json)
 - [x] Integrate Settings into Workspace creation flow
-- [ ] Integrate Secret Manager into cloud-init provisioning
+- [x] Integrate Secret Manager into cloud-init provisioning
 - [ ] Implement browse dialogs for QEMU and VM paths
 
 ## API Endpoints
