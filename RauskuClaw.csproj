@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <DefaultItemExcludes>$(DefaultItemExcludes);RauskuClaw.Tests\**\*</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,9 +44,5 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="RauskuClaw.Tests\**\*.cs" />
-    <None Include="RauskuClaw.Tests\**\*" Exclude="RauskuClaw.Tests\bin\**;RauskuClaw.Tests\obj\**" />
-  </ItemGroup>
 
 </Project>
