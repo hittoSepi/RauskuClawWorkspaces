@@ -30,3 +30,11 @@ packages/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Workspace runtime/generated VM data
+VM/
+**/VM/
+*.qcow2
+*.qcow2.*
+seed.iso
+**/seed.iso
