@@ -14,6 +14,9 @@ namespace RauskuClaw.GUI.ViewModels
 {
     public class TemplateManagementViewModel : INotifyPropertyChanged
     {
+        private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
+        private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
+
         private readonly WorkspaceTemplateService _templateService;
         private WorkspaceTemplate? _selectedTemplate;
         private string _searchText = string.Empty;
@@ -33,12 +36,16 @@ namespace RauskuClaw.GUI.ViewModels
             ExportTemplateCommand = new RelayCommand(ExportTemplate, () => SelectedTemplate != null);
             RefreshCommand = new RelayCommand(LoadTemplates);
 
+            BuildCpuCoreOptions();
+            BuildMemoryOptions();
             LoadTemplates();
         }
 
         public ObservableCollection<WorkspaceTemplate> Templates { get; } = new();
         public ObservableCollection<WorkspaceTemplate> FilteredTemplates { get; } = new();
         public ObservableCollection<string> Categories { get; } = new() { "All" };
+        public ObservableCollection<int> CpuCoreOptions { get; } = new();
+        public ObservableCollection<int> MemoryOptions { get; } = new();
 
         public WorkspaceTemplate? SelectedTemplate
         {
@@ -55,6 +62,7 @@ namespace RauskuClaw.GUI.ViewModels
                 OnPropertyChanged(nameof(ServicesCsv));
                 OnPropertyChanged(nameof(PortsCsv));
                 OnPropertyChanged(nameof(IsCustomSelected));
+                EnsureSelectionOptionsContainSelectedTemplateValues();
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -172,8 +180,8 @@ namespace RauskuClaw.GUI.ViewModels
                 Name = "New Template",
                 Category = TemplateCategories.Custom,
                 Description = string.Empty,
-                CpuCores = 2,
-                MemoryMb = 2048,
+                CpuCores = Math.Clamp(Math.Min(4, HostLogicalCpuCount), 1, HostLogicalCpuCount),
+                MemoryMb = Math.Clamp(Math.Min(4096, HostMemoryLimitMb), 256, HostMemoryLimitMb),
                 Username = "rausku",
                 Hostname = "rausku-custom",
                 Source = TemplateSources.Custom,
@@ -307,6 +315,80 @@ namespace RauskuClaw.GUI.ViewModels
 
             return string.Join(Environment.NewLine, lines);
         }
+
+        private void EnsureSelectionOptionsContainSelectedTemplateValues()
+        {
+            if (SelectedTemplate == null)
+            {
+                return;
+            }
+
+            EnsureOptionPresent(CpuCoreOptions, Math.Clamp(SelectedTemplate.CpuCores, 1, HostLogicalCpuCount));
+            EnsureOptionPresent(MemoryOptions, Math.Clamp(SelectedTemplate.MemoryMb, 256, HostMemoryLimitMb));
+        }
+
+        private static void EnsureOptionPresent(ObservableCollection<int> options, int value)
+        {
+            if (options.Contains(value))
+            {
+                return;
+            }
+
+            options.Add(value);
+            var ordered = options.OrderBy(v => v).ToArray();
+            options.Clear();
+            foreach (var item in ordered)
+            {
+                options.Add(item);
+            }
+        }
+
+        private void BuildCpuCoreOptions()
+        {
+            CpuCoreOptions.Clear();
+            for (var i = 1; i <= HostLogicalCpuCount; i++)
+            {
+                CpuCoreOptions.Add(i);
+            }
+        }
+
+        private void BuildMemoryOptions()
+        {
+            MemoryOptions.Clear();
+            var candidates = new[] { 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152, 65536 };
+            foreach (var option in candidates)
+            {
+                if (option <= HostMemoryLimitMb)
+                {
+                    MemoryOptions.Add(option);
+                }
+            }
+
+            if (MemoryOptions.Count == 0)
+            {
+                MemoryOptions.Add(Math.Clamp(4096, 256, HostMemoryLimitMb));
+            }
+        }
+
+        private static int GetHostMemoryLimitMb()
+        {
+            try
+            {
+                var bytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                if (bytes <= 0)
+                {
+                    return 32768;
+                }
+
+                var mb = (int)Math.Max(256, bytes / (1024 * 1024));
+                return mb;
+            }
+            catch
+            {
+                return 32768;
+            }
+        }
+
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

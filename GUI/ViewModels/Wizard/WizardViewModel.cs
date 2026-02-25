@@ -1063,32 +1063,31 @@ namespace RauskuClaw.GUI.ViewModels
             var workspaceName = string.IsNullOrWhiteSpace(Hostname) ? "New Workspace" : Hostname.Trim();
             var workspaceDescription = $"Workspace for {workspaceName}";
 
-            CreatedWorkspace = new Workspace
+            var existingWorkspace = CreatedWorkspace;
+            CreatedWorkspace = existingWorkspace ?? new Workspace();
+            CreatedWorkspace.Name = workspaceName;
+            CreatedWorkspace.Description = workspaceDescription;
+            CreatedWorkspace.TemplateId = _isCustomTemplate ? "custom" : (_selectedTemplate?.Id ?? "custom");
+            CreatedWorkspace.TemplateName = SelectedTemplateName;
+            CreatedWorkspace.Username = Username.Trim();
+            CreatedWorkspace.Hostname = Hostname.Trim();
+            CreatedWorkspace.SshPublicKey = SshPublicKey.Trim();
+            CreatedWorkspace.SshPrivateKeyPath = SshPrivateKeyPath.Trim();
+            CreatedWorkspace.RepoTargetDir = RepoTargetDir.Trim();
+            CreatedWorkspace.QemuExe = QemuExe.Trim();
+            CreatedWorkspace.DiskPath = DiskPath.Trim();
+            CreatedWorkspace.SeedIsoPath = SeedIsoPath.Trim();
+            CreatedWorkspace.HostWebPort = HostWebPort;
+            CreatedWorkspace.MemoryMb = MemoryMb;
+            CreatedWorkspace.CpuCores = CpuCores;
+            CreatedWorkspace.Ports = new PortAllocation
             {
-                Name = workspaceName,
-                Description = workspaceDescription,
-                TemplateId = _isCustomTemplate ? "custom" : (_selectedTemplate?.Id ?? "custom"),
-                TemplateName = SelectedTemplateName,
-                Username = Username.Trim(),
-                Hostname = Hostname.Trim(),
-                SshPublicKey = SshPublicKey.Trim(),
-                SshPrivateKeyPath = SshPrivateKeyPath.Trim(),
-                RepoTargetDir = RepoTargetDir.Trim(),
-                QemuExe = QemuExe.Trim(),
-                DiskPath = DiskPath.Trim(),
-                SeedIsoPath = SeedIsoPath.Trim(),
-                HostWebPort = HostWebPort,
-                MemoryMb = MemoryMb,
-                CpuCores = CpuCores,
-                Ports = new PortAllocation
-                {
-                    Ssh = HostSshPort,
-                    Api = HostApiPort,
-                    UiV1 = HostUiV1Port,
-                    UiV2 = HostUiV2Port,
-                    Qmp = HostQmpPort,
-                    Serial = HostSerialPort
-                }
+                Ssh = HostSshPort,
+                Api = HostApiPort,
+                UiV1 = HostUiV1Port,
+                UiV2 = HostUiV2Port,
+                Qmp = HostQmpPort,
+                Serial = HostSerialPort
             };
 
             if (!string.IsNullOrWhiteSpace(vmBasePath))
