@@ -1648,6 +1648,7 @@ namespace RauskuClaw.GUI.ViewModels
         public string Hostname => Template.Hostname;
         public string Icon => Template.Icon;
         public bool IsDefault => Template.IsDefault;
+        public string Source => Template.Source;
         public IReadOnlyList<TemplatePortMapping> PortMappings => Template.PortMappings;
         public IReadOnlyList<string> EnabledServices => Template.EnabledServices;
         public RelayCommand SelectTemplateCommand { get; }

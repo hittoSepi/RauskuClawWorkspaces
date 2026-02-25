@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using RauskuClaw.Models;
 
 namespace RauskuClaw.Services
@@ -16,8 +17,26 @@ namespace RauskuClaw.Services
         public string DefaultTemplatesDirectory { get; init; } = "DefaultTemplates";
     }
 
+    public sealed class TemplateDocument
+    {
+        public const int CurrentSchemaVersion = 1;
+        public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+        public TemplateMetadata Metadata { get; set; } = new();
+        public WorkspaceTemplate Template { get; set; } = new();
+    }
+
+    public sealed class TemplateMetadata
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Source { get; set; } = TemplateSources.Custom;
+        public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset UpdatedUtc { get; set; } = DateTimeOffset.UtcNow;
+    }
+
     public class WorkspaceTemplateService
     {
+        private static readonly Regex TemplateIdRegex = new("^[a-z0-9][a-z0-9-]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private readonly WorkspaceTemplateServiceOptions _options;
         private readonly AppPathResolver _pathResolver;
         private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
@@ -36,33 +55,35 @@ namespace RauskuClaw.Services
         {
             var templates = new Dictionary<string, WorkspaceTemplate>(StringComparer.OrdinalIgnoreCase);
 
-            // Ensure user templates directory exists
             var templatesDir = _pathResolver.ResolveTemplateDirectory(_options.TemplatesDirectory);
             var defaultTemplatesDir = _pathResolver.ResolveDefaultTemplateDirectory(_options.DefaultTemplatesDirectory);
 
             if (!Directory.Exists(templatesDir))
                 Directory.CreateDirectory(templatesDir);
 
-            // Load user templates (takes precedence)
             foreach (var file in Directory.GetFiles(templatesDir, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
             {
                 var template = LoadTemplateFromFile(file);
                 if (template != null)
+                {
+                    template.Source = TemplateSources.Custom;
                     templates[template.Id] = template;
+                }
             }
 
-            // Load default templates only when missing by id
             if (Directory.Exists(defaultTemplatesDir))
             {
                 foreach (var file in Directory.GetFiles(defaultTemplatesDir, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                 {
                     var template = LoadTemplateFromFile(file);
                     if (template != null && !templates.ContainsKey(template.Id))
+                    {
+                        template.Source = TemplateSources.BuiltIn;
                         templates[template.Id] = template;
+                    }
                 }
             }
 
-            // If no templates found, create default ones
             if (templates.Count == 0)
             {
                 var defaults = CreateDefaultTemplates();
@@ -84,6 +105,11 @@ namespace RauskuClaw.Services
                 .Select(LoadTemplateFromFile)
                 .Where(t => t != null)
                 .Cast<WorkspaceTemplate>()
+                .Select(t =>
+                {
+                    t.Source = TemplateSources.Custom;
+                    return t;
+                })
                 .ToList();
         }
 
@@ -95,25 +121,8 @@ namespace RauskuClaw.Services
             try
             {
                 var json = File.ReadAllText(filePath);
-                var data = JsonSerializer.Deserialize<TemplateData>(json);
-                if (data != null)
-                {
-                    return new WorkspaceTemplate
-                    {
-                        Id = data.Id ?? Path.GetFileNameWithoutExtension(filePath),
-                        Name = data.Name ?? "Unnamed Template",
-                        Description = data.Description ?? "",
-                        Category = data.Category ?? TemplateCategories.Custom,
-                        MemoryMb = data.MemoryMb > 0 ? data.MemoryMb : 4096,
-                        CpuCores = data.CpuCores > 0 ? data.CpuCores : 4,
-                        Username = data.Username ?? "rausku",
-                        Hostname = data.Hostname ?? "rausku-vm",
-                        PortMappings = data.PortMappings ?? new List<TemplatePortMapping>(),
-                        EnabledServices = data.EnabledServices ?? new List<string>(),
-                        Icon = data.Icon ?? "",
-                        IsDefault = data.IsDefault
-                    };
-                }
+                var template = ParseTemplate(json, Path.GetFileNameWithoutExtension(filePath));
+                return template;
             }
             catch
             {
@@ -121,6 +130,20 @@ namespace RauskuClaw.Services
             }
 
             return null;
+        }
+
+        public WorkspaceTemplate CreateCustomTemplate(WorkspaceTemplate template, bool overwrite = false)
+        {
+            template.Source = TemplateSources.Custom;
+            SaveTemplate(template, overwrite: overwrite);
+            return template;
+        }
+
+        public WorkspaceTemplate UpdateCustomTemplate(WorkspaceTemplate template)
+        {
+            template.Source = TemplateSources.Custom;
+            SaveTemplate(template, overwrite: true);
+            return template;
         }
 
         /// <summary>
@@ -142,9 +165,9 @@ namespace RauskuClaw.Services
             if (!overwrite && File.Exists(filePath))
                 throw new InvalidOperationException($"Template with ID '{template.Id}' already exists.");
 
-            var data = ToTemplateData(template);
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            var json = JsonSerializer.Serialize(data, options);
+            var document = ToTemplateDocument(template);
+            var options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var json = JsonSerializer.Serialize(document, options);
             File.WriteAllText(filePath, json);
         }
 
@@ -165,15 +188,31 @@ namespace RauskuClaw.Services
             if (template == null)
                 throw new InvalidOperationException($"Template '{templateId}' not found.");
 
-            var json = JsonSerializer.Serialize(ToTemplateData(template), new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(ToTemplateDocument(template), new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             File.WriteAllText(destinationFilePath, json);
         }
 
         public WorkspaceTemplate ImportTemplate(string sourceFilePath, bool overwrite = false)
         {
             var template = LoadTemplateFromFile(sourceFilePath) ?? throw new InvalidOperationException("Invalid template file.");
+            template.Source = TemplateSources.Custom;
             SaveTemplate(template, overwrite);
             return template;
+        }
+
+        public List<TemplatePortMapping> ParsePortMappings(string value)
+        {
+            var result = new List<TemplatePortMapping>();
+            foreach (var token in (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var parts = token.Split(':', StringSplitOptions.TrimEntries);
+                if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || !int.TryParse(parts[1], out var port))
+                    throw new InvalidOperationException($"Invalid port token '{token}'. Use Name:Port format.");
+
+                result.Add(new TemplatePortMapping { Name = parts[0], Port = port, Description = parts[0] });
+            }
+
+            return result;
         }
 
         public List<string> ValidateTemplate(WorkspaceTemplate template, IEnumerable<WorkspaceTemplate>? existingTemplates = null)
@@ -181,6 +220,15 @@ namespace RauskuClaw.Services
             var errors = new List<string>();
             if (string.IsNullOrWhiteSpace(template.Id)) errors.Add("Template ID is required.");
             if (string.IsNullOrWhiteSpace(template.Name)) errors.Add("Template name is required.");
+            if (!string.IsNullOrWhiteSpace(template.Id) && !TemplateIdRegex.IsMatch(template.Id))
+                errors.Add("Template ID must use lowercase letters, numbers, and hyphens only.");
+
+            var others = (existingTemplates ?? Enumerable.Empty<WorkspaceTemplate>()).ToList();
+            if (others.Any(t => string.Equals(t.Id, template.Id, StringComparison.OrdinalIgnoreCase)))
+                errors.Add($"Template ID '{template.Id}' already exists.");
+            if (others.Any(t => string.Equals(t.Name, template.Name, StringComparison.OrdinalIgnoreCase)))
+                errors.Add($"Template name '{template.Name}' already exists.");
+
             if (template.CpuCores < 1) errors.Add("CPU cores must be at least 1.");
             if (template.CpuCores > HostLogicalCpuCount) errors.Add($"CPU cores cannot exceed host logical cores ({HostLogicalCpuCount}).");
             if (template.MemoryMb < 256) errors.Add("Memory must be at least 256 MB.");
@@ -195,7 +243,7 @@ namespace RauskuClaw.Services
                 errors.Add("All ports must be between 1 and 65535.");
 
             var allocatedPortSet = new HashSet<int>();
-            foreach (var other in existingTemplates ?? Enumerable.Empty<WorkspaceTemplate>())
+            foreach (var other in others)
             {
                 foreach (var port in other.PortMappings.Select(p => p.Port).Where(p => p > 0))
                     allocatedPortSet.Add(port);
@@ -212,7 +260,6 @@ namespace RauskuClaw.Services
                 Serial = template.PortMappings.FirstOrDefault(p => p.Name.Equals("Serial", StringComparison.OrdinalIgnoreCase))?.Port ?? 5555
             };
 
-            // Reserve existing ports and check whether template default service ports would collide.
             foreach (var port in allocatedPortSet)
             {
                 var reservation = new PortAllocation { Ssh = port, Api = port + 10000, UiV1 = port + 10001, UiV2 = port + 10002, Qmp = port + 10003, Serial = port + 10004 };
@@ -224,6 +271,68 @@ namespace RauskuClaw.Services
                 errors.Add("Template ports conflict with existing template ports (PortAllocatorService allocation fallback triggered).");
 
             return errors;
+        }
+
+        private static WorkspaceTemplate ParseTemplate(string json, string fallbackId)
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            if (root.ValueKind == JsonValueKind.Object &&
+                TryGetProperty(root, "schemaVersion", out var schemaVersionElement) &&
+                TryGetProperty(root, "template", out var templateElement))
+            {
+                var schemaVersion = schemaVersionElement.GetInt32();
+                if (schemaVersion != TemplateDocument.CurrentSchemaVersion)
+                    throw new InvalidOperationException($"Unsupported template schema version '{schemaVersion}'.");
+
+                var templateData = JsonSerializer.Deserialize<TemplateData>(templateElement.GetRawText());
+                var metadata = TryGetProperty(root, "metadata", out var metadataElement)
+                    ? JsonSerializer.Deserialize<TemplateMetadata>(metadataElement.GetRawText())
+                    : null;
+                return ToWorkspaceTemplate(templateData, fallbackId, metadata?.Source ?? TemplateSources.Custom);
+            }
+
+            var legacy = JsonSerializer.Deserialize<TemplateData>(json);
+            return ToWorkspaceTemplate(legacy, fallbackId, TemplateSources.BuiltIn);
+        }
+
+        private static bool TryGetProperty(JsonElement element, string propertyName, out JsonElement value)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static WorkspaceTemplate ToWorkspaceTemplate(TemplateData? data, string fallbackId, string source)
+        {
+            if (data == null)
+                throw new InvalidOperationException("Template data is empty.");
+
+            return new WorkspaceTemplate
+            {
+                Id = data.Id ?? fallbackId,
+                Name = data.Name ?? "Unnamed Template",
+                Description = data.Description ?? string.Empty,
+                Category = data.Category ?? TemplateCategories.Custom,
+                MemoryMb = data.MemoryMb > 0 ? data.MemoryMb : 4096,
+                CpuCores = data.CpuCores > 0 ? data.CpuCores : 4,
+                Username = data.Username ?? "rausku",
+                Hostname = data.Hostname ?? "rausku-vm",
+                PortMappings = data.PortMappings ?? new List<TemplatePortMapping>(),
+                EnabledServices = data.EnabledServices ?? new List<string>(),
+                Icon = data.Icon ?? string.Empty,
+                IsDefault = data.IsDefault,
+                Source = source
+            };
         }
 
         private static bool AreEqual(PortAllocation a, PortAllocation b) =>
@@ -245,6 +354,24 @@ namespace RauskuClaw.Services
             }
 
             return 8192;
+        }
+
+        private static TemplateDocument ToTemplateDocument(WorkspaceTemplate template)
+        {
+            var now = DateTimeOffset.UtcNow;
+            return new TemplateDocument
+            {
+                SchemaVersion = TemplateDocument.CurrentSchemaVersion,
+                Metadata = new TemplateMetadata
+                {
+                    Id = template.Id,
+                    Name = template.Name,
+                    Source = TemplateSources.Custom,
+                    CreatedUtc = now,
+                    UpdatedUtc = now
+                },
+                Template = ToWorkspaceTemplate(ToTemplateData(template), template.Id, TemplateSources.Custom)
+            };
         }
 
         private static TemplateData ToTemplateData(WorkspaceTemplate template)
@@ -273,7 +400,6 @@ namespace RauskuClaw.Services
         {
             return new List<WorkspaceTemplate>
             {
-                // Default Template
                 new WorkspaceTemplate
                 {
                     Id = "default",
@@ -295,10 +421,9 @@ namespace RauskuClaw.Services
                     },
                     EnabledServices = new List<string> { "api", "worker", "ui-v2", "ollama", "nginx" },
                     Icon = "🚀",
-                    IsDefault = true
+                    IsDefault = true,
+                    Source = TemplateSources.BuiltIn
                 },
-
-                // Minimal Template
                 new WorkspaceTemplate
                 {
                     Id = "minimal",
@@ -318,10 +443,9 @@ namespace RauskuClaw.Services
                     },
                     EnabledServices = new List<string> { "api", "ollama" },
                     Icon = "⚡",
-                    IsDefault = false
+                    IsDefault = false,
+                    Source = TemplateSources.BuiltIn
                 },
-
-                // Full AI Template
                 new WorkspaceTemplate
                 {
                     Id = "full-ai",
@@ -345,7 +469,8 @@ namespace RauskuClaw.Services
                     },
                     EnabledServices = new List<string> { "api", "worker", "ui-v2", "ollama", "nginx", "redis", "postgresql" },
                     Icon = "🤖",
-                    IsDefault = false
+                    IsDefault = false,
+                    Source = TemplateSources.BuiltIn
                 }
             };
         }

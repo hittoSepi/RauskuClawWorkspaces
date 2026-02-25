@@ -55,12 +55,20 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <Border Background="#23455f" Padding="6,3" CornerRadius="4">
+                                        <Border Background="#23455f" Padding="6,3" CornerRadius="4" Margin="0,0,6,0">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="Type" FontSize="10" Margin="0,0,4,0" Foreground="#9AA3B2"/>
                                                 <TextBlock Text="{Binding Category}" FontSize="10" Foreground="#E6EAF2"/>
                                             </StackPanel>
                                         </Border>
+
+                                        <Border Background="#23455f" Padding="6,3" CornerRadius="4" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Source" FontSize="10" Margin="0,0,4,0" Foreground="#9AA3B2"/>
+                                                <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#E6EAF2"/>
+                                            </StackPanel>
+                                        </Border>
+
                                     </StackPanel>
 
                                     <ItemsControl ItemsSource="{Binding EnabledServices}" Margin="0,6,0,0">
