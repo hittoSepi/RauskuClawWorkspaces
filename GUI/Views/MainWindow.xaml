@@ -51,20 +51,20 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MinimizeButton_OnClick">
+                    <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MinimizeButton_OnClick" ToolTip="Minimize">
                         <fa:IconBlock Icon="Minus"
                                       Width="10"
                                       Height="10"
                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                     </Button>
-                    <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MaximizeRestoreButton_OnClick">
+                    <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MaximizeRestoreButton_OnClick" ToolTip="Maximize or restore">
                         <fa:IconBlock Icon="WindowMaximize"
                                       Width="11"
                                       Height="11"
                                       VerticalAlignment="Center"
                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                     </Button>
-                    <Button Style="{StaticResource WindowTitleBarCloseButtonStyle}" Click="CloseButton_OnClick">
+                    <Button Style="{StaticResource WindowTitleBarCloseButtonStyle}" Click="CloseButton_OnClick" ToolTip="Close">
                         <fa:IconBlock Icon="Times"
                                       Width="10"
                                       Height="10"
@@ -85,11 +85,12 @@
                             Tag="Plus"
                             Content="New Workspace"
                             Padding="12,8"
+                            ToolTip="Create a new workspace"
                             Cursor="Hand"/>
                 </StackPanel>
 
                 <!-- Workspace List -->
-                <ListBox ItemsSource="{Binding Workspaces}"
+                <ListBox x:Name="WorkspaceList" ItemsSource="{Binding Workspaces}"
                          SelectedItem="{Binding SelectedWorkspace}"
                          Background="Transparent"
                          BorderThickness="0"
@@ -143,6 +144,29 @@
                     </ListBox.ItemContainerStyle>
                 </ListBox>
 
+                <Border Margin="16,0,16,8"
+                        Padding="12"
+                        Background="#111722"
+                        BorderBrush="#2A3240"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        DockPanel.Dock="Top">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ElementName=WorkspaceList, Path=HasItems}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="No workspaces yet. Create your first one with ‘New Workspace’."
+                               Foreground="#9AA3B2"
+                               FontSize="11"
+                               TextWrapping="Wrap"/>
+                </Border>
+
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,16">
                     <TextBlock Text="General" FontSize="12" Foreground="#9AA3B2" Margin="4,0,0,8"/>
                     <Button Command="{Binding ShowWorkspaceViewsCommand}"
@@ -150,18 +174,21 @@
                             Tag="Desktop"
                             Content="Workspace Views"
                             Padding="10,8"
+                            ToolTip="Open workspace tabs"
                             Margin="0,0,0,6"/>
                     <Button Command="{Binding ShowTemplatesCommand}"
                             Style="{StaticResource SecondaryIconButton}"
                             Tag="Clone"
                             Content="Templates"
                             Padding="10,8"
+                            ToolTip="Manage workspace templates"
                             Margin="0,0,0,6"/>
                     <Button Command="{Binding ShowGeneralSettingsCommand}"
                             Style="{StaticResource SecondaryIconButton}"
                             Tag="Cog"
                             Content="General Settings"
-                            Padding="10,8"/>
+                            Padding="10,8"
+                            ToolTip="Open app settings"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -251,6 +278,7 @@
                                 Tag="Play"
                                 Content="Start"
                                 Padding="16,8"
+                                ToolTip="Start selected workspace VM"
                                 Margin="0,0,8,0"/>
                         <Button
                                 Command="{Binding StopVmCommand}"
@@ -258,6 +286,7 @@
                                 Tag="Stop"
                                 Content="Stop"
                                 Padding="16,8"
+                                ToolTip="Stop selected workspace VM"
                                 Margin="0,0,8,0"/>
                         <Button
                                 Command="{Binding RestartVmCommand}"
@@ -265,13 +294,15 @@
                                 Tag="Refresh"
                                 Content="Restart"
                                 Padding="16,8"
+                                ToolTip="Restart selected workspace VM"
                                 Margin="0,0,8,0"/>
                         <Button
                                 Command="{Binding DeleteWorkspaceCommand}"
                                 Style="{StaticResource SecondaryIconButton}"
                                 Tag="Trash"
                                 Content="Delete"
-                                Padding="16,8"/>
+                                Padding="16,8"
+                                ToolTip="Delete selected workspace"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -293,15 +324,27 @@
 
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="API" FontSize="10" Foreground="#6A7382"/>
-                        <TextBlock Text="{Binding SelectedWorkspace.ApiUrl}" FontSize="11" Foreground="#E6EAF2"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.ApiUrl}"
+                                   FontSize="11"
+                                   Foreground="#E6EAF2"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding SelectedWorkspace.ApiUrl}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Web UI" FontSize="10" Foreground="#6A7382"/>
-                        <TextBlock Text="{Binding SelectedWorkspace.WebUiUrl}" FontSize="11" Foreground="#E6EAF2"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.WebUiUrl}"
+                                   FontSize="11"
+                                   Foreground="#E6EAF2"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding SelectedWorkspace.WebUiUrl}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="SSH" FontSize="10" Foreground="#6A7382"/>
-                        <TextBlock Text="{Binding SelectedWorkspace.SshUrl}" FontSize="11" Foreground="#E6EAF2"/>
+                        <TextBlock Text="{Binding SelectedWorkspace.SshUrl}"
+                                   FontSize="11"
+                                   Foreground="#E6EAF2"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding SelectedWorkspace.SshUrl}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="3">
                         <TextBlock Text="Docker" FontSize="10" Foreground="#6A7382"/>
