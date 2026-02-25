@@ -384,17 +384,18 @@
             </Border>
 
             <!-- Tab Control: Views -->
-            <TabControl Background="#0F1115"
-                        BorderThickness="0"
-                        HorizontalContentAlignment="Stretch"
-                        VerticalContentAlignment="Stretch"
+            <TabControl Style="{StaticResource WorkspaceTabControlStyle}"
                         Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Globe" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Web UI"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="Web UI" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding WebUi}">
                         <ContentControl.ContentTemplate>
@@ -404,12 +405,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Terminal" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Serial Console"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="Serial Console" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding SerialConsole}">
                         <ContentControl.ContentTemplate>
@@ -419,12 +424,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Cubes" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Docker"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="Docker" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding DockerContainers}">
                         <ContentControl.ContentTemplate>
@@ -434,12 +443,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Terminal" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="SSH Terminal"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="SSH Terminal" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding SshTerminal}">
                         <ContentControl.ContentTemplate>
@@ -449,12 +462,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="SFTP"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="SFTP" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding SftpFiles}">
                         <ContentControl.ContentTemplate>
@@ -464,12 +481,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Key" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="HOLVI"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="HOLVI" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding Holvi}">
                         <ContentControl.ContentTemplate>
@@ -479,12 +500,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="SlidersH" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="Workspace Settings"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="Workspace Settings" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding WorkspaceSettings}">
                         <ContentControl.ContentTemplate>
@@ -494,12 +519,16 @@
                         </ContentControl.ContentTemplate>
                     </ContentControl>
                 </TabItem>
-                <TabItem Padding="16,8">
+                <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
+                        <Grid HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="ListAlt" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Text="VM Logs"/>
-                        </StackPanel>
+                            <TextBlock Grid.Column="1" Text="VM Logs" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                        </Grid>
                     </TabItem.Header>
                     <TextBox Text="{Binding VmLog, Mode=OneWay}"
                              IsReadOnly="True"
