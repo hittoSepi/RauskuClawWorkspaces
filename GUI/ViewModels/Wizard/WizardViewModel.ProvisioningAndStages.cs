@@ -41,6 +41,10 @@ namespace RauskuClaw.GUI.ViewModels
             var requestedKeys = new[] { "API_KEY", "API_TOKEN" };
             var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, cancellationToken);
             UpdateStage("env", "success", BuildSecretsStageMessage(result));
+            if (!string.IsNullOrWhiteSpace(result.ActionHint))
+            {
+                AppendRunLog($"Action: {result.ActionHint}");
+            }
 
             return result;
         }
@@ -52,8 +56,11 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 ProvisioningSecretStatus.Success => $"Secrets source={source} status=success.",
                 ProvisioningSecretStatus.PartialSecretSet => $"Secrets source={source} status=partial-set, missing keys fallback to local template.",
-                ProvisioningSecretStatus.MissingCredentials => "Secrets source=LocalTemplate status=missing-credentials.",
-                ProvisioningSecretStatus.TimeoutOrAuthFailure => "Secrets source=LocalTemplate status=timeout-or-auth-failure.",
+                ProvisioningSecretStatus.MissingCredentials => "Secrets source=LocalTemplate status=missing-credentials. Action: configure secret-manager credentials in Settings > Secrets.",
+                ProvisioningSecretStatus.MissingSecret => "Secrets source=LocalTemplate status=missing-secret. Action: create missing API_KEY/API_TOKEN in secret manager.",
+                ProvisioningSecretStatus.ExpiredSecret => "Secrets source=LocalTemplate status=expired-secret. Action: rotate expired secret-manager credentials and retry.",
+                ProvisioningSecretStatus.AccessDenied => "Secrets source=LocalTemplate status=access-denied. Action: grant read permission for required keys.",
+                ProvisioningSecretStatus.TimeoutOrAuthFailure => "Secrets source=LocalTemplate status=timeout-or-auth-failure. Action: verify endpoint/connectivity and credentials.",
                 _ => "Secrets source=LocalTemplate status=fallback."
             };
         }

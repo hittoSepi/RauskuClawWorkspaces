@@ -626,7 +626,13 @@ namespace RauskuClaw.GUI.ViewModels
 
                 var probe = await RunSshCommandAsync(
                     workspace,
-                    $"if [ -f '{envPath}' ] && grep -q '^API_KEY=' '{envPath}' && grep -q '^API_TOKEN=' '{envPath}' && ! grep -q '^API_KEY=change-me-please$' '{envPath}' && ! grep -q '^API_TOKEN=change-me-please$' '{envPath}'; then echo env-ok; else exit 9; fi",
+                    $"if [ ! -f '{envPath}' ]; then echo status=missing-file; exit 9; fi; " +
+                    $"API_KEY_LINE=$(grep -E '^API_KEY=' '{envPath}' 2>/dev/null | tail -n 1 || true); " +
+                    $"API_TOKEN_LINE=$(grep -E '^API_TOKEN=' '{envPath}' 2>/dev/null | tail -n 1 || true); " +
+                    "if [ -z \"$API_KEY_LINE\" ] || [ -z \"$API_TOKEN_LINE\" ]; then echo status=missing-secret; exit 9; fi; " +
+                    "API_KEY_VALUE=${API_KEY_LINE#API_KEY=}; API_TOKEN_VALUE=${API_TOKEN_LINE#API_TOKEN=}; " +
+                    "if [ -z \"$API_KEY_VALUE\" ] || [ -z \"$API_TOKEN_VALUE\" ] || [ \"$API_KEY_VALUE\" = \"change-me-please\" ] || [ \"$API_TOKEN_VALUE\" = \"change-me-please\" ]; then echo status=placeholder-secret; exit 9; fi; " +
+                    "echo env-ok",
                     ct);
 
                 if (probe.Success)
@@ -643,7 +649,7 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 }
 
-                lastMessage = probe.Message;
+                lastMessage = BuildRuntimeEnvFailureHint(probe.Message);
                 if (attempt == 1 || attempt % 4 == 0)
                 {
                     ReportLog(progress, $"Env warmup: {lastMessage}");
@@ -653,6 +659,36 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (false, $"Runtime .env missing or incomplete after wait window: {lastMessage}");
+        }
+
+        private static string BuildRuntimeEnvFailureHint(string? probeMessage)
+        {
+            if (string.IsNullOrWhiteSpace(probeMessage))
+            {
+                return "Runtime .env not ready yet.";
+            }
+
+            if (probeMessage.Contains("status=missing-file", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Runtime .env missing. Action: rerun wizard provisioning or verify repo path and cloud-init completion.";
+            }
+
+            if (probeMessage.Contains("status=missing-secret", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Runtime .env missing API_KEY/API_TOKEN. Action: sync required secrets from configured provider and retry startup.";
+            }
+
+            if (probeMessage.Contains("status=placeholder-secret", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Runtime .env has placeholder/expired secrets. Action: rotate credentials in secret manager and reprovision workspace.";
+            }
+
+            if (probeMessage.Contains("Permission denied", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Permission denied while reading runtime .env. Action: verify VM user permissions for repository directory.";
+            }
+
+            return probeMessage.Trim();
         }
 
         private async Task<(bool HasIssue, string Message)> DetectGuestStorageIssueAsync(Workspace workspace, CancellationToken ct)
