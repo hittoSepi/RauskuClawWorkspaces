@@ -354,15 +354,17 @@ namespace RauskuClaw.Services
                     allocatedPortSet.Add(port);
             }
 
+            var templatePortMappings = template.PortMappings?.AsEnumerable() ?? Enumerable.Empty<TemplatePortMapping>();
+
             var portAllocator = new PortAllocatorService();
             var requested = new PortAllocation
             {
-                Ssh = template.PortMappings.FirstOrDefault(p => p.Name.Equals("SSH", StringComparison.OrdinalIgnoreCase))?.Port ?? 2222,
-                Api = template.PortMappings.FirstOrDefault(p => p.Name.Equals("API", StringComparison.OrdinalIgnoreCase))?.Port ?? 3011,
-                UiV1 = template.PortMappings.FirstOrDefault(p => p.Name.Equals("UIv1", StringComparison.OrdinalIgnoreCase))?.Port ?? 3012,
-                UiV2 = template.PortMappings.FirstOrDefault(p => p.Name.Equals("UIv2", StringComparison.OrdinalIgnoreCase))?.Port ?? 3013,
-                Qmp = template.PortMappings.FirstOrDefault(p => p.Name.Equals("QMP", StringComparison.OrdinalIgnoreCase))?.Port ?? 4444,
-                Serial = template.PortMappings.FirstOrDefault(p => p.Name.Equals("Serial", StringComparison.OrdinalIgnoreCase))?.Port ?? 5555
+                Ssh = templatePortMappings.FirstOrDefault(p => p.Name.Equals("SSH", StringComparison.OrdinalIgnoreCase))?.Port ?? 2222,
+                Api = templatePortMappings.FirstOrDefault(p => p.Name.Equals("API", StringComparison.OrdinalIgnoreCase))?.Port ?? 3011,
+                UiV1 = templatePortMappings.FirstOrDefault(p => p.Name.Equals("UIv1", StringComparison.OrdinalIgnoreCase))?.Port ?? 3012,
+                UiV2 = templatePortMappings.FirstOrDefault(p => p.Name.Equals("UIv2", StringComparison.OrdinalIgnoreCase))?.Port ?? 3013,
+                Qmp = templatePortMappings.FirstOrDefault(p => p.Name.Equals("QMP", StringComparison.OrdinalIgnoreCase))?.Port ?? 4444,
+                Serial = templatePortMappings.FirstOrDefault(p => p.Name.Equals("Serial", StringComparison.OrdinalIgnoreCase))?.Port ?? 5555
             };
 
             foreach (var port in allocatedPortSet)

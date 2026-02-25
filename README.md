@@ -52,12 +52,16 @@ Build: Success (`0 warnings`, `0 errors`).
 
 ## Quality gates
 
-Run these before merging startup/runtime related changes:
+Release readiness requires a warning-free baseline for managed code changes.
 
 ```bash
 dotnet build RauskuClaw.slnx -m:1
 dotnet test RauskuClaw.Tests/RauskuClaw.Tests.csproj -m:1
 ```
+
+Pass criteria:
+- `dotnet build` must complete with `0 warnings`, `0 errors` (warning-free gate).
+- `dotnet test` must pass for the test project in the same commit.
 
 Manual verification checklist: `docs/tasks/004-testing-checklist.md`.
 

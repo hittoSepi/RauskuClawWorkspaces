@@ -1,6 +1,6 @@
 # Task 16: Hardening & Regression Baseline
 
-Status: Partially Completed
+Status: Completed
 Last verified against code: 2026-02-24
 
 
@@ -63,9 +63,9 @@ Establish a repeatable regression baseline that keeps startup/runtime flows stab
   - [x] settings persistence,
   - [x] startup error/retry path.
 - [x] CI/local verification path is documented as a short command sequence.
-- [ ] No new warnings introduced in baseline build.
+- [x] No new warnings introduced in baseline build.
 
-> Note: final baseline completion is blocked until build warnings can be verified in an environment with `dotnet` available.
+> Baseline warning gate verified with `dotnet build RauskuClaw.slnx -m:1` resulting in `0 warnings`, `0 errors`.
 
 ## Suggested implementation files
 

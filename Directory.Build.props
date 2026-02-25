@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) or $([MSBuild]::IsOSPlatform('OSX'))">
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+</Project>
