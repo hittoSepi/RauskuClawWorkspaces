@@ -243,7 +243,7 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         Assert.Equal(WizardStartupState.NeedsSecretsConfiguration, model.StartupState);
         var createdWorkspaceId = model.CreatedWorkspace?.Id;
         Assert.NotNull(createdWorkspaceId);
-        Assert.NotEqual(Guid.Empty, createdWorkspaceId!.Value);
+        Assert.False(string.IsNullOrWhiteSpace(createdWorkspaceId));
 
         var secondRun = (Task?)startMethod.Invoke(model, null);
         Assert.NotNull(secondRun);
