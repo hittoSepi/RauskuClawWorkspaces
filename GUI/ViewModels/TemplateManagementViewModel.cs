@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -25,6 +26,10 @@ namespace RauskuClaw.GUI.ViewModels
         private string _servicesCsv = string.Empty;
         private string _portsCsv = string.Empty;
         private string _validationDetails = string.Empty;
+        private string _validationSeverity = "Info";
+        private string _portValidationMessage = string.Empty;
+        private string _serviceValidationMessage = string.Empty;
+        private static readonly Regex ServiceNameRegex = new("^[a-zA-Z0-9-]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public TemplateManagementViewModel(WorkspaceTemplateService? templateService = null)
         {
@@ -105,6 +110,24 @@ namespace RauskuClaw.GUI.ViewModels
             private set { _validationDetails = value; OnPropertyChanged(); }
         }
 
+        public string ValidationSeverity
+        {
+            get => _validationSeverity;
+            private set { _validationSeverity = value; OnPropertyChanged(); }
+        }
+
+        public string PortValidationMessage
+        {
+            get => _portValidationMessage;
+            private set { _portValidationMessage = value; OnPropertyChanged(); }
+        }
+
+        public string ServiceValidationMessage
+        {
+            get => _serviceValidationMessage;
+            private set { _serviceValidationMessage = value; OnPropertyChanged(); }
+        }
+
         public string ServicesCsv
         {
             get => _servicesCsv;
@@ -113,6 +136,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_servicesCsv == value) return;
                 _servicesCsv = value;
                 OnPropertyChanged();
+                ValidateEditorInputs();
             }
         }
 
@@ -124,6 +148,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_portsCsv == value) return;
                 _portsCsv = value;
                 OnPropertyChanged();
+                ValidateEditorInputs();
             }
         }
 
@@ -155,6 +180,48 @@ namespace RauskuClaw.GUI.ViewModels
             ApplyFilters();
             StatusMessage = $"Loaded {Templates.Count} templates.";
             ValidationDetails = string.Empty;
+            ValidationSeverity = "Info";
+            ValidateEditorInputs();
+        }
+
+        private static int GetHostMemoryLimitMb()
+        {
+            try
+            {
+                var bytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                if (bytes > 0)
+                {
+                    return Math.Max(512, (int)(bytes / (1024 * 1024)));
+                }
+            }
+            catch
+            {
+                // Fall back below.
+            }
+
+            return 8192;
+        }
+
+        private void BuildCpuCoreOptions()
+        {
+            CpuCoreOptions.Clear();
+            for (var i = 1; i <= HostLogicalCpuCount; i++)
+            {
+                CpuCoreOptions.Add(i);
+            }
+        }
+
+        private void BuildMemoryOptions()
+        {
+            MemoryOptions.Clear();
+            var candidates = new[] { 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152, 65536 };
+            foreach (var option in candidates)
+            {
+                if (option <= HostMemoryLimitMb)
+                {
+                    MemoryOptions.Add(option);
+                }
+            }
         }
 
         private void ApplyFilters()
@@ -211,6 +278,12 @@ namespace RauskuClaw.GUI.ViewModels
 
             try
             {
+                if (!ValidateEditorInputs())
+                {
+                    StatusMessage = "Template validation failed. Fix highlighted fields and retry.";
+                    return;
+                }
+
                 SelectedTemplate.EnabledServices = (ServicesCsv ?? string.Empty)
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -221,11 +294,17 @@ namespace RauskuClaw.GUI.ViewModels
                 LoadTemplates();
                 SelectedTemplate = Templates.FirstOrDefault(t => t.Id == SelectedTemplate.Id);
                 StatusMessage = $"Template '{SelectedTemplate?.Name}' saved.";
+                ValidationDetails = "Template saved successfully.";
+                ValidationSeverity = "Info";
             }
             catch (Exception ex)
             {
-                StatusMessage = ex.Message;
-                MessageBox.Show(ex.Message, "Template validation failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                var readableError = ToUserReadableValidationMessage(ex.Message);
+                PortValidationMessage = readableError;
+                ValidationDetails = readableError;
+                ValidationSeverity = "Error";
+                StatusMessage = readableError;
+                MessageBox.Show(readableError, "Template validation failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -256,6 +335,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             var preview = _templateService.PreviewTemplateImport(dialog.FileName);
             ValidationDetails = BuildValidationDetails(preview.Issues);
+            ValidationSeverity = preview.IsValid ? "Info" : "Error";
             if (!preview.IsValid || preview.Template == null)
             {
                 var message = _templateService.FormatValidationIssues(preview.Issues);
@@ -277,6 +357,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 StatusMessage = ex.Message;
                 ValidationDetails = ex.Message;
+                ValidationSeverity = "Error";
                 MessageBox.Show(ex.Message, "Template import failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
