@@ -39,6 +39,7 @@ namespace RauskuClaw.Services
         private static readonly Regex TemplateIdRegex = new("^[a-z0-9][a-z0-9-]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private readonly WorkspaceTemplateServiceOptions _options;
         private readonly AppPathResolver _pathResolver;
+        private static readonly JsonSerializerOptions DeserializerOptions = new() { PropertyNameCaseInsensitive = true };
         private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
         private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
 
@@ -286,14 +287,14 @@ namespace RauskuClaw.Services
                 if (schemaVersion != TemplateDocument.CurrentSchemaVersion)
                     throw new InvalidOperationException($"Unsupported template schema version '{schemaVersion}'.");
 
-                var templateData = JsonSerializer.Deserialize<TemplateData>(templateElement.GetRawText());
+                var templateData = JsonSerializer.Deserialize<TemplateData>(templateElement.GetRawText(), DeserializerOptions);
                 var metadata = TryGetProperty(root, "metadata", out var metadataElement)
-                    ? JsonSerializer.Deserialize<TemplateMetadata>(metadataElement.GetRawText())
+                    ? JsonSerializer.Deserialize<TemplateMetadata>(metadataElement.GetRawText(), DeserializerOptions)
                     : null;
                 return ToWorkspaceTemplate(templateData, fallbackId, metadata?.Source ?? TemplateSources.Custom);
             }
 
-            var legacy = JsonSerializer.Deserialize<TemplateData>(json);
+            var legacy = JsonSerializer.Deserialize<TemplateData>(json, DeserializerOptions);
             return ToWorkspaceTemplate(legacy, fallbackId, TemplateSources.BuiltIn);
         }
 
