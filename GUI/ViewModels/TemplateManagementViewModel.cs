@@ -43,7 +43,6 @@ namespace RauskuClaw.GUI.ViewModels
 
             BuildCpuCoreOptions();
             BuildMemoryOptions();
-
             LoadTemplates();
         }
 
@@ -68,7 +67,7 @@ namespace RauskuClaw.GUI.ViewModels
                 OnPropertyChanged(nameof(ServicesCsv));
                 OnPropertyChanged(nameof(PortsCsv));
                 OnPropertyChanged(nameof(IsCustomSelected));
-                ValidateEditorInputs();
+                EnsureSelectionOptionsContainSelectedTemplateValues();
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -248,8 +247,8 @@ namespace RauskuClaw.GUI.ViewModels
                 Name = "New Template",
                 Category = TemplateCategories.Custom,
                 Description = string.Empty,
-                CpuCores = 2,
-                MemoryMb = 2048,
+                CpuCores = Math.Clamp(Math.Min(4, HostLogicalCpuCount), 1, HostLogicalCpuCount),
+                MemoryMb = Math.Clamp(Math.Min(4096, HostMemoryLimitMb), 256, HostMemoryLimitMb),
                 Username = "rausku",
                 Hostname = "rausku-custom",
                 Source = TemplateSources.Custom,
@@ -398,58 +397,77 @@ namespace RauskuClaw.GUI.ViewModels
             return string.Join(Environment.NewLine, lines);
         }
 
-        private bool ValidateEditorInputs()
+        private void EnsureSelectionOptionsContainSelectedTemplateValues()
         {
-            PortValidationMessage = string.Empty;
-            ServiceValidationMessage = string.Empty;
-
-            try
+            if (SelectedTemplate == null)
             {
-                _templateService.ParsePortMappings(PortsCsv);
-            }
-            catch (Exception ex)
-            {
-                PortValidationMessage = ToUserReadableValidationMessage(ex.Message);
+                return;
             }
 
-            var services = (ServicesCsv ?? string.Empty)
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var invalidServices = services.Where(s => !ServiceNameRegex.IsMatch(s)).ToList();
-            if (invalidServices.Count > 0)
-            {
-                ServiceValidationMessage = $"Service names can contain letters, numbers and '-' only. Invalid: {string.Join(", ", invalidServices)}";
-            }
-
-            var hasErrors = !string.IsNullOrWhiteSpace(PortValidationMessage);
-            var hasWarnings = !string.IsNullOrWhiteSpace(ServiceValidationMessage);
-            if (hasErrors)
-            {
-                ValidationSeverity = "Error";
-                ValidationDetails = PortValidationMessage;
-                return false;
-            }
-
-            if (hasWarnings)
-            {
-                ValidationSeverity = "Warning";
-                ValidationDetails = ServiceValidationMessage;
-            }
-            else if (SelectedTemplate != null)
-            {
-                ValidationSeverity = "Info";
-                ValidationDetails = "Ports and services format looks good.";
-            }
-
-            return true;
+            EnsureOptionPresent(CpuCoreOptions, Math.Clamp(SelectedTemplate.CpuCores, 1, HostLogicalCpuCount));
+            EnsureOptionPresent(MemoryOptions, Math.Clamp(SelectedTemplate.MemoryMb, 256, HostMemoryLimitMb));
         }
 
-        private static string ToUserReadableValidationMessage(string message)
+        private static void EnsureOptionPresent(ObservableCollection<int> options, int value)
         {
-            if (string.IsNullOrWhiteSpace(message))
-                return "Invalid ports format. Use Name:Port pairs separated by commas (for example SSH:2222,API:3011).";
+            if (options.Contains(value))
+            {
+                return;
+            }
 
-            return message.Replace("Invalid port token", "Port entry is invalid")
-                .Replace("Use Name:Port format.", "Use Name:Port format (for example SSH:2222,API:3011).");
+            options.Add(value);
+            var ordered = options.OrderBy(v => v).ToArray();
+            options.Clear();
+            foreach (var item in ordered)
+            {
+                options.Add(item);
+            }
+        }
+
+        private void BuildCpuCoreOptions()
+        {
+            CpuCoreOptions.Clear();
+            for (var i = 1; i <= HostLogicalCpuCount; i++)
+            {
+                CpuCoreOptions.Add(i);
+            }
+        }
+
+        private void BuildMemoryOptions()
+        {
+            MemoryOptions.Clear();
+            var candidates = new[] { 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152, 65536 };
+            foreach (var option in candidates)
+            {
+                if (option <= HostMemoryLimitMb)
+                {
+                    MemoryOptions.Add(option);
+                }
+            }
+
+            if (MemoryOptions.Count == 0)
+            {
+                MemoryOptions.Add(Math.Clamp(4096, 256, HostMemoryLimitMb));
+            }
+        }
+
+        private static int GetHostMemoryLimitMb()
+        {
+            try
+            {
+                var bytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                if (bytes <= 0)
+                {
+                    return 32768;
+                }
+
+                var mb = (int)Math.Max(256, bytes / (1024 * 1024));
+                return mb;
+            }
+            catch
+            {
+                return 32768;
+            }
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
