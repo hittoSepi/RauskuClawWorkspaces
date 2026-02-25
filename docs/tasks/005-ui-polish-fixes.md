@@ -104,6 +104,12 @@ The VM control buttons in the header already have proper spacing with `Margin="0
 1. **[App.xaml](App.xaml)** - Fixed TabItem ControlTemplate (line 132)
 2. **[GUI/Views/SshTerminal.xaml](GUI/Views/SshTerminal.xaml)** - Fixed prompt alignment (lines 50-67)
 
+## Acceptance Criteria (Tabs Overflow & Readability)
+
+- [x] Workspace tabs remain clickable with a usable hit area in 1000px–1900px window widths.
+- [x] Tab headers keep icon + label centered and avoid layout breaks when space is limited.
+- [x] Header text stays readable via ellipsis trimming instead of overflowing/breaking layout.
+
 ## Testing Checklist
 
 - [x] Application builds without errors

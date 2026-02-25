@@ -263,13 +263,18 @@
                             <Border Grid.Row="0"
                                     BorderBrush="#2A3240"
                                     BorderThickness="0,0,0,1"
-                                    HorizontalAlignment="Stretch"
-                                    Width="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=ActualWidth}">
-                                <UniformGrid Rows="1"
-                                             IsItemsHost="True"
-                                             Background="#0F1115"
-                                             HorizontalAlignment="Stretch"
-                                             Width="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=ActualWidth}"/>
+                                    HorizontalAlignment="Stretch">
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Disabled"
+                                              CanContentScroll="False"
+                                              Focusable="False"
+                                              Background="#0F1115"
+                                              Padding="0,0,0,2">
+                                    <TabPanel IsItemsHost="True"
+                                              KeyboardNavigation.TabIndex="1"
+                                              Background="#0F1115"
+                                              HorizontalAlignment="Left"/>
+                                </ScrollViewer>
                             </Border>
 
                             <Border Grid.Row="1"
@@ -286,6 +291,7 @@
 
         <Style x:Key="WorkspaceTabItemStyle" TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
             <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="MinWidth" Value="130"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -295,7 +301,7 @@
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter x:Name="ContentSite"
                                               ContentSource="Header"
-                                              HorizontalAlignment="Stretch"
+                                              HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               RecognizesAccessKey="True"/>
                         </Border>
@@ -306,6 +312,9 @@
 
         <Style x:Key="WorkspaceTabHeaderTextStyle" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="MaxWidth" Value="120"/>
+            <Setter Property="TextAlignment" Value="Center"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         </Style>
 

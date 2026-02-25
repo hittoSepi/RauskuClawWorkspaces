@@ -392,13 +392,13 @@
                         Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Globe" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="Web UI" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="Web UI" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding WebUi}">
@@ -411,13 +411,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Terminal" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="Serial Console" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="Serial Console" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding SerialConsole}">
@@ -430,13 +430,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Cubes" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="Docker" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="Docker" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding DockerContainers}">
@@ -449,13 +449,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Terminal" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="SSH Terminal" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="SSH Terminal" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding SshTerminal}">
@@ -468,13 +468,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="FolderOpen" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="SFTP" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="SFTP" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding SftpFiles}">
@@ -487,13 +487,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="Key" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="HOLVI" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="HOLVI" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding Holvi}">
@@ -506,13 +506,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="SlidersH" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="Workspace Settings" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="Workspace Settings" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <ContentControl Content="{Binding WorkspaceSettings}">
@@ -525,13 +525,13 @@
                 </TabItem>
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>
-                        <Grid HorizontalAlignment="Stretch">
+                        <Grid HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <fa:IconBlock Icon="ListAlt" Style="{StaticResource FaIconInline}"/>
-                            <TextBlock Grid.Column="1" Text="VM Logs" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="VM Logs" Margin="0,0,4,0" Style="{StaticResource WorkspaceTabHeaderTextStyle}"/>
                         </Grid>
                     </TabItem.Header>
                     <TextBox Text="{Binding VmLog, Mode=OneWay}"
