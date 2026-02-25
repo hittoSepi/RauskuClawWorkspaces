@@ -258,4 +258,94 @@ public class WorkspaceTemplateTests
         Assert.Equal(TemplateSources.Custom, templates[0].Source);
         Assert.Equal(3222, templates[0].PortMappings[0].Port);
     }
+
+
+    [Fact]
+    public void PreviewTemplateImport_ValidPackage_ReturnsAcceptedPreview()
+    {
+        using var temp = new TempDir();
+        var service = new WorkspaceTemplateService(
+            new WorkspaceTemplateServiceOptions { TemplatesDirectory = "Templates", DefaultTemplatesDirectory = "DefaultTemplates" },
+            new AppPathResolver(temp.Path));
+
+        var importPath = Path.Combine(temp.Path, "importable.json");
+        File.WriteAllText(importPath, """
+        {
+          "schemaVersion": 1,
+          "metadata": {
+            "id": "preview-ok",
+            "name": "Preview OK",
+            "source": "Custom",
+            "createdUtc": "2024-01-01T00:00:00Z",
+            "updatedUtc": "2024-01-01T00:00:00Z"
+          },
+          "template": {
+            "id": "preview-ok",
+            "name": "Preview OK",
+            "category": "Custom",
+            "memoryMb": 4096,
+            "cpuCores": 2,
+            "username": "rausku",
+            "hostname": "preview-ok",
+            "portMappings": [
+              {"name":"SSH","port":3222,"description":"SSH"},
+              {"name":"API","port":4011,"description":"API"},
+              {"name":"UIv1","port":4012,"description":"UIv1"},
+              {"name":"UIv2","port":4013,"description":"UIv2"},
+              {"name":"QMP","port":5444,"description":"QMP"},
+              {"name":"Serial","port":6555,"description":"Serial"}
+            ],
+            "enabledServices": ["api","ui-v2"],
+            "icon": "✨",
+            "isDefault": false
+          }
+        }
+        """);
+
+        var preview = service.PreviewTemplateImport(importPath);
+
+        Assert.True(preview.IsValid);
+        Assert.NotNull(preview.Template);
+        Assert.Empty(preview.Issues);
+    }
+
+    [Fact]
+    public void PreviewTemplateImport_InvalidPackage_ReturnsValidationIssuesWithSuggestions()
+    {
+        using var temp = new TempDir();
+        var service = new WorkspaceTemplateService(
+            new WorkspaceTemplateServiceOptions { TemplatesDirectory = "Templates", DefaultTemplatesDirectory = "DefaultTemplates" },
+            new AppPathResolver(temp.Path));
+
+        var importPath = Path.Combine(temp.Path, "broken.json");
+        File.WriteAllText(importPath, """
+        {
+          "schemaVersion": 1,
+          "metadata": { "id": "broken", "name": "Broken", "source": "Custom" },
+          "template": {
+            "id": "bad id",
+            "name": "",
+            "category": "Custom",
+            "memoryMb": 64,
+            "cpuCores": 0,
+            "portMappings": [
+              {"name":"SSH","port":2222,"description":"SSH"},
+              {"name":"API","port":2222,"description":"API"}
+            ]
+          }
+        }
+        """);
+
+        var preview = service.PreviewTemplateImport(importPath);
+
+        Assert.False(preview.IsValid);
+        Assert.NotEmpty(preview.Issues);
+        Assert.Contains(preview.Issues, i => i.Message.Contains("Template ID must use lowercase", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(preview.Issues, i => i.Suggestion.Length > 0);
+
+        var formatted = service.FormatValidationIssues(preview.Issues);
+        Assert.Contains("Template validation failed", formatted);
+        Assert.Contains("Fix:", formatted);
+    }
+
 }

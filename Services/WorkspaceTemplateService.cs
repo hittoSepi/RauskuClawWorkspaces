@@ -34,6 +34,19 @@ namespace RauskuClaw.Services
         public DateTimeOffset UpdatedUtc { get; set; } = DateTimeOffset.UtcNow;
     }
 
+    public sealed class TemplateValidationIssue
+    {
+        public string Message { get; init; } = string.Empty;
+        public string Suggestion { get; init; } = string.Empty;
+    }
+
+    public sealed class TemplateImportPreview
+    {
+        public WorkspaceTemplate? Template { get; init; }
+        public List<TemplateValidationIssue> Issues { get; init; } = new();
+        public bool IsValid => Template != null && Issues.Count == 0;
+    }
+
     public class WorkspaceTemplateService
     {
         private static readonly Regex TemplateIdRegex = new("^[a-z0-9][a-z0-9-]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -195,10 +208,101 @@ namespace RauskuClaw.Services
 
         public WorkspaceTemplate ImportTemplate(string sourceFilePath, bool overwrite = false)
         {
-            var template = LoadTemplateFromFile(sourceFilePath) ?? throw new InvalidOperationException("Invalid template file.");
+            var preview = PreviewTemplateImport(sourceFilePath);
+            if (!preview.IsValid || preview.Template == null)
+                throw new InvalidOperationException(FormatValidationIssues(preview.Issues));
+
+            var template = preview.Template;
             template.Source = TemplateSources.Custom;
             SaveTemplate(template, overwrite);
             return template;
+        }
+
+        public TemplateImportPreview PreviewTemplateImport(string sourceFilePath)
+        {
+            var issues = new List<TemplateValidationIssue>();
+            if (!File.Exists(sourceFilePath))
+            {
+                issues.Add(new TemplateValidationIssue
+                {
+                    Message = $"Template file '{sourceFilePath}' does not exist.",
+                    Suggestion = "Choose an existing .json template file and try import again."
+                });
+                return new TemplateImportPreview { Issues = issues };
+            }
+
+            WorkspaceTemplate? parsedTemplate = null;
+            try
+            {
+                var json = File.ReadAllText(sourceFilePath);
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+
+                if (TryGetProperty(root, "schemaVersion", out var schemaVersionElement))
+                {
+                    var schemaVersion = schemaVersionElement.GetInt32();
+                    if (schemaVersion != TemplateDocument.CurrentSchemaVersion)
+                    {
+                        issues.Add(new TemplateValidationIssue
+                        {
+                            Message = $"Unsupported schema version '{schemaVersion}'.",
+                            Suggestion = $"Re-export template with schemaVersion {TemplateDocument.CurrentSchemaVersion}."
+                        });
+                    }
+
+                    if (!TryGetProperty(root, "template", out _))
+                    {
+                        issues.Add(new TemplateValidationIssue
+                        {
+                            Message = "Template package is missing required 'template' object.",
+                            Suggestion = "Ensure exported package contains metadata + template payload."
+                        });
+                    }
+                }
+
+                parsedTemplate = ParseTemplate(json, Path.GetFileNameWithoutExtension(sourceFilePath));
+            }
+            catch (Exception ex)
+            {
+                issues.Add(new TemplateValidationIssue
+                {
+                    Message = $"Template parsing failed: {ex.Message}",
+                    Suggestion = "Fix JSON syntax and required fields (id, name, cpuCores, memoryMb, ports)."
+                });
+            }
+
+            if (parsedTemplate == null)
+                return new TemplateImportPreview { Issues = issues };
+
+            var existing = LoadCustomTemplates().Where(t => !string.Equals(t.Id, parsedTemplate.Id, StringComparison.OrdinalIgnoreCase));
+            foreach (var error in ValidateTemplate(parsedTemplate, existing))
+            {
+                issues.Add(new TemplateValidationIssue
+                {
+                    Message = error,
+                    Suggestion = SuggestFix(error)
+                });
+            }
+
+            return new TemplateImportPreview { Template = parsedTemplate, Issues = issues };
+        }
+
+        public string FormatValidationIssues(IEnumerable<TemplateValidationIssue> issues)
+        {
+            var collected = issues.ToList();
+            if (collected.Count == 0)
+                return "Template validation passed.";
+
+            var lines = new List<string> { "Template validation failed:" };
+            for (var i = 0; i < collected.Count; i++)
+            {
+                var issue = collected[i];
+                lines.Add($"{i + 1}. {issue.Message}");
+                if (!string.IsNullOrWhiteSpace(issue.Suggestion))
+                    lines.Add($"   Fix: {issue.Suggestion}");
+            }
+
+            return string.Join(Environment.NewLine, lines);
         }
 
         public List<TemplatePortMapping> ParsePortMappings(string value)
@@ -338,6 +442,29 @@ namespace RauskuClaw.Services
 
         private static bool AreEqual(PortAllocation a, PortAllocation b) =>
             a.Ssh == b.Ssh && a.Api == b.Api && a.UiV1 == b.UiV1 && a.UiV2 == b.UiV2 && a.Qmp == b.Qmp && a.Serial == b.Serial;
+
+        private static string SuggestFix(string error)
+        {
+            if (error.Contains("ID", StringComparison.OrdinalIgnoreCase) && error.Contains("required", StringComparison.OrdinalIgnoreCase))
+                return "Set a non-empty id, e.g. 'my-template'.";
+            if (error.Contains("name", StringComparison.OrdinalIgnoreCase) && error.Contains("required", StringComparison.OrdinalIgnoreCase))
+                return "Set a readable template name, e.g. 'My Team Template'.";
+            if (error.Contains("lowercase", StringComparison.OrdinalIgnoreCase))
+                return "Use lowercase letters, digits and '-' only in id.";
+            if (error.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+                return "Change id/name or delete the conflicting custom template first.";
+            if (error.Contains("CPU cores", StringComparison.OrdinalIgnoreCase))
+                return "Pick CPU cores between 1 and host limit.";
+            if (error.Contains("Memory", StringComparison.OrdinalIgnoreCase))
+                return "Use memory within 256 MB and host memory limit.";
+            if (error.Contains("Duplicate port", StringComparison.OrdinalIgnoreCase))
+                return "Ensure each mapping uses a unique port.";
+            if (error.Contains("between 1 and 65535", StringComparison.OrdinalIgnoreCase))
+                return "Use valid port numbers in the range 1-65535.";
+            if (error.Contains("conflict", StringComparison.OrdinalIgnoreCase))
+                return "Adjust ports or run auto-assign so every template gets unique ports.";
+            return "Review template values and retry.";
+        }
 
         private static int GetHostMemoryLimitMb()
         {

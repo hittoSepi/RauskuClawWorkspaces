@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -20,6 +21,7 @@ namespace RauskuClaw.GUI.ViewModels
         private string _statusMessage = string.Empty;
         private string _servicesCsv = string.Empty;
         private string _portsCsv = string.Empty;
+        private string _validationDetails = string.Empty;
 
         public TemplateManagementViewModel(WorkspaceTemplateService? templateService = null)
         {
@@ -89,6 +91,12 @@ namespace RauskuClaw.GUI.ViewModels
             private set { _statusMessage = value; OnPropertyChanged(); }
         }
 
+        public string ValidationDetails
+        {
+            get => _validationDetails;
+            private set { _validationDetails = value; OnPropertyChanged(); }
+        }
+
         public string ServicesCsv
         {
             get => _servicesCsv;
@@ -138,6 +146,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             ApplyFilters();
             StatusMessage = $"Loaded {Templates.Count} templates.";
+            ValidationDetails = string.Empty;
         }
 
         private void ApplyFilters()
@@ -237,6 +246,19 @@ namespace RauskuClaw.GUI.ViewModels
             if (dialog.ShowDialog() != true)
                 return;
 
+            var preview = _templateService.PreviewTemplateImport(dialog.FileName);
+            ValidationDetails = BuildValidationDetails(preview.Issues);
+            if (!preview.IsValid || preview.Template == null)
+            {
+                var message = _templateService.FormatValidationIssues(preview.Issues);
+                StatusMessage = "Template import failed. Fix validation errors and retry.";
+                MessageBox.Show(message, "Template import validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (MessageBox.Show($"Import template '{preview.Template.Name}'?\n\n{ValidationDetails}", "Confirm import", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
             try
             {
                 var imported = _templateService.ImportTemplate(dialog.FileName);
@@ -246,6 +268,7 @@ namespace RauskuClaw.GUI.ViewModels
             catch (Exception ex)
             {
                 StatusMessage = ex.Message;
+                ValidationDetails = ex.Message;
                 MessageBox.Show(ex.Message, "Template import failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -268,6 +291,22 @@ namespace RauskuClaw.GUI.ViewModels
             StatusMessage = $"Exported template to {dialog.FileName}.";
         }
 
+
+        private static string BuildValidationDetails(IReadOnlyCollection<TemplateValidationIssue> issues)
+        {
+            if (issues.Count == 0)
+                return "Validation passed. Template package is compatible.";
+
+            var lines = new List<string>();
+            foreach (var issue in issues)
+            {
+                lines.Add($"- {issue.Message}");
+                if (!string.IsNullOrWhiteSpace(issue.Suggestion))
+                    lines.Add($"  Suggestion: {issue.Suggestion}");
+            }
+
+            return string.Join(Environment.NewLine, lines);
+        }
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
