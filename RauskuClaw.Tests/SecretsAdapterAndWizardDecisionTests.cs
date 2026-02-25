@@ -1,7 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using RauskuClaw.GUI.ViewModels;
+using RauskuClaw.Models;
 using RauskuClaw.Services;
 
 namespace RauskuClaw.Tests;
@@ -133,6 +141,63 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         Assert.True(runHolvi > preflightHolvi, "Holvi docker compose startup should happen after env preflight.");
     }
 
+    [Fact]
+    public async Task WizardStart_MissingCredentials_DoesNotCreateSeedOrStartVm()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "rausku-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var seedIsoPath = Path.Combine(tempDir, "seed.iso");
+            var model = new WizardViewModel(
+                new ProvisioningScriptBuilder(),
+                new MissingCredentialsProvisioningSecretsService());
+
+            model.Username = "tester";
+            model.Hostname = "tester-host";
+            model.SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey";
+            model.QemuExe = "qemu-system-x86_64.exe";
+            model.DiskPath = Path.Combine(tempDir, "arch.qcow2");
+            model.SeedIsoPath = seedIsoPath;
+            model.StepIndex = 3;
+
+            var startHandlerCalled = false;
+            model.StartWorkspaceAsyncHandler = (_, _, _) =>
+            {
+                startHandlerCalled = true;
+                return Task.FromResult((true, "should-not-run"));
+            };
+
+            var startMethod = typeof(WizardViewModel).GetMethod("StartAndCreateWorkspaceAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(startMethod);
+
+            var task = (Task?)startMethod!.Invoke(model, null);
+            Assert.NotNull(task);
+            await task!;
+
+            Assert.False(startHandlerCalled);
+            Assert.False(File.Exists(seedIsoPath));
+            Assert.Equal(WizardStartupState.NeedsSecretsConfiguration, model.StartupState);
+            Assert.Contains("Provisioning paused", model.Status, StringComparison.OrdinalIgnoreCase);
+
+            var envStage = model.SetupStages.First(s => string.Equals(s.Key, "env", StringComparison.OrdinalIgnoreCase));
+            var seedStage = model.SetupStages.First(s => string.Equals(s.Key, "seed", StringComparison.OrdinalIgnoreCase));
+            var qemuStage = model.SetupStages.First(s => string.Equals(s.Key, "qemu", StringComparison.OrdinalIgnoreCase));
+
+            Assert.Equal("Warning", envStage.State);
+            Assert.Equal("Pending", seedStage.State);
+            Assert.Equal("Pending", qemuStage.State);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
@@ -145,6 +210,20 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return _handler(request, cancellationToken);
+        }
+    }
+
+    private sealed class MissingCredentialsProvisioningSecretsService : IProvisioningSecretsService
+    {
+        public Task<ProvisioningSecretsResult> ResolveAsync(IEnumerable<string> keys, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new ProvisioningSecretsResult
+            {
+                Source = ProvisioningSecretSource.LocalTemplate,
+                Status = ProvisioningSecretStatus.MissingCredentials,
+                Message = "Missing secret-manager credentials.",
+                ActionHint = "Configure credentials."
+            });
         }
     }
 }
