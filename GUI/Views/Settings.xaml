@@ -16,7 +16,7 @@
         <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16">
             <!-- Header -->
-            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Foreground="#E6EAF2" Margin="0,0,0,16"/>
+            <TextBlock Text="General Settings" FontSize="24" FontWeight="Bold" Foreground="#E6EAF2" Margin="0,0,0,16"/>
 
             <!-- QEMU Settings Section -->
             <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
@@ -53,45 +53,6 @@
                         <Button Grid.Column="2" Command="{Binding BrowseVmPathCommand}"
                                 Style="{StaticResource SecondaryIconButton}" Tag="FolderOpen" Content="Browse..."
                                 Padding="12,4" Cursor="Hand" VerticalAlignment="Center"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- Workspace Storage Section -->
-            <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Workspace Storage" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2" Margin="0,0,0,12"/>
-
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Workspace Root:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="{Binding WorkspaceRootPath, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
-                                 Padding="8,4" VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Selected Host Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="{Binding SelectedWorkspaceHostPath, Mode=OneWay}"
-                                 IsReadOnly="True"
-                                 Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
-                                 Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <Button Grid.Column="2"
-                                Command="{Binding OpenSelectedWorkspaceFolderCommand}"
-                                Style="{StaticResource SecondaryIconButton}"
-                                Tag="FolderOpen"
-                                Content="Open Folder"
-                                Padding="12,4"
-                                Cursor="Hand"
-                                VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -376,7 +337,7 @@
             <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
                 <StackPanel>
                     <TextBlock Text="Templates" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2" Margin="0,0,0,12"/>
-                    <TextBlock Text="Manage workspace templates from General Settings."
+                    <TextBlock Text="Manage templates used when creating workspaces."
                                Foreground="#9AA3B2"
                                Margin="0,0,0,12"/>
                     <views:TemplateManagement DataContext="{Binding DataContext.TemplateManagement, RelativeSource={RelativeSource AncestorType=Window}}"/>
