@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
-using RauskuClaw.Models;
 
 namespace RauskuClaw.Services
 {
@@ -30,23 +30,48 @@ namespace RauskuClaw.Services
         /// <summary>
         /// Fetch a secret by key from Holvi.
         /// </summary>
-        public async Task<string?> GetSecretAsync(string key)
+        public async Task<string?> GetSecretAsync(string key, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_projectId))
+            {
                 return null;
+            }
 
             try
             {
-                var response = await _httpClient.GetAsync($"secrets/{key}");
+                var response = await _httpClient.GetAsync($"secrets/{key}", cancellationToken);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.MissingSecret, key);
+                }
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.ExpiredCredential, key);
+                }
+
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.AccessDenied, key);
+                }
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var data = await response.Content.ReadFromJsonAsync<HolviSecretResponse>();
+                    var data = await response.Content.ReadFromJsonAsync<HolviSecretResponse>(cancellationToken: cancellationToken);
                     return data?.Value;
                 }
             }
-            catch (Exception)
+            catch (SecretResolutionException)
             {
-                // Log error
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new SecretResolutionException(SecretResolutionErrorKind.Transport, key, ex.Message);
             }
 
             return null;
@@ -55,18 +80,22 @@ namespace RauskuClaw.Services
         /// <summary>
         /// Fetch multiple secrets by keys from Holvi.
         /// </summary>
-        public async Task<Dictionary<string, string>> GetSecretsAsync(IEnumerable<string> keys)
+        public async Task<Dictionary<string, string>> GetSecretsAsync(IEnumerable<string> keys, CancellationToken cancellationToken = default)
         {
             var result = new Dictionary<string, string>();
 
             if (string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_projectId))
+            {
                 return result;
+            }
 
             foreach (var key in keys)
             {
-                var value = await GetSecretAsync(key);
+                var value = await GetSecretAsync(key, cancellationToken);
                 if (value != null)
+                {
                     result[key] = value;
+                }
             }
 
             return result;
@@ -86,7 +115,7 @@ namespace RauskuClaw.Services
                 var response = await _httpClient.PutAsJsonAsync($"secrets/{key}", content);
                 return response.IsSuccessStatusCode;
             }
-            catch (Exception)
+            catch
             {
                 return false;
             }

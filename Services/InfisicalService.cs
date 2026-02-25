@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RauskuClaw.Services
@@ -28,7 +29,7 @@ namespace RauskuClaw.Services
         /// <summary>
         /// Authenticate and get access token.
         /// </summary>
-        private async Task<bool> AuthenticateAsync()
+        private async Task<bool> AuthenticateAsync(CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(_clientId) || string.IsNullOrEmpty(_clientSecret))
                 return false;
@@ -39,20 +40,38 @@ namespace RauskuClaw.Services
                 {
                     clientId = _clientId,
                     clientSecret = _clientSecret
-                });
+                }, cancellationToken);
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.ExpiredCredential);
+                }
+
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.AccessDenied);
+                }
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<InfisicalAuthResponse>();
+                    var result = await response.Content.ReadFromJsonAsync<InfisicalAuthResponse>(cancellationToken: cancellationToken);
                     _accessToken = result?.Token;
                     _httpClient.DefaultRequestHeaders.Clear();
                     _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_accessToken}");
                     return true;
                 }
             }
-            catch (Exception)
+            catch (SecretResolutionException)
             {
-                // Log error
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new SecretResolutionException(SecretResolutionErrorKind.Transport, message: ex.Message);
             }
 
             return false;
@@ -61,29 +80,52 @@ namespace RauskuClaw.Services
         /// <summary>
         /// Fetch a secret by key from Infisical.
         /// </summary>
-        public async Task<string?> GetSecretAsync(string key, string environment = "dev")
+        public async Task<string?> GetSecretAsync(string key, string environment = "dev", CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(_clientId) || string.IsNullOrEmpty(_clientSecret))
                 return null;
 
             if (string.IsNullOrEmpty(_accessToken))
             {
-                if (!await AuthenticateAsync())
+                if (!await AuthenticateAsync(cancellationToken))
                     return null;
             }
 
             try
             {
-                var response = await _httpClient.GetAsync($"secrets/raw/{environment}/{key}");
+                var response = await _httpClient.GetAsync($"secrets/raw/{environment}/{key}", cancellationToken);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.MissingSecret, key);
+                }
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.ExpiredCredential, key);
+                }
+
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    throw new SecretResolutionException(SecretResolutionErrorKind.AccessDenied, key);
+                }
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var data = await response.Content.ReadFromJsonAsync<InfisicalSecretResponse>();
+                    var data = await response.Content.ReadFromJsonAsync<InfisicalSecretResponse>(cancellationToken: cancellationToken);
                     return data?.Value;
                 }
             }
-            catch (Exception)
+            catch (SecretResolutionException)
             {
-                // Log error
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new SecretResolutionException(SecretResolutionErrorKind.Transport, key, ex.Message);
             }
 
             return null;
@@ -92,7 +134,7 @@ namespace RauskuClaw.Services
         /// <summary>
         /// Fetch multiple secrets by keys from Infisical.
         /// </summary>
-        public async Task<Dictionary<string, string>> GetSecretsAsync(IEnumerable<string> keys, string environment = "dev")
+        public async Task<Dictionary<string, string>> GetSecretsAsync(IEnumerable<string> keys, string environment = "dev", CancellationToken cancellationToken = default)
         {
             var result = new Dictionary<string, string>();
 
@@ -101,13 +143,13 @@ namespace RauskuClaw.Services
 
             if (string.IsNullOrEmpty(_accessToken))
             {
-                if (!await AuthenticateAsync())
+                if (!await AuthenticateAsync(cancellationToken))
                     return result;
             }
 
             foreach (var key in keys)
             {
-                var value = await GetSecretAsync(key, environment);
+                var value = await GetSecretAsync(key, environment, cancellationToken);
                 if (value != null)
                     result[key] = value;
             }

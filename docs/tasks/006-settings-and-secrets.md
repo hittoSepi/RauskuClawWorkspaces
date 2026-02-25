@@ -210,7 +210,60 @@ Settings are stored in `Settings/settings.json`:
 - [x] Holvi/Infisical remote fetch is attempted before startup provisioning
 - [x] Fallback to local `.env`/`.env.example` flow when remote fetch fails
 - [x] Stage reporting only logs source/status (no secret values)
-- [x] Error paths covered: missing credentials, timeout/auth failure, partial secret set
+- [x] Error paths covered: missing credentials, missing secret, expired credential, access denied, timeout/auth failure, partial secret set
+
+
+## Provisioning/runtime credential chain (wizard -> workspace creation -> startup)
+
+Current credential flow and resolution points:
+
+1. **Wizard preflight (`WizardViewModel.StartAndCreateWorkspaceAsync`)**
+   - Calls `LoadProvisioningSecretsAsync()` before seed ISO generation.
+   - Secret keys requested: `API_KEY`, `API_TOKEN`.
+2. **Secret resolution (`ProvisioningSecretsService.ResolveAsync`)**
+   - Loads secret refs from `SettingsService` (`HolviApiKeySecretRef`, `HolviProjectIdSecretRef`, `InfisicalClientIdSecretRef`, `InfisicalClientSecretSecretRef`).
+   - Resolves provider credentials from secure storage (not plaintext settings JSON).
+   - Tries Holvi first, then Infisical, then local template fallback.
+3. **Workspace artifact creation (`SeedIsoService.CreateSeedIso`)**
+   - `ProvisioningScriptBuilder.BuildUserData()` injects resolved runtime secrets into `.env` materialization logic.
+4. **Runtime launch (`MainViewModel.StartWorkspaceInternalAsync`)**
+   - Runtime readiness validates `.env` includes `API_KEY` and `API_TOKEN` and that values are not placeholders.
+   - Failure messages now include explicit remediation hints (missing file, missing secret keys, placeholder/expired values, permission issue).
+
+Credential generation / materialization points:
+- `ProvisioningScriptBuilder.ensure_api_tokens_for_dir()` creates `API_KEY` if absent and derives `API_TOKEN` from `API_KEY` as fallback generation path.
+- Secret-provider values are now preferred and applied before this fallback path.
+
+## Secret-provider resolution hardening
+
+Implemented provider-aware failure mapping with user action prompts:
+
+- **Missing secret** (`404`) => `MissingSecret`
+  - User action: create missing key (e.g. `API_KEY`/`API_TOKEN`) in provider.
+- **Expired credential** (`401`) => `ExpiredSecret`
+  - User action: rotate provider credential/token and retry startup.
+- **Access denied** (`403`) => `AccessDenied`
+  - User action: grant read access to required keys.
+- **Connectivity/auth fallback** => `TimeoutOrAuthFailure`
+  - User action: verify endpoint/network/credentials.
+
+Wizard stage messaging reports source/status + action only (never secret value payloads).
+
+## Settings fields and secret-key usage
+
+### Stored in `Settings/settings.json`
+- `HolviApiKeySecretRef`
+- `HolviProjectIdSecretRef`
+- `InfisicalClientIdSecretRef`
+- `InfisicalClientSecretSecretRef`
+
+### Secure-storage secret keys (`SettingsService` constants)
+- `settings/holvi-api-key`
+- `settings/holvi-project-id`
+- `settings/infisical-client-id`
+- `settings/infisical-client-secret`
+
+These keys map from persisted `*SecretRef` fields to encrypted/local protected secret storage values.
 
 ## Known Limitations
 

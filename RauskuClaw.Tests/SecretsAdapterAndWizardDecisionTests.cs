@@ -36,7 +36,20 @@ public sealed class SecretsAdapterAndWizardDecisionTests
     }
 
     [Fact]
-    public async Task InfisicalService_GetSecretsAsync_ReturnsEmptyOnAuthFailure()
+    public async Task HolviService_GetSecretsAsync_ThrowsMissingSecretError()
+    {
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)));
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.holvi.io/v1/") };
+        var service = new HolviService("key", "project", client);
+
+        var ex = await Assert.ThrowsAsync<SecretResolutionException>(() => service.GetSecretsAsync(new[] { "API_KEY" }));
+
+        Assert.Equal(SecretResolutionErrorKind.MissingSecret, ex.Kind);
+        Assert.Equal("API_KEY", ex.SecretKey);
+    }
+
+    [Fact]
+    public async Task InfisicalService_GetSecretsAsync_ThrowsExpiredCredentialOnAuthFailure()
     {
         var handler = new StubHttpMessageHandler((request, _) =>
         {
@@ -51,9 +64,9 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.infisical.com/api/v1/") };
         var service = new InfisicalService("client", "secret", client);
 
-        var result = await service.GetSecretsAsync(new[] { "API_KEY", "API_TOKEN" });
+        var ex = await Assert.ThrowsAsync<SecretResolutionException>(() => service.GetSecretsAsync(new[] { "API_KEY", "API_TOKEN" }));
 
-        Assert.Empty(result);
+        Assert.Equal(SecretResolutionErrorKind.ExpiredCredential, ex.Kind);
     }
 
     [Fact]
@@ -72,6 +85,22 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         Assert.Contains("source=Holvi", message, StringComparison.Ordinal);
         Assert.Contains("partial-set", message, StringComparison.Ordinal);
         Assert.DoesNotContain("super-secret-value", message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(ProvisioningSecretStatus.MissingCredentials, "configure secret-manager credentials")]
+    [InlineData(ProvisioningSecretStatus.MissingSecret, "create missing API_KEY/API_TOKEN")]
+    [InlineData(ProvisioningSecretStatus.ExpiredSecret, "rotate expired secret-manager credentials")]
+    [InlineData(ProvisioningSecretStatus.AccessDenied, "grant read permission")]
+    public void WizardSecretsStageMessage_IncludesActionForFailureModes(ProvisioningSecretStatus status, string expectedHint)
+    {
+        var message = WizardViewModel.BuildSecretsStageMessage(new ProvisioningSecretsResult
+        {
+            Source = ProvisioningSecretSource.LocalTemplate,
+            Status = status
+        });
+
+        Assert.Contains(expectedHint, message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

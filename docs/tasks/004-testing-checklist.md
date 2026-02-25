@@ -39,6 +39,21 @@ Last verified against code: 2026-02-24
   - [ ] Ends in success state **or** clear retry failure state with reason.
 - [ ] Startup retry path also validated in automated tests (deterministic conflict -> remap/retry).
 
+
+## Secret-resolution regression checklist
+
+- [ ] Wizard provisioning stage resolves runtime secrets via provider before seed ISO build.
+- [ ] Success path: provider returns `API_KEY` + `API_TOKEN` and wizard stage reports `status=success`.
+- [ ] Failure path: missing secret maps to explicit remediation action.
+- [ ] Failure path: expired credential maps to explicit remediation action.
+- [ ] Failure path: access denied maps to explicit remediation action.
+- [ ] Runtime warmup `.env` probe gives actionable hint for:
+  - [ ] missing `.env` file
+  - [ ] missing `API_KEY`/`API_TOKEN`
+  - [ ] placeholder/expired value
+  - [ ] permission denied while reading `.env`
+- [ ] Automated tests for provider success + failure modes use mocked HTTP/provider behavior (no external network dependency).
+
 ## VM lifecycle smoke
 
 - [ ] Start: `Stopped -> Starting -> Running` (or `Running (SSH warming up)` transiently).
