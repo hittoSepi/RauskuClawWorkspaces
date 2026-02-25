@@ -3,6 +3,7 @@ using RauskuClaw.Models;
 using RauskuClaw.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -413,6 +414,24 @@ namespace RauskuClaw.GUI.ViewModels
         public bool IsCustomTemplate => _isCustomTemplate;
         public bool IsTemplateQuickPath => !_isCustomTemplate;
 
+        public string TemplatePreviewText
+        {
+            get
+            {
+                if (_selectedTemplate == null)
+                    return "Custom mode: define ports, runtime profile and dependencies manually in next steps.";
+
+                var portKeys = _selectedTemplate.PortMappings.Count == 0
+                    ? "(none)"
+                    : string.Join(", ", _selectedTemplate.PortMappings.Select(p => $"{p.Name}:{p.Port}"));
+                var deps = _selectedTemplate.EnabledServices.Count == 0
+                    ? "(none)"
+                    : string.Join(", ", _selectedTemplate.EnabledServices);
+
+                return $"Port keys: {portKeys} | Runtime profile: {_selectedTemplate.Category} | Dependencies: {deps}";
+            }
+        }
+
         public string RepoUrl
         {
             get => _repoUrl;
@@ -766,6 +785,7 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(SelectedTemplateName));
             OnPropertyChanged(nameof(IsCustomTemplate));
             OnPropertyChanged(nameof(IsTemplateQuickPath));
+            OnPropertyChanged(nameof(TemplatePreviewText));
             OnPropertyChanged(nameof(RunSummary));
         }
 
@@ -781,6 +801,7 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(SelectedTemplateName));
             OnPropertyChanged(nameof(IsCustomTemplate));
             OnPropertyChanged(nameof(IsTemplateQuickPath));
+            OnPropertyChanged(nameof(TemplatePreviewText));
             OnPropertyChanged(nameof(RunSummary));
         }
 

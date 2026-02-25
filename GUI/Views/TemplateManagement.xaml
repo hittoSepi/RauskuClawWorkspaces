@@ -62,6 +62,9 @@
             </StackPanel>
         </Grid>
 
-        <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Margin="0,8,0,0"/>
+        <StackPanel Grid.Row="2" Margin="0,8,0,0">
+            <TextBlock Text="{Binding StatusMessage}"/>
+            <TextBlock Text="{Binding ValidationDetails}" TextWrapping="Wrap" Foreground="#B8C0CF" Margin="0,4,0,0"/>
+        </StackPanel>
     </Grid>
 </UserControl>
