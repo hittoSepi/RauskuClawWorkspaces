@@ -12,7 +12,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="RootScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16">
             <!-- Header -->
             <TextBlock Text="General Settings" FontSize="24" FontWeight="Bold" Foreground="#E6EAF2" Margin="0,0,0,16"/>
@@ -264,7 +264,19 @@
             </Border>
 
             <!-- Secret Manager Settings Section -->
-            <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
+            <Border x:Name="SecretsSectionBorder" Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="#151A22"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding DataContext.FocusSecretsSection, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                <Setter Property="Background" Value="#1D2736"/>
+                                <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <StackPanel>
                     <TextBlock Text="Secret Manager Integration" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2" Margin="0,0,0,12"/>
 
