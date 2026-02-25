@@ -40,6 +40,26 @@ namespace RauskuClaw.GUI.ViewModels
             UpdateStage("env", "in_progress", "Loading runtime secrets for provisioning...");
             var requestedKeys = new[] { "API_KEY", "API_TOKEN" };
             var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, cancellationToken);
+
+            if (result.Status == ProvisioningSecretStatus.MissingCredentials && _allowLocalTemplateFallback)
+            {
+                var placeholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["API_KEY"] = _secretValueGenerator.GenerateHex(),
+                    ["API_TOKEN"] = _secretValueGenerator.GenerateHex()
+                };
+
+                result = new ProvisioningSecretsResult
+                {
+                    Source = ProvisioningSecretSource.LocalTemplate,
+                    Status = ProvisioningSecretStatus.Success,
+                    Message = "Using generated local placeholder secrets.",
+                    ActionHint = "Secrets generated locally for this startup attempt.",
+                    Secrets = placeholders
+                };
+                AppendRunLog("Fallback mode: generated local placeholder secrets for API_KEY/API_TOKEN.");
+            }
+
             UpdateStage("env", result.Status == ProvisioningSecretStatus.MissingCredentials ? "warning" : "success", BuildSecretsStageMessage(result));
             if (!string.IsNullOrWhiteSpace(result.ActionHint))
             {

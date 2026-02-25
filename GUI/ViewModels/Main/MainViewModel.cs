@@ -66,6 +66,7 @@ namespace RauskuClaw.GUI.ViewModels
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
         private MainContentSection _selectedMainSection = MainContentSection.WorkspaceTabs;
+        private bool _focusSecretsSection;
 
         public MainViewModel() : this(
             settingsService: null,
@@ -114,6 +115,7 @@ namespace RauskuClaw.GUI.ViewModels
             ShowWorkspaceViewsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.WorkspaceTabs);
             ShowTemplatesCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.TemplateManagement);
             ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
+            ShowSecretsSettingsCommand = new RelayCommand(NavigateToSecretsSettings);
 
             // Initialize child view models for non-null navigation targets.
             Settings = new SettingsViewModel(_settingsService, _pathResolver);
@@ -322,6 +324,21 @@ namespace RauskuClaw.GUI.ViewModels
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
         public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
 
+        public bool FocusSecretsSection
+        {
+            get => _focusSecretsSection;
+            private set
+            {
+                if (_focusSecretsSection == value)
+                {
+                    return;
+                }
+
+                _focusSecretsSection = value;
+                OnPropertyChanged();
+            }
+        }
+
         // Commands
         public ICommand NewWorkspaceCommand { get; }
         public ICommand StartVmCommand { get; }
@@ -331,6 +348,21 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand ShowWorkspaceViewsCommand { get; }
         public ICommand ShowTemplatesCommand { get; }
         public ICommand ShowGeneralSettingsCommand { get; }
+        public ICommand ShowSecretsSettingsCommand { get; }
+
+
+        private void NavigateToSecretsSettings()
+        {
+            SelectedMainSection = MainContentSection.Settings;
+            FocusSecretsSection = true;
+
+            // Toggle back to false so future navigations can trigger again.
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(300);
+                Application.Current?.Dispatcher.Invoke(() => FocusSecretsSection = false);
+            });
+        }
 
         private async void ShowNewWorkspaceDialog()
         {
@@ -363,7 +395,42 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 };
 
-                var dialogResult = wizard.ShowDialog();
+                wizard.ViewModel.OpenSecretsSettingsRequested = NavigateToSecretsSettings;
+
+                bool? dialogResult;
+                while (true)
+                {
+                    dialogResult = wizard.ShowDialog();
+                    if (wizard.ViewModel.StartupState != WizardStartupState.NeedsSecretsConfiguration)
+                    {
+                        break;
+                    }
+
+                    var pausedDialog = new ProvisioningSecretsRequiredDialog
+                    {
+                        Owner = wizard
+                    };
+
+                    var pausedResult = pausedDialog.ShowDialog();
+                    if (pausedResult != true)
+                    {
+                        break;
+                    }
+
+                    if (pausedDialog.SelectedAction == ProvisioningSecretsDialogAction.OpenSettings)
+                    {
+                        wizard.ViewModel.OpenSecretsSettings();
+                        continue;
+                    }
+
+                    if (pausedDialog.SelectedAction == ProvisioningSecretsDialogAction.ContinueLocalTemplate)
+                    {
+                        wizard.ViewModel.EnableLocalTemplateFallback();
+                    }
+
+                    wizard.ViewModel.RetryStartCommand.Execute(null);
+                }
+
                 if (dialogResult != true || wizard.ViewModel.CreatedWorkspace == null)
                 {
                     if (wizard.ViewModel.CreatedWorkspace != null)

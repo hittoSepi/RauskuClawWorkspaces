@@ -198,6 +198,87 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         }
     }
 
+
+    [Fact]
+    public async Task WizardRetryAfterSettings_SucceedsWithoutResettingWorkspace()
+    {
+        var service = new SequencedProvisioningSecretsService(
+            new ProvisioningSecretsResult
+            {
+                Source = ProvisioningSecretSource.LocalTemplate,
+                Status = ProvisioningSecretStatus.MissingCredentials,
+                Message = "Missing credentials"
+            },
+            new ProvisioningSecretsResult
+            {
+                Source = ProvisioningSecretSource.Holvi,
+                Status = ProvisioningSecretStatus.Success,
+                Secrets = new Dictionary<string, string>
+                {
+                    ["API_KEY"] = "k1",
+                    ["API_TOKEN"] = "t1"
+                }
+            });
+
+        var model = new WizardViewModel(new ProvisioningScriptBuilder(), service);
+        model.Username = "tester";
+        model.Hostname = "retry-host";
+        model.SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey";
+        model.StepIndex = 3;
+
+        var startHandlerCalls = 0;
+        model.StartWorkspaceAsyncHandler = (_, _, _) =>
+        {
+            startHandlerCalls++;
+            return Task.FromResult((true, "started"));
+        };
+
+        var startMethod = typeof(WizardViewModel).GetMethod("StartAndCreateWorkspaceAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(startMethod);
+
+        var firstRun = (Task?)startMethod!.Invoke(model, null);
+        Assert.NotNull(firstRun);
+        await firstRun!;
+
+        Assert.Equal(WizardStartupState.NeedsSecretsConfiguration, model.StartupState);
+        var createdWorkspaceId = model.CreatedWorkspace?.Id;
+        Assert.NotNull(createdWorkspaceId);
+        Assert.False(string.IsNullOrWhiteSpace(createdWorkspaceId));
+
+        var secondRun = (Task?)startMethod.Invoke(model, null);
+        Assert.NotNull(secondRun);
+        await secondRun!;
+
+        Assert.Equal(WizardStartupState.Started, model.StartupState);
+        Assert.True(model.StartSucceeded);
+        Assert.Equal(1, startHandlerCalls);
+        Assert.Equal(createdWorkspaceId, model.CreatedWorkspace?.Id);
+    }
+
+    [Fact]
+    public async Task WizardFallbackMode_GeneratesPlaceholderSecrets()
+    {
+        var service = new MissingCredentialsProvisioningSecretsService();
+        var model = new WizardViewModel(new ProvisioningScriptBuilder(), service, secretValueGenerator: new StubSecretValueGenerator());
+
+        var enableFallback = typeof(WizardViewModel).GetMethod("EnableLocalTemplateFallback", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(enableFallback);
+        enableFallback!.Invoke(model, null);
+
+        var loadMethod = typeof(WizardViewModel).GetMethod("LoadProvisioningSecretsAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(loadMethod);
+
+        var task = (Task<ProvisioningSecretsResult>?)loadMethod!.Invoke(model, new object[] { new Progress<string>(_ => { }), CancellationToken.None });
+        Assert.NotNull(task);
+        var result = await task!;
+
+        Assert.Equal(ProvisioningSecretStatus.Success, result.Status);
+        Assert.True(result.Secrets?.ContainsKey("API_KEY"));
+        Assert.True(result.Secrets?.ContainsKey("API_TOKEN"));
+        Assert.Equal(64, result.Secrets!["API_KEY"].Length);
+        Assert.Equal(64, result.Secrets!["API_TOKEN"].Length);
+    }
+
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
@@ -210,6 +291,34 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return _handler(request, cancellationToken);
+        }
+    }
+
+    private sealed class StubSecretValueGenerator : ISecretValueGenerator
+    {
+        public string GenerateHex(int bytes = 32)
+        {
+            return new string('a', Math.Max(16, bytes) * 2);
+        }
+    }
+
+    private sealed class SequencedProvisioningSecretsService : IProvisioningSecretsService
+    {
+        private readonly Queue<ProvisioningSecretsResult> _results;
+
+        public SequencedProvisioningSecretsService(params ProvisioningSecretsResult[] results)
+        {
+            _results = new Queue<ProvisioningSecretsResult>(results);
+        }
+
+        public Task<ProvisioningSecretsResult> ResolveAsync(IEnumerable<string> keys, CancellationToken cancellationToken)
+        {
+            if (_results.Count == 0)
+            {
+                throw new InvalidOperationException("No more sequenced secret results configured.");
+            }
+
+            return Task.FromResult(_results.Dequeue());
         }
     }
 
