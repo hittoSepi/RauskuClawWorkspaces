@@ -176,13 +176,6 @@
                             Padding="10,8"
                             ToolTip="Open workspace tabs"
                             Margin="0,0,0,6"/>
-                    <Button Command="{Binding ShowTemplatesCommand}"
-                            Style="{StaticResource SecondaryIconButton}"
-                            Tag="Clone"
-                            Content="Templates"
-                            Padding="10,8"
-                            ToolTip="Manage workspace templates"
-                            Margin="0,0,0,6"/>
                     <Button Command="{Binding ShowGeneralSettingsCommand}"
                             Style="{StaticResource SecondaryIconButton}"
                             Tag="Cog"
@@ -463,24 +456,6 @@
                              VerticalScrollBarVisibility="Auto"/>
                 </TabItem>
             </TabControl>
-
-            <ContentControl Content="{Binding TemplateManagement}">
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsTemplateSection}" Value="True">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-                <ContentControl.ContentTemplate>
-                    <DataTemplate>
-                        <views:TemplateManagement/>
-                    </DataTemplate>
-                </ContentControl.ContentTemplate>
-            </ContentControl>
 
             <ContentControl Content="{Binding Settings}">
                 <ContentControl.Style>

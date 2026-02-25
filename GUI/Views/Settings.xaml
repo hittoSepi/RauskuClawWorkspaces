@@ -1,6 +1,7 @@
 <UserControl x:Class="RauskuClaw.GUI.Views.Settings"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:RauskuClaw.GUI.Views"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
@@ -79,7 +80,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Selected Host Path:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="{Binding SelectedWorkspaceHostPath}"
+                        <TextBox Grid.Column="1" Text="{Binding SelectedWorkspaceHostPath, Mode=OneWay}"
                                  IsReadOnly="True"
                                  Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
                                  Padding="8,4" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -369,6 +370,16 @@
                                  Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
                                  Padding="8,4" VerticalAlignment="Center"/>
                     </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Templates" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2" Margin="0,0,0,12"/>
+                    <TextBlock Text="Manage workspace templates from General Settings."
+                               Foreground="#9AA3B2"
+                               Margin="0,0,0,12"/>
+                    <views:TemplateManagement DataContext="{Binding DataContext.TemplateManagement, RelativeSource={RelativeSource AncestorType=Window}}"/>
                 </StackPanel>
             </Border>
 
