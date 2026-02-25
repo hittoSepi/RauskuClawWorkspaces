@@ -184,13 +184,19 @@ namespace RauskuClaw.GUI.ViewModels
 
         private static List<(string Name, int Port)> GetWorkspaceHostPorts(Workspace workspace)
         {
+            var apiPort = workspace.Ports?.Api ?? 3011;
+            var holviProxyPort = apiPort + VmProfile.HostHolviProxyOffsetFromApi;
+            var infisicalUiPort = apiPort + VmProfile.HostInfisicalUiOffsetFromApi;
+
             return new List<(string Name, int Port)>
             {
                 ("SSH", workspace.Ports?.Ssh ?? 2222),
                 ("Web", workspace.HostWebPort > 0 ? workspace.HostWebPort : 8080),
-                ("API", workspace.Ports?.Api ?? 3011),
+                ("API", apiPort),
                 ("UIv1", workspace.Ports?.UiV1 ?? 3012),
                 ("UIv2", workspace.Ports?.UiV2 ?? 3013),
+                ("HolviProxy", holviProxyPort),
+                ("InfisicalUI", infisicalUiPort),
                 ("QMP", workspace.Ports?.Qmp ?? 4444),
                 ("Serial", workspace.Ports?.Serial ?? 5555)
             };
@@ -631,6 +637,8 @@ namespace RauskuClaw.GUI.ViewModels
                     $"API_TOKEN_LINE=$(grep -E '^API_TOKEN=' '{envPath}' 2>/dev/null | tail -n 1 || true); " +
                     "if [ -z \"$API_KEY_LINE\" ] || [ -z \"$API_TOKEN_LINE\" ]; then echo status=missing-secret; exit 9; fi; " +
                     "API_KEY_VALUE=${API_KEY_LINE#API_KEY=}; API_TOKEN_VALUE=${API_TOKEN_LINE#API_TOKEN=}; " +
+                    "API_KEY_VALUE=$(printf '%s' \"$API_KEY_VALUE\" | tr -d '\\r' | sed -e 's/^\"//' -e 's/\"$//' | xargs); " +
+                    "API_TOKEN_VALUE=$(printf '%s' \"$API_TOKEN_VALUE\" | tr -d '\\r' | sed -e 's/^\"//' -e 's/\"$//' | xargs); " +
                     "if [ -z \"$API_KEY_VALUE\" ] || [ -z \"$API_TOKEN_VALUE\" ] || [ \"$API_KEY_VALUE\" = \"change-me-please\" ] || [ \"$API_TOKEN_VALUE\" = \"change-me-please\" ]; then echo status=placeholder-secret; exit 9; fi; " +
                     "echo env-ok",
                     ct);
@@ -649,6 +657,24 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 }
 
+                var message = probe.Message ?? string.Empty;
+                if (message.Contains("status=missing-secret", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("status=placeholder-secret", StringComparison.OrdinalIgnoreCase))
+                {
+                    var healed = await EnsureRuntimeApiTokensAsync(workspace, envPath, ct);
+                    if (healed.Success)
+                    {
+                        ReportLog(progress, "Env warmup: auto-healed API_KEY/API_TOKEN in runtime .env.");
+                        await Task.Delay(TimeSpan.FromMilliseconds(400), ct);
+                        continue;
+                    }
+
+                    if (attempt == 1 || attempt % 4 == 0)
+                    {
+                        ReportLog(progress, $"Env warmup: API token auto-heal failed: {healed.Message}");
+                    }
+                }
+
                 lastMessage = BuildRuntimeEnvFailureHint(probe.Message);
                 if (attempt == 1 || attempt % 4 == 0)
                 {
@@ -659,6 +685,30 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             return (false, $"Runtime .env missing or incomplete after wait window: {lastMessage}");
+        }
+
+        private async Task<(bool Success, string Message)> EnsureRuntimeApiTokensAsync(Workspace workspace, string escapedEnvPath, CancellationToken ct)
+        {
+            var fixCommand =
+                $"ENV_FILE='{escapedEnvPath}'; " +
+                "if [ ! -f \"$ENV_FILE\" ]; then echo env-file-missing; exit 9; fi; " +
+                "random_hex_32() { if command -v openssl >/dev/null 2>&1; then openssl rand -hex 32; return; fi; if command -v od >/dev/null 2>&1; then head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \\n'; return; fi; date +%s%N | sha256sum | awk '{print $1}'; }; " +
+                "set_env_var() { local key=\"$1\"; local value=\"$2\"; if grep -Eq \"^${key}=\" \"$ENV_FILE\"; then sed -i \"s|^${key}=.*|${key}=${value}|\" \"$ENV_FILE\"; else echo \"${key}=${value}\" >> \"$ENV_FILE\"; fi; }; " +
+                "normalize_value() { printf '%s' \"$1\" | tr -d '\\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^\"//' -e 's/\"$//'; }; " +
+                "is_placeholder() { case \"$1\" in \"\"|\"change-me-please\"|\"your_api_key_here\"|\"replace-me\"|\"placeholder\") return 0 ;; *) return 1 ;; esac; }; " +
+                "API_KEY_RAW=$(grep -E '^API_KEY=' \"$ENV_FILE\" 2>/dev/null | tail -n 1 | cut -d= -f2- || true); " +
+                "API_KEY=$(normalize_value \"$API_KEY_RAW\"); " +
+                "if is_placeholder \"$API_KEY\"; then API_KEY=$(random_hex_32); [ -z \"$API_KEY\" ] && echo generation-failed && exit 9; set_env_var API_KEY \"$API_KEY\"; fi; " +
+                "API_TOKEN_RAW=$(grep -E '^API_TOKEN=' \"$ENV_FILE\" 2>/dev/null | tail -n 1 | cut -d= -f2- || true); " +
+                "API_TOKEN=$(normalize_value \"$API_TOKEN_RAW\"); " +
+                "if is_placeholder \"$API_TOKEN\"; then set_env_var API_TOKEN \"$API_KEY\"; fi; " +
+                "API_KEY_RAW=$(grep -E '^API_KEY=' \"$ENV_FILE\" 2>/dev/null | tail -n 1 | cut -d= -f2- || true); " +
+                "API_TOKEN_RAW=$(grep -E '^API_TOKEN=' \"$ENV_FILE\" 2>/dev/null | tail -n 1 | cut -d= -f2- || true); " +
+                "API_KEY=$(normalize_value \"$API_KEY_RAW\"); API_TOKEN=$(normalize_value \"$API_TOKEN_RAW\"); " +
+                "if is_placeholder \"$API_KEY\" || is_placeholder \"$API_TOKEN\"; then echo not-ready; exit 9; fi; " +
+                "echo env-healed";
+
+            return await RunSshCommandAsync(workspace, fixCommand, ct);
         }
 
         private static string BuildRuntimeEnvFailureHint(string? probeMessage)
@@ -675,12 +725,12 @@ namespace RauskuClaw.GUI.ViewModels
 
             if (probeMessage.Contains("status=missing-secret", StringComparison.OrdinalIgnoreCase))
             {
-                return "Runtime .env missing API_KEY/API_TOKEN. Action: sync required secrets from configured provider and retry startup.";
+                return "Runtime .env missing API_KEY/API_TOKEN. Action: verify cloud-init env preflight completed and .env exists under repo root.";
             }
 
             if (probeMessage.Contains("status=placeholder-secret", StringComparison.OrdinalIgnoreCase))
             {
-                return "Runtime .env has placeholder/expired secrets. Action: rotate credentials in secret manager and reprovision workspace.";
+                return "Runtime .env has placeholder API secrets. Action: auto-heal in progress; if it still fails, check VM disk write access.";
             }
 
             if (probeMessage.Contains("Permission denied", StringComparison.OrdinalIgnoreCase))

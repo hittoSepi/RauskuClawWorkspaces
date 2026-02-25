@@ -28,7 +28,6 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly WorkspaceTemplateService _templateService = new();
         private readonly IProvisioningScriptBuilder _provisioningScriptBuilder;
         private readonly IProvisioningSecretsService _provisioningSecretsService;
-        private readonly ISecretValueGenerator _secretValueGenerator;
 
         private readonly Dictionary<int, UserControl> _viewCache = new();
 
@@ -76,7 +75,6 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _isCustomTemplate = true;
         private int _reviewBackStep = 2;
         private WizardStartupState _startupState = WizardStartupState.Idle;
-        private bool _allowLocalTemplateFallback;
 
         public WizardViewModel(Settings? settings = null, PortAllocation? suggestedPorts = null)
             : this(new ProvisioningScriptBuilder(), new ProvisioningSecretsService(), settings, suggestedPorts)
@@ -88,11 +86,10 @@ namespace RauskuClaw.GUI.ViewModels
         {
         }
 
-        public WizardViewModel(IProvisioningScriptBuilder provisioningScriptBuilder, IProvisioningSecretsService provisioningSecretsService, Settings? settings = null, PortAllocation? suggestedPorts = null, ISecretValueGenerator? secretValueGenerator = null)
+        public WizardViewModel(IProvisioningScriptBuilder provisioningScriptBuilder, IProvisioningSecretsService provisioningSecretsService, Settings? settings = null, PortAllocation? suggestedPorts = null)
         {
             _provisioningScriptBuilder = provisioningScriptBuilder;
             _provisioningSecretsService = provisioningSecretsService;
-            _secretValueGenerator = secretValueGenerator ?? new SecretValueGenerator();
             ApplyDefaults(settings, suggestedPorts);
 
             GenerateKeyCommand = new RelayCommand(GenerateKey, () => !IsRunning);
@@ -543,7 +540,6 @@ namespace RauskuClaw.GUI.ViewModels
         }
 
         public event Action<bool>? CloseRequested;
-        public Action? OpenSecretsSettingsRequested { get; set; }
         public Func<Workspace, IProgress<string>, CancellationToken, Task<(bool Success, string Message)>>? StartWorkspaceAsyncHandler { get; set; }
         public bool StartSucceeded
         {
@@ -1106,7 +1102,6 @@ namespace RauskuClaw.GUI.ViewModels
 
             StartAfterCreateRequested = true;
             StartSucceeded = false;
-            _allowLocalTemplateFallback = false;
             StartupState = WizardStartupState.Starting;
             StepIndex = 4;
             RunLog = string.Empty;
@@ -1124,14 +1119,6 @@ namespace RauskuClaw.GUI.ViewModels
                 });
 
                 var provisioningSecrets = await LoadProvisioningSecretsAsync(progress, _startCts.Token);
-                if (provisioningSecrets.Status == ProvisioningSecretStatus.MissingCredentials)
-                {
-                    StartAfterCreateRequested = false;
-                    StartSucceeded = false;
-                    StartupState = WizardStartupState.NeedsSecretsConfiguration;
-                    HandleMissingSecretsConfiguration();
-                    return;
-                }
 
                 UpdateStage("seed", "in_progress", "Creating cloud-init seed ISO...");
                 _seedIsoService.CreateSeedIso(CreatedWorkspace.SeedIsoPath, BuildUserData(provisioningSecrets), BuildMetaData());
@@ -1190,17 +1177,6 @@ namespace RauskuClaw.GUI.ViewModels
         private bool CanRetryStart() => !IsRunning && StepIndex == 4 && !StartSucceeded;
 
         private Task RetryStartAsync() => StartAndCreateWorkspaceAsync();
-
-        internal void OpenSecretsSettings()
-        {
-            OpenSecretsSettingsRequested?.Invoke();
-        }
-
-        internal void EnableLocalTemplateFallback()
-        {
-            _allowLocalTemplateFallback = true;
-            AppendRunLog("Fallback mode enabled: generated local placeholders will be used when remote secrets are unavailable.");
-        }
 
         private bool CanFixProblems() => StepIndex == 4 && !IsRunning && !StartSucceeded && HasPortConflictFailure;
 
@@ -1691,7 +1667,6 @@ namespace RauskuClaw.GUI.ViewModels
     {
         Idle,
         Starting,
-        NeedsSecretsConfiguration,
         Started,
         Failed,
         Cancelled

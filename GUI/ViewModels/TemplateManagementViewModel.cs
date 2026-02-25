@@ -397,6 +397,161 @@ namespace RauskuClaw.GUI.ViewModels
             return string.Join(Environment.NewLine, lines);
         }
 
+        private bool ValidateEditorInputs()
+        {
+            PortValidationMessage = string.Empty;
+            ServiceValidationMessage = string.Empty;
+
+            if (SelectedTemplate == null || !IsCustomSelected)
+            {
+                return true;
+            }
+
+            var errors = new List<string>();
+            var portErrors = new List<string>();
+            var serviceErrors = new List<string>();
+
+            var services = (ServicesCsv ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+
+            var duplicateServices = services
+                .GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+            if (duplicateServices.Count > 0)
+            {
+                serviceErrors.Add($"Duplicate service entries: {string.Join(", ", duplicateServices)}.");
+            }
+
+            var invalidServices = services
+                .Where(s => !ServiceNameRegex.IsMatch(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (invalidServices.Count > 0)
+            {
+                serviceErrors.Add($"Service names may contain only letters, numbers, and hyphens: {string.Join(", ", invalidServices)}.");
+            }
+
+            List<TemplatePortMapping> parsedPorts;
+            try
+            {
+                parsedPorts = _templateService.ParsePortMappings(PortsCsv);
+            }
+            catch (Exception ex)
+            {
+                var readableError = ToUserReadableValidationMessage(ex.Message);
+                portErrors.Add(readableError);
+                parsedPorts = new List<TemplatePortMapping>();
+            }
+
+            var duplicatePortNumbers = parsedPorts
+                .GroupBy(p => p.Port)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+            if (duplicatePortNumbers.Count > 0)
+            {
+                portErrors.Add($"Duplicate port numbers: {string.Join(", ", duplicatePortNumbers)}.");
+            }
+
+            var duplicatePortNames = parsedPorts
+                .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+            if (duplicatePortNames.Count > 0)
+            {
+                portErrors.Add($"Duplicate port names: {string.Join(", ", duplicatePortNames)}.");
+            }
+
+            errors.AddRange(serviceErrors);
+            errors.AddRange(portErrors);
+
+            if (portErrors.Count == 0)
+            {
+                var templateCandidate = new WorkspaceTemplate
+                {
+                    Id = SelectedTemplate.Id,
+                    Name = SelectedTemplate.Name,
+                    Description = SelectedTemplate.Description,
+                    Category = SelectedTemplate.Category,
+                    MemoryMb = SelectedTemplate.MemoryMb,
+                    CpuCores = SelectedTemplate.CpuCores,
+                    Username = SelectedTemplate.Username,
+                    Hostname = SelectedTemplate.Hostname,
+                    Icon = SelectedTemplate.Icon,
+                    IsDefault = SelectedTemplate.IsDefault,
+                    Source = SelectedTemplate.Source,
+                    PortMappings = parsedPorts,
+                    EnabledServices = services
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList()
+                };
+
+                var existingTemplates = _templateService
+                    .LoadCustomTemplates()
+                    .Where(t => !string.Equals(t.Id, templateCandidate.Id, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var validationError in _templateService.ValidateTemplate(templateCandidate, existingTemplates))
+                {
+                    var readableError = ToUserReadableValidationMessage(validationError);
+                    errors.Add(readableError);
+                    if (validationError.Contains("port", StringComparison.OrdinalIgnoreCase))
+                    {
+                        portErrors.Add(readableError);
+                    }
+                }
+            }
+
+            PortValidationMessage = string.Join(Environment.NewLine, portErrors.Distinct(StringComparer.OrdinalIgnoreCase));
+            ServiceValidationMessage = string.Join(Environment.NewLine, serviceErrors.Distinct(StringComparer.OrdinalIgnoreCase));
+
+            if (errors.Count == 0)
+            {
+                ValidationDetails = "Editor input validation passed.";
+                ValidationSeverity = "Info";
+                return true;
+            }
+
+            ValidationDetails = string.Join(Environment.NewLine, errors
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(e => $"- {e}"));
+            ValidationSeverity = "Error";
+            return false;
+        }
+
+        private static string ToUserReadableValidationMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return "Validation failed.";
+            }
+
+            if (message.Contains("Invalid port token", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Ports must use Name:Port format, separated by commas (example: SSH:2222,API:3011).";
+            }
+
+            if (message.Contains("between 1 and 65535", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Port numbers must be between 1 and 65535.";
+            }
+
+            if (message.Contains("Duplicate port", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Port mappings must use unique ports.";
+            }
+
+            if (message.Contains("Template ID must use lowercase letters, numbers, and hyphens only", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Template ID may contain lowercase letters, numbers, and hyphens only.";
+            }
+
+            return message.Trim();
+        }
+
         private void EnsureSelectionOptionsContainSelectedTemplateValues()
         {
             if (SelectedTemplate == null)
@@ -421,52 +576,6 @@ namespace RauskuClaw.GUI.ViewModels
             foreach (var item in ordered)
             {
                 options.Add(item);
-            }
-        }
-
-        private void BuildCpuCoreOptions()
-        {
-            CpuCoreOptions.Clear();
-            for (var i = 1; i <= HostLogicalCpuCount; i++)
-            {
-                CpuCoreOptions.Add(i);
-            }
-        }
-
-        private void BuildMemoryOptions()
-        {
-            MemoryOptions.Clear();
-            var candidates = new[] { 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152, 65536 };
-            foreach (var option in candidates)
-            {
-                if (option <= HostMemoryLimitMb)
-                {
-                    MemoryOptions.Add(option);
-                }
-            }
-
-            if (MemoryOptions.Count == 0)
-            {
-                MemoryOptions.Add(Math.Clamp(4096, 256, HostMemoryLimitMb));
-            }
-        }
-
-        private static int GetHostMemoryLimitMb()
-        {
-            try
-            {
-                var bytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-                if (bytes <= 0)
-                {
-                    return 32768;
-                }
-
-                var mb = (int)Math.Max(256, bytes / (1024 * 1024));
-                return mb;
-            }
-            catch
-            {
-                return 32768;
             }
         }
 

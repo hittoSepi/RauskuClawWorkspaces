@@ -26,6 +26,8 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public partial class MainViewModel : INotifyPropertyChanged
     {
+        private const int WorkspaceSettingsTabIndex = 6;
+
         public enum MainContentSection
         {
             WorkspaceTabs,
@@ -67,6 +69,7 @@ namespace RauskuClaw.GUI.ViewModels
         private CancellationTokenSource? _inlineNoticeCts;
         private MainContentSection _selectedMainSection = MainContentSection.WorkspaceTabs;
         private bool _focusSecretsSection;
+        private int _selectedWorkspaceTabIndex;
 
         public MainViewModel() : this(
             settingsService: null,
@@ -324,6 +327,21 @@ namespace RauskuClaw.GUI.ViewModels
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
         public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
 
+        public int SelectedWorkspaceTabIndex
+        {
+            get => _selectedWorkspaceTabIndex;
+            set
+            {
+                if (_selectedWorkspaceTabIndex == value)
+                {
+                    return;
+                }
+
+                _selectedWorkspaceTabIndex = value;
+                OnPropertyChanged();
+            }
+        }
+
         public bool FocusSecretsSection
         {
             get => _focusSecretsSection;
@@ -353,7 +371,8 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void NavigateToSecretsSettings()
         {
-            SelectedMainSection = MainContentSection.Settings;
+            SelectedMainSection = MainContentSection.WorkspaceTabs;
+            SelectedWorkspaceTabIndex = WorkspaceSettingsTabIndex;
             FocusSecretsSection = true;
 
             // Toggle back to false so future navigations can trigger again.
@@ -395,41 +414,7 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 };
 
-                wizard.ViewModel.OpenSecretsSettingsRequested = NavigateToSecretsSettings;
-
-                bool? dialogResult;
-                while (true)
-                {
-                    dialogResult = wizard.ShowDialog();
-                    if (wizard.ViewModel.StartupState != WizardStartupState.NeedsSecretsConfiguration)
-                    {
-                        break;
-                    }
-
-                    var pausedDialog = new ProvisioningSecretsRequiredDialog
-                    {
-                        Owner = wizard
-                    };
-
-                    var pausedResult = pausedDialog.ShowDialog();
-                    if (pausedResult != true)
-                    {
-                        break;
-                    }
-
-                    if (pausedDialog.SelectedAction == ProvisioningSecretsDialogAction.OpenSettings)
-                    {
-                        wizard.ViewModel.OpenSecretsSettings();
-                        continue;
-                    }
-
-                    if (pausedDialog.SelectedAction == ProvisioningSecretsDialogAction.ContinueLocalTemplate)
-                    {
-                        wizard.ViewModel.EnableLocalTemplateFallback();
-                    }
-
-                    wizard.ViewModel.RetryStartCommand.Execute(null);
-                }
+                var dialogResult = wizard.ShowDialog();
 
                 if (dialogResult != true || wizard.ViewModel.CreatedWorkspace == null)
                 {

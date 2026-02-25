@@ -153,7 +153,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void UpdateUrlState()
         {
-            var configured = NormalizeUrl(_settingsViewModel?.HolviBaseUrl);
+            var configured = ResolveConfiguredUrl(_settingsViewModel?.HolviBaseUrl);
             ConfiguredBaseUrl = configured ?? string.Empty;
             IsConfigured = !string.IsNullOrWhiteSpace(ConfiguredBaseUrl);
             IsInsecureRemoteUrl = IsConfigured && IsHttpNonLocal(ConfiguredBaseUrl);
@@ -166,6 +166,59 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 CurrentUrl = "about:blank";
             }
+        }
+
+        private string? ResolveConfiguredUrl(string? rawUrl)
+        {
+            var normalized = NormalizeUrl(rawUrl);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return null;
+            }
+
+            if (_workspace == null || !_workspace.IsRunning)
+            {
+                return normalized;
+            }
+
+            if (!Uri.TryCreate(normalized, UriKind.Absolute, out var parsed))
+            {
+                return normalized;
+            }
+
+            var host = parsed.Host;
+            if (!string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase))
+            {
+                return normalized;
+            }
+
+            var targetPort = parsed.Port;
+            if (!HasExplicitPort(rawUrl))
+            {
+                targetPort = GetInfisicalUiHostPort(_workspace);
+            }
+            else if (parsed.Port == VmProfile.GuestHolviProxyPort)
+            {
+                targetPort = GetHolviProxyHostPort(_workspace);
+            }
+            else if (parsed.Port == VmProfile.GuestInfisicalUiPort)
+            {
+                targetPort = GetInfisicalUiHostPort(_workspace);
+            }
+            else
+            {
+                return normalized;
+            }
+
+            var rewritten = new UriBuilder(parsed)
+            {
+                Host = "127.0.0.1",
+                Port = targetPort
+            };
+
+            return rewritten.Uri.ToString().TrimEnd('/') + "/";
         }
 
         private void Refresh()
@@ -217,6 +270,47 @@ namespace RauskuClaw.GUI.ViewModels
             return Uri.TryCreate(candidate, UriKind.Absolute, out var parsed)
                 ? parsed.ToString().TrimEnd('/') + "/"
                 : null;
+        }
+
+        private static bool HasExplicitPort(string? rawValue)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                return false;
+            }
+
+            var candidate = rawValue.Trim();
+            if (!candidate.Contains("://", StringComparison.Ordinal))
+            {
+                candidate = $"http://{candidate}";
+            }
+
+            if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed))
+            {
+                return false;
+            }
+
+            var authority = parsed.Authority;
+            if (authority.StartsWith("[", StringComparison.Ordinal))
+            {
+                return authority.Contains("]:", StringComparison.Ordinal);
+            }
+
+            var firstColon = authority.IndexOf(':');
+            var lastColon = authority.LastIndexOf(':');
+            return firstColon >= 0 && firstColon == lastColon;
+        }
+
+        private static int GetHolviProxyHostPort(Workspace workspace)
+        {
+            var apiPort = workspace.Ports?.Api ?? 3011;
+            return apiPort + VmProfile.HostHolviProxyOffsetFromApi;
+        }
+
+        private static int GetInfisicalUiHostPort(Workspace workspace)
+        {
+            var apiPort = workspace.Ports?.Api ?? 3011;
+            return apiPort + VmProfile.HostInfisicalUiOffsetFromApi;
         }
 
         private static bool IsHttpNonLocal(string url)

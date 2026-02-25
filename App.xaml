@@ -415,7 +415,9 @@
                                     Background="{TemplateBinding Background}">
                                 <ContentPresenter x:Name="PART_SelectedContentHost"
                                                   Margin="0"
-                                                  ContentSource="SelectedContent"/>
+                                                  ContentSource="SelectedContent"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                             </Border>
                         </Grid>
                     </ControlTemplate>

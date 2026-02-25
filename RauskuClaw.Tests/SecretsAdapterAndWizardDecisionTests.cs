@@ -96,10 +96,10 @@ public sealed class SecretsAdapterAndWizardDecisionTests
     }
 
     [Theory]
-    [InlineData(ProvisioningSecretStatus.MissingCredentials, "configure secret-manager credentials")]
-    [InlineData(ProvisioningSecretStatus.MissingSecret, "create missing API_KEY/API_TOKEN")]
-    [InlineData(ProvisioningSecretStatus.ExpiredSecret, "rotate expired secret-manager credentials")]
-    [InlineData(ProvisioningSecretStatus.AccessDenied, "grant read permission")]
+    [InlineData(ProvisioningSecretStatus.MissingCredentials, "generated local API credentials applied")]
+    [InlineData(ProvisioningSecretStatus.MissingSecret, "generated local API credentials applied")]
+    [InlineData(ProvisioningSecretStatus.ExpiredSecret, "generated local API credentials applied")]
+    [InlineData(ProvisioningSecretStatus.AccessDenied, "generated local API credentials applied")]
     public void WizardSecretsStageMessage_IncludesActionForFailureModes(ProvisioningSecretStatus status, string expectedHint)
     {
         var message = WizardViewModel.BuildSecretsStageMessage(new ProvisioningSecretsResult
@@ -142,7 +142,53 @@ public sealed class SecretsAdapterAndWizardDecisionTests
     }
 
     [Fact]
-    public async Task WizardStart_MissingCredentials_DoesNotCreateSeedOrStartVm()
+    public void CloudInit_GeneratesApiKey_WhenMissing()
+    {
+        var builder = new ProvisioningScriptBuilder();
+        var script = builder.BuildUserData(new ProvisioningScriptRequest
+        {
+            Username = "tester",
+            Hostname = "rausku-test",
+            SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey",
+            RepoUrl = "https://example.invalid/repo.git",
+            RepoBranch = "main",
+            RepoTargetDir = "/opt/rauskuclaw",
+            BuildWebUi = false,
+            WebUiBuildCommand = "npm ci && npm run build",
+            DeployWebUiStatic = false,
+            WebUiBuildOutputDir = "dist",
+            ProvisioningSecrets = new Dictionary<string, string>()
+        });
+
+        Assert.Contains("ensure_api_tokens_for_dir", script, StringComparison.Ordinal);
+        Assert.Contains("openssl rand -hex 32", script, StringComparison.Ordinal);
+        Assert.Contains("set_env_var \"$env_file\" \"API_KEY\" \"$api_key\"", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CloudInit_SetsApiToken_FromApiKey_WhenMissing()
+    {
+        var builder = new ProvisioningScriptBuilder();
+        var script = builder.BuildUserData(new ProvisioningScriptRequest
+        {
+            Username = "tester",
+            Hostname = "rausku-test",
+            SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey",
+            RepoUrl = "https://example.invalid/repo.git",
+            RepoBranch = "main",
+            RepoTargetDir = "/opt/rauskuclaw",
+            BuildWebUi = false,
+            WebUiBuildCommand = "npm ci && npm run build",
+            DeployWebUiStatic = false,
+            WebUiBuildOutputDir = "dist",
+            ProvisioningSecrets = new Dictionary<string, string>()
+        });
+
+        Assert.Contains("set_env_var \"$env_file\" \"API_TOKEN\" \"$api_key\"", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WizardStart_MissingCredentials_ContinuesToSeedAndStartVm()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "rausku-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -176,18 +222,16 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             Assert.NotNull(task);
             await task!;
 
-            Assert.False(startHandlerCalled);
-            Assert.False(File.Exists(seedIsoPath));
-            Assert.Equal(WizardStartupState.NeedsSecretsConfiguration, model.StartupState);
-            Assert.Contains("Provisioning paused", model.Status, StringComparison.OrdinalIgnoreCase);
+            Assert.True(startHandlerCalled);
+            Assert.True(File.Exists(model.CreatedWorkspace!.SeedIsoPath));
+            Assert.Equal(WizardStartupState.Started, model.StartupState);
+            Assert.True(model.StartSucceeded);
 
             var envStage = model.SetupStages.First(s => string.Equals(s.Key, "env", StringComparison.OrdinalIgnoreCase));
             var seedStage = model.SetupStages.First(s => string.Equals(s.Key, "seed", StringComparison.OrdinalIgnoreCase));
-            var qemuStage = model.SetupStages.First(s => string.Equals(s.Key, "qemu", StringComparison.OrdinalIgnoreCase));
 
             Assert.Equal("Warning", envStage.State);
-            Assert.Equal("Pending", seedStage.State);
-            Assert.Equal("Pending", qemuStage.State);
+            Assert.Equal("OK", seedStage.State);
         }
         finally
         {
@@ -200,7 +244,7 @@ public sealed class SecretsAdapterAndWizardDecisionTests
 
 
     [Fact]
-    public async Task WizardRetryAfterSettings_SucceedsWithoutResettingWorkspace()
+    public async Task WizardRetryAfterSecretsRefresh_SucceedsWithoutResettingWorkspace()
     {
         var service = new SequencedProvisioningSecretsService(
             new ProvisioningSecretsResult
@@ -240,7 +284,7 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         Assert.NotNull(firstRun);
         await firstRun!;
 
-        Assert.Equal(WizardStartupState.NeedsSecretsConfiguration, model.StartupState);
+        Assert.Equal(WizardStartupState.Started, model.StartupState);
         var createdWorkspaceId = model.CreatedWorkspace?.Id;
         Assert.NotNull(createdWorkspaceId);
         Assert.False(string.IsNullOrWhiteSpace(createdWorkspaceId));
@@ -251,19 +295,15 @@ public sealed class SecretsAdapterAndWizardDecisionTests
 
         Assert.Equal(WizardStartupState.Started, model.StartupState);
         Assert.True(model.StartSucceeded);
-        Assert.Equal(1, startHandlerCalls);
+        Assert.Equal(2, startHandlerCalls);
         Assert.Equal(createdWorkspaceId, model.CreatedWorkspace?.Id);
     }
 
     [Fact]
-    public async Task WizardFallbackMode_GeneratesPlaceholderSecrets()
+    public async Task FallbackStatus_IsWarning_NotSuccess()
     {
         var service = new MissingCredentialsProvisioningSecretsService();
-        var model = new WizardViewModel(new ProvisioningScriptBuilder(), service, secretValueGenerator: new StubSecretValueGenerator());
-
-        var enableFallback = typeof(WizardViewModel).GetMethod("EnableLocalTemplateFallback", BindingFlags.NonPublic | BindingFlags.Instance);
-        Assert.NotNull(enableFallback);
-        enableFallback!.Invoke(model, null);
+        var model = new WizardViewModel(new ProvisioningScriptBuilder(), service);
 
         var loadMethod = typeof(WizardViewModel).GetMethod("LoadProvisioningSecretsAsync", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(loadMethod);
@@ -272,11 +312,9 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         Assert.NotNull(task);
         var result = await task!;
 
-        Assert.Equal(ProvisioningSecretStatus.Success, result.Status);
-        Assert.True(result.Secrets?.ContainsKey("API_KEY"));
-        Assert.True(result.Secrets?.ContainsKey("API_TOKEN"));
-        Assert.Equal(64, result.Secrets!["API_KEY"].Length);
-        Assert.Equal(64, result.Secrets!["API_TOKEN"].Length);
+        Assert.Equal(ProvisioningSecretStatus.MissingCredentials, result.Status);
+        var envStage = model.SetupStages.First(s => string.Equals(s.Key, "env", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Warning", envStage.State);
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler
@@ -291,14 +329,6 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return _handler(request, cancellationToken);
-        }
-    }
-
-    private sealed class StubSecretValueGenerator : ISecretValueGenerator
-    {
-        public string GenerateHex(int bytes = 32)
-        {
-            return new string('a', Math.Max(16, bytes) * 2);
         }
     }
 

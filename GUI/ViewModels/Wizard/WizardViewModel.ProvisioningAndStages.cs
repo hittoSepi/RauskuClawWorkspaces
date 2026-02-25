@@ -41,26 +41,21 @@ namespace RauskuClaw.GUI.ViewModels
             var requestedKeys = new[] { "API_KEY", "API_TOKEN" };
             var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, cancellationToken);
 
-            if (result.Status == ProvisioningSecretStatus.MissingCredentials && _allowLocalTemplateFallback)
+            if (result.Status == ProvisioningSecretStatus.MissingCredentials)
             {
-                var placeholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["API_KEY"] = _secretValueGenerator.GenerateHex(),
-                    ["API_TOKEN"] = _secretValueGenerator.GenerateHex()
-                };
-
                 result = new ProvisioningSecretsResult
                 {
                     Source = ProvisioningSecretSource.LocalTemplate,
-                    Status = ProvisioningSecretStatus.Success,
-                    Message = "Using generated local placeholder secrets.",
-                    ActionHint = "Secrets generated locally for this startup attempt.",
-                    Secrets = placeholders
+                    Status = ProvisioningSecretStatus.MissingCredentials,
+                    Message = "Secret manager not configured; generated local API credentials will be applied in cloud-init.",
+                    ActionHint = "Startup continues with local API credential generation. Configure HOLVI/Infisical later when workspace is ready.",
+                    Secrets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 };
-                AppendRunLog("Fallback mode: generated local placeholder secrets for API_KEY/API_TOKEN.");
+                AppendRunLog("Warning: secret manager credentials missing; cloud-init will generate local API_KEY/API_TOKEN for startup.");
             }
 
-            UpdateStage("env", result.Status == ProvisioningSecretStatus.MissingCredentials ? "warning" : "success", BuildSecretsStageMessage(result));
+            var stageState = result.Status == ProvisioningSecretStatus.Success ? "success" : "warning";
+            UpdateStage("env", stageState, BuildSecretsStageMessage(result));
             if (!string.IsNullOrWhiteSpace(result.ActionHint))
             {
                 AppendRunLog($"Action: {result.ActionHint}");
@@ -76,11 +71,11 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 ProvisioningSecretStatus.Success => $"Secrets source={source} status=success.",
                 ProvisioningSecretStatus.PartialSecretSet => $"Secrets source={source} status=partial-set, missing keys fallback to local template.",
-                ProvisioningSecretStatus.MissingCredentials => "Secrets source=LocalTemplate status=missing-credentials. Action: configure secret-manager credentials in Settings > Secrets.",
-                ProvisioningSecretStatus.MissingSecret => "Secrets source=LocalTemplate status=missing-secret. Action: create missing API_KEY/API_TOKEN in secret manager.",
-                ProvisioningSecretStatus.ExpiredSecret => "Secrets source=LocalTemplate status=expired-secret. Action: rotate expired secret-manager credentials and retry.",
-                ProvisioningSecretStatus.AccessDenied => "Secrets source=LocalTemplate status=access-denied. Action: grant read permission for required keys.",
-                ProvisioningSecretStatus.TimeoutOrAuthFailure => "Secrets source=LocalTemplate status=timeout-or-auth-failure. Action: verify endpoint/connectivity and credentials.",
+                ProvisioningSecretStatus.MissingCredentials => "Secrets source=LocalTemplate status=auto-fallback. Secret manager not configured, generated local API credentials applied.",
+                ProvisioningSecretStatus.MissingSecret => "Secrets source=LocalTemplate status=missing-secret. Generated local API credentials applied for startup.",
+                ProvisioningSecretStatus.ExpiredSecret => "Secrets source=LocalTemplate status=expired-secret. Generated local API credentials applied for startup.",
+                ProvisioningSecretStatus.AccessDenied => "Secrets source=LocalTemplate status=access-denied. Generated local API credentials applied for startup.",
+                ProvisioningSecretStatus.TimeoutOrAuthFailure => "Secrets source=LocalTemplate status=timeout-or-auth-failure. Generated local API credentials applied for startup.",
                 _ => "Secrets source=LocalTemplate status=fallback."
             };
         }
@@ -166,16 +161,6 @@ namespace RauskuClaw.GUI.ViewModels
 
             Status = message;
             AppendRunLog(message);
-        }
-
-        private void HandleMissingSecretsConfiguration()
-        {
-            var message = "Provisioning paused: secret-manager credentials are missing. Configure secrets in Settings > Secrets and retry startup.";
-            UpdateStage("env", "failed", message);
-            UpdateStage("env", "warning", message);
-            UpdateStage("done", "warning", "Waiting for secrets configuration before continuing startup.");
-            Status = message;
-            AppendRunLog("Provisioning paused until required secrets configuration is completed.");
         }
 
         private SetupStageItem? FindStage(string key)

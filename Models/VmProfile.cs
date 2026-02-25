@@ -6,6 +6,11 @@ namespace RauskuClaw.Models
 {
     public sealed class VmProfile
     {
+        public const int GuestHolviProxyPort = 8099;
+        public const int GuestInfisicalUiPort = 8088;
+        public const int HostHolviProxyOffsetFromApi = 5088;
+        public const int HostInfisicalUiOffsetFromApi = 5077;
+
         public string QemuExe { get; init; } = "qemu-system-x86_64.exe";
         public string DiskPath { get; init; } = "arch.qcow2";
         public string SeedIsoPath { get; init; } = "seed.iso";
@@ -22,6 +27,9 @@ namespace RauskuClaw.Models
         public int HostApiPort { get; init; } = 3011;
         public int HostUiV2Port { get; init; } = 3013;
         public int HostUiV1Port { get; init; } = 3012;
+
+        public int HostHolviProxyPort => HostApiPort + HostHolviProxyOffsetFromApi;
+        public int HostInfisicalUiPort => HostApiPort + HostInfisicalUiOffsetFromApi;
     }
 
 
