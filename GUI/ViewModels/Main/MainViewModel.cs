@@ -114,6 +114,17 @@ namespace RauskuClaw.GUI.ViewModels
             ShowWorkspaceViewsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.WorkspaceTabs);
             ShowTemplatesCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.TemplateManagement);
             ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
+
+            // Initialize child view models for non-null navigation targets.
+            Settings = new SettingsViewModel(_settingsService, _pathResolver);
+            WebUi = new WebUiViewModel();
+            SerialConsole = new SerialConsoleViewModel();
+            DockerContainers = new DockerContainersViewModel();
+            SshTerminal = new SshTerminalViewModel();
+            SftpFiles = new SftpFilesViewModel();
+            Holvi = new HolviViewModel(Settings);
+            TemplateManagement = new TemplateManagementViewModel();
+            WorkspaceSettings = new WorkspaceSettingsViewModel(_settingsService, _pathResolver);
         }
 
         public ObservableCollection<Workspace> Workspaces => _workspaces;
