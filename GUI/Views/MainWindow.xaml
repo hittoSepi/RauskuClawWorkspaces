@@ -170,18 +170,55 @@
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,16">
                     <TextBlock Text="General" FontSize="12" Foreground="#9AA3B2" Margin="4,0,0,8"/>
                     <Button Command="{Binding ShowWorkspaceViewsCommand}"
-                            Style="{StaticResource SecondaryIconButton}"
                             Tag="Desktop"
                             Content="Workspace Views"
                             Padding="10,8"
                             ToolTip="Open workspace tabs"
-                            Margin="0,0,0,6"/>
+                            Margin="0,0,0,6">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWorkspaceViewsSection}" Value="True">
+                                        <Setter Property="Background" Value="#2A3240"/>
+                                        <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Command="{Binding ShowTemplatesCommand}"
+                            Tag="Clone"
+                            Content="Templates"
+                            Padding="10,8"
+                            ToolTip="Open template management"
+                            Margin="0,0,0,6">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTemplateSection}" Value="True">
+                                        <Setter Property="Background" Value="#2A3240"/>
+                                        <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Command="{Binding ShowGeneralSettingsCommand}"
-                            Style="{StaticResource SecondaryIconButton}"
                             Tag="Cog"
                             Content="General Settings"
                             Padding="10,8"
-                            ToolTip="Open app settings"/>
+                            ToolTip="Open app settings">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSettingsSection}" Value="True">
+                                        <Setter Property="Background" Value="#2A3240"/>
+                                        <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -490,6 +527,24 @@
                 <ContentControl.ContentTemplate>
                     <DataTemplate>
                         <views:Settings/>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+
+            <ContentControl Content="{Binding TemplateManagement}">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsTemplateSection}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+                <ContentControl.ContentTemplate>
+                    <DataTemplate>
+                        <views:TemplateManagement/>
                     </DataTemplate>
                 </ContentControl.ContentTemplate>
             </ContentControl>

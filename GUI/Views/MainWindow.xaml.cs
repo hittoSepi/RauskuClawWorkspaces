@@ -20,19 +20,6 @@ namespace RauskuClaw.GUI.Views
             _mainViewModel = new MainViewModel(settingsService, pathResolver);
             DataContext = _mainViewModel;
 
-            // Initialize child ViewModels
-            if (_mainViewModel is MainViewModel vm)
-            {
-                vm.Settings = new SettingsViewModel(settingsService, pathResolver);
-                vm.WebUi = new WebUiViewModel();
-                vm.SerialConsole = new SerialConsoleViewModel();
-                vm.DockerContainers = new DockerContainersViewModel();
-                vm.SshTerminal = new SshTerminalViewModel();
-                vm.SftpFiles = new SftpFilesViewModel();
-                vm.Holvi = new HolviViewModel(vm.Settings);
-                vm.TemplateManagement = new TemplateManagementViewModel();
-                vm.WorkspaceSettings = new WorkspaceSettingsViewModel(settingsService, pathResolver);
-            }
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
