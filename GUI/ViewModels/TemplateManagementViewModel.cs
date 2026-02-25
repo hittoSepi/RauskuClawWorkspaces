@@ -25,8 +25,8 @@ namespace RauskuClaw.GUI.ViewModels
         {
             _templateService = templateService ?? new WorkspaceTemplateService();
             NewTemplateCommand = new RelayCommand(CreateNewTemplate);
-            SaveTemplateCommand = new RelayCommand(SaveSelectedTemplate, () => SelectedTemplate != null);
-            DeleteTemplateCommand = new RelayCommand(DeleteSelectedTemplate, () => SelectedTemplate != null && !SelectedTemplate.IsDefault);
+            SaveTemplateCommand = new RelayCommand(SaveSelectedTemplate, () => SelectedTemplate != null && IsCustomSelected);
+            DeleteTemplateCommand = new RelayCommand(DeleteSelectedTemplate, () => SelectedTemplate != null && IsCustomSelected);
             ImportTemplateCommand = new RelayCommand(ImportTemplate);
             ExportTemplateCommand = new RelayCommand(ExportTemplate, () => SelectedTemplate != null);
             RefreshCommand = new RelayCommand(LoadTemplates);
@@ -52,6 +52,7 @@ namespace RauskuClaw.GUI.ViewModels
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ServicesCsv));
                 OnPropertyChanged(nameof(PortsCsv));
+                OnPropertyChanged(nameof(IsCustomSelected));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -79,6 +80,8 @@ namespace RauskuClaw.GUI.ViewModels
                 ApplyFilters();
             }
         }
+
+        public bool IsCustomSelected => SelectedTemplate != null && string.Equals(SelectedTemplate.Source, TemplateSources.Custom, StringComparison.OrdinalIgnoreCase);
 
         public string StatusMessage
         {
@@ -164,6 +167,7 @@ namespace RauskuClaw.GUI.ViewModels
                 MemoryMb = 2048,
                 Username = "rausku",
                 Hostname = "rausku-custom",
+                Source = TemplateSources.Custom,
                 PortMappings = new()
                 {
                     new() { Name = "SSH", Port = 2222, Description = "SSH access" },
@@ -194,9 +198,9 @@ namespace RauskuClaw.GUI.ViewModels
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                SelectedTemplate.PortMappings = ParsePortMappings(PortsCsv);
+                SelectedTemplate.PortMappings = _templateService.ParsePortMappings(PortsCsv);
 
-                _templateService.SaveTemplate(SelectedTemplate);
+                _templateService.UpdateCustomTemplate(SelectedTemplate);
                 LoadTemplates();
                 SelectedTemplate = Templates.FirstOrDefault(t => t.Id == SelectedTemplate.Id);
                 StatusMessage = $"Template '{SelectedTemplate?.Name}' saved.";
@@ -267,21 +271,6 @@ namespace RauskuClaw.GUI.ViewModels
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        private static System.Collections.Generic.List<TemplatePortMapping> ParsePortMappings(string value)
-        {
-            var result = new System.Collections.Generic.List<TemplatePortMapping>();
-            foreach (var token in (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var parts = token.Split(':', StringSplitOptions.TrimEntries);
-                if (parts.Length != 2 || !int.TryParse(parts[1], out var port))
-                    throw new InvalidOperationException($"Invalid port token '{token}'. Use Name:Port format.");
-
-                result.Add(new TemplatePortMapping { Name = parts[0], Port = port, Description = parts[0] });
-            }
-
-            return result;
         }
     }
 }

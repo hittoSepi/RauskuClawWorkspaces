@@ -22,6 +22,7 @@ namespace RauskuClaw.Models
         private List<string> _enabledServices = new();
         private string _icon = "";
         private bool _isDefault = false;
+        private string _source = TemplateSources.BuiltIn;
 
         public string Id
         {
@@ -95,6 +96,12 @@ namespace RauskuClaw.Models
             set { _isDefault = value; OnPropertyChanged(); }
         }
 
+        public string Source
+        {
+            get => _source;
+            set { _source = value; OnPropertyChanged(); }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -155,6 +162,12 @@ namespace RauskuClaw.Models
         public const string FullAI = "Full AI Stack";
         public const string Development = "Development";
         public const string Production = "Production";
+        public const string Custom = "Custom";
+    }
+
+    public static class TemplateSources
+    {
+        public const string BuiltIn = "Built-in";
         public const string Custom = "Custom";
     }
 }

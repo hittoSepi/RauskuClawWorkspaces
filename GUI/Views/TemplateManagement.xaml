@@ -16,8 +16,8 @@
             <TextBox Width="240" Margin="0,0,8,0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Hae nimellä, kategorialla tai palvelulla"/>
             <ComboBox Width="180" Margin="0,0,8,0" ItemsSource="{Binding Categories}" SelectedItem="{Binding CategoryFilter}"/>
             <Button Content="New" Command="{Binding NewTemplateCommand}" Margin="0,0,6,0"/>
-            <Button Content="Save" Command="{Binding SaveTemplateCommand}" Margin="0,0,6,0"/>
-            <Button Content="Delete" Command="{Binding DeleteTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Save custom" Command="{Binding SaveTemplateCommand}" Margin="0,0,6,0"/>
+            <Button Content="Delete custom" Command="{Binding DeleteTemplateCommand}" Margin="0,0,6,0"/>
             <Button Content="Import" Command="{Binding ImportTemplateCommand}" Margin="0,0,6,0"/>
             <Button Content="Export" Command="{Binding ExportTemplateCommand}" Margin="0,0,6,0"/>
             <Button Content="Refresh" Command="{Binding RefreshCommand}"/>
@@ -36,6 +36,7 @@
                         <StackPanel Margin="4">
                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
                             <TextBlock Text="{Binding Category}" FontSize="11"/>
+                            <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#666"/>
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -43,20 +44,21 @@
 
             <StackPanel Grid.Column="2" DataContext="{Binding SelectedTemplate}">
                 <TextBlock Text="Template details" FontWeight="Bold" Margin="0,0,0,8"/>
-                <TextBox Margin="0,0,0,6" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox Margin="0,0,0,6" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox Margin="0,0,0,6" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox Margin="0,0,0,6" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Margin="0,0,0,6" Text="{Binding Source, StringFormat=Source: {0}}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                 <StackPanel Orientation="Horizontal">
-                    <TextBox Width="120" Margin="0,0,8,6" Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBox Width="120" Margin="0,0,0,6" Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Width="120" Margin="0,0,8,6" Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                    <TextBox Width="120" Margin="0,0,0,6" Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                 </StackPanel>
-                <TextBox Margin="0,0,0,6" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox Margin="0,0,0,6" Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                 <TextBlock Text="Ports (Name:Port, comma separated)" FontSize="11"/>
-                <TextBox Margin="0,0,0,6" Text="{Binding DataContext.PortsCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Margin="0,0,0,6" Text="{Binding DataContext.PortsCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                 <TextBlock Text="Enabled services (comma separated)" FontSize="11"/>
-                <TextBox Text="{Binding DataContext.ServicesCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Text="{Binding DataContext.ServicesCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
             </StackPanel>
         </Grid>
 
