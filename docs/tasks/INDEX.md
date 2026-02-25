@@ -17,4 +17,4 @@
 | 013 | Completed | Extended resilience smoke scenarios tracked in 016 | [013-wizard-port-collision-hardening.md](013-wizard-port-collision-hardening.md) |
 | 014 | Completed | None | [014-sftp-ux-and-hostpath.md](014-sftp-ux-and-hostpath.md) |
 | 015 | Completed | Hardening and regression verification tracked in 016 | [015-holvi-webview-tab-proposal.md](015-holvi-webview-tab-proposal.md) |
-| 016 | Partially Completed | Build warning clean baseline pending in dotnet-capable env | [016-hardening-and-regression-baseline.md](016-hardening-and-regression-baseline.md) |
+| 016 | Completed | Hardening regression baseline verified with warning-free build gate | [016-hardening-and-regression-baseline.md](016-hardening-and-regression-baseline.md) |
