@@ -30,7 +30,8 @@ namespace RauskuClaw.GUI.ViewModels
         {
             WorkspaceTabs,
             TemplateManagement,
-            Settings
+            Settings,
+            WorkspaceSettings
         }
 
         private readonly IWorkspaceService _workspaceService;
@@ -60,6 +61,7 @@ namespace RauskuClaw.GUI.ViewModels
         private HolviViewModel? _holviViewModel;
         private SettingsViewModel? _settingsViewModel;
         private TemplateManagementViewModel? _templateManagementViewModel;
+        private WorkspaceSettingsViewModel? _workspaceSettingsViewModel;
         private string _vmLog = "";
         private string _inlineNotice = "";
         private CancellationTokenSource? _inlineNoticeCts;
@@ -141,7 +143,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_sshTerminal != null) _sshTerminal.SetWorkspace(value);
                 if (_sftpFiles != null) _sftpFiles.SetWorkspace(value);
                 if (_holviViewModel != null) _holviViewModel.Workspace = value;
-                if (_settingsViewModel != null) _settingsViewModel.SetSelectedWorkspace(value);
+                if (_workspaceSettingsViewModel != null) _workspaceSettingsViewModel.SetSelectedWorkspace(value);
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -258,7 +260,6 @@ namespace RauskuClaw.GUI.ViewModels
             set
             {
                 _settingsViewModel = value;
-                _settingsViewModel?.SetSelectedWorkspace(SelectedWorkspace);
                 _holviViewModel?.SetSettingsViewModel(_settingsViewModel);
                 OnPropertyChanged();
             }
@@ -270,6 +271,18 @@ namespace RauskuClaw.GUI.ViewModels
             set
             {
                 _templateManagementViewModel = value;
+                OnPropertyChanged();
+            }
+        }
+
+
+        public WorkspaceSettingsViewModel? WorkspaceSettings
+        {
+            get => _workspaceSettingsViewModel;
+            set
+            {
+                _workspaceSettingsViewModel = value;
+                _workspaceSettingsViewModel?.SetSelectedWorkspace(SelectedWorkspace);
                 OnPropertyChanged();
             }
         }
@@ -289,12 +302,14 @@ namespace RauskuClaw.GUI.ViewModels
                 OnPropertyChanged(nameof(IsWorkspaceViewsSection));
                 OnPropertyChanged(nameof(IsTemplateSection));
                 OnPropertyChanged(nameof(IsSettingsSection));
+                OnPropertyChanged(nameof(IsWorkspaceSettingsSection));
             }
         }
 
         public bool IsWorkspaceViewsSection => SelectedMainSection == MainContentSection.WorkspaceTabs;
         public bool IsTemplateSection => SelectedMainSection == MainContentSection.TemplateManagement;
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
+        public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
 
         // Commands
         public ICommand NewWorkspaceCommand { get; }

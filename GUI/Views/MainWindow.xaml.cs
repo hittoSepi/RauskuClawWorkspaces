@@ -31,6 +31,7 @@ namespace RauskuClaw.GUI.Views
                 vm.SftpFiles = new SftpFilesViewModel();
                 vm.Holvi = new HolviViewModel(vm.Settings);
                 vm.TemplateManagement = new TemplateManagementViewModel();
+                vm.WorkspaceSettings = new WorkspaceSettingsViewModel(settingsService, pathResolver);
             }
         }
 
