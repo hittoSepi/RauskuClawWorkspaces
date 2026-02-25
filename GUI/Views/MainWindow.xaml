@@ -224,7 +224,9 @@
         </Border>
 
         <!-- Main Content Area -->
-        <DockPanel DockPanel.Dock="Right">
+        <DockPanel DockPanel.Dock="Right"
+                   HorizontalAlignment="Stretch"
+                   LastChildFill="True">
             <!-- Header: Workspace info + VM controls -->
             <Border DockPanel.Dock="Top"
                     Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -385,6 +387,8 @@
 
             <!-- Tab Control: Views -->
             <TabControl Style="{StaticResource WorkspaceTabControlStyle}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
                         Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
                 <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                     <TabItem.Header>

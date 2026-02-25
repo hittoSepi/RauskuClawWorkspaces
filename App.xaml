@@ -262,10 +262,14 @@
 
                             <Border Grid.Row="0"
                                     BorderBrush="#2A3240"
-                                    BorderThickness="0,0,0,1">
+                                    BorderThickness="0,0,0,1"
+                                    HorizontalAlignment="Stretch"
+                                    Width="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=ActualWidth}">
                                 <UniformGrid Rows="1"
                                              IsItemsHost="True"
-                                             Background="#0F1115"/>
+                                             Background="#0F1115"
+                                             HorizontalAlignment="Stretch"
+                                             Width="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=ActualWidth}"/>
                             </Border>
 
                             <Border Grid.Row="1"
