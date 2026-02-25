@@ -48,21 +48,59 @@
 
             <Border Grid.Column="2" BorderBrush="#2A3240" BorderThickness="1" CornerRadius="4" Padding="12,10">
                 <StackPanel DataContext="{Binding SelectedTemplate}">
+                    <StackPanel.Resources>
+                        <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#9AA3B2"/>
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="Margin" Value="0,0,0,4"/>
+                        </Style>
+                        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#C2CAD8"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Margin" Value="0,12,0,6"/>
+                        </Style>
+                    </StackPanel.Resources>
+
                     <TextBlock Text="Template details" FontWeight="Bold" FontSize="19" Foreground="#E6EAF2" Margin="0,0,0,8"/>
                     <TextBlock Margin="0,0,0,8" Text="{Binding Source, StringFormat=Source: {0}}" Foreground="#9AA3B2" FontSize="12"/>
-                    <TextBox Margin="0,0,0,6" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <TextBox Margin="0,0,0,6" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <TextBox Margin="0,0,0,6" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <TextBox Margin="0,0,0,6" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBox Width="120" Margin="0,0,8,6" Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                        <TextBox Width="120" Margin="0,0,0,6" Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Basic info" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,6"/>
+                    <TextBlock Text="Template ID" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Name" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Category" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Description" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="VM defaults" Style="{StaticResource SectionHeaderStyle}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <StackPanel Width="120" Margin="0,0,8,0">
+                            <TextBlock Text="CPU" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBox Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                        </StackPanel>
+                        <StackPanel Width="120">
+                            <TextBlock Text="Memory" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBox Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                        </StackPanel>
                     </StackPanel>
-                    <TextBox Margin="0,0,0,6" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <TextBox Margin="0,0,0,6" Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <TextBlock Text="Ports (Name:Port, comma separated)" FontSize="12" Foreground="#C2CAD8"/>
-                    <TextBox Margin="0,0,0,6" Text="{Binding DataContext.PortsCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <TextBlock Text="Enabled services (comma separated)" FontSize="12" Foreground="#C2CAD8"/>
+
+                    <TextBlock Text="Username" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Hostname" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding Hostname, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Ports &amp; Services" Style="{StaticResource SectionHeaderStyle}"/>
+                    <TextBlock Text="Ports (Name:Port, comma separated)" Style="{StaticResource FieldLabelStyle}"/>
+                    <TextBox Margin="0,0,0,10" Text="{Binding DataContext.PortsCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+
+                    <TextBlock Text="Enabled services (comma separated)" Style="{StaticResource FieldLabelStyle}"/>
                     <TextBox Text="{Binding DataContext.ServicesCsv, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                 </StackPanel>
             </Border>
