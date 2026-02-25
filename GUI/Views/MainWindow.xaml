@@ -347,7 +347,11 @@
             </Border>
 
             <!-- Tab Control: Views -->
-            <TabControl Background="#0F1115" BorderThickness="0" Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TabControl Background="#0F1115"
+                        BorderThickness="0"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
                 <TabItem Padding="16,8">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
