@@ -92,6 +92,36 @@
             <Setter Property="Padding" Value="10,6" />
         </Style>
 
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#0A0C0E"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="BorderBrush" Value="#2A3240"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource {x:Type ComboBoxItem}}"/>
+            <Style.Resources>
+                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#0A0C0E"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#E6EAF2"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#23455F"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#E6EAF2"/>
+            </Style.Resources>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#0A0C0E"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#23455F"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#23455F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="Header" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Text}" />
             <Setter Property="FontSize" Value="20"/>
