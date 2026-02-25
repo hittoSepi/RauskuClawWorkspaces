@@ -122,6 +122,92 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="TemplatePanelFocusVisual" TargetType="Control">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Control">
+                        <Border BorderBrush="#4DA3FF" BorderThickness="2" CornerRadius="2" Margin="1"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TemplatePanelComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Background" Value="#0A0C0E"/>
+            <Setter Property="Foreground" Value="#E6EAF2"/>
+            <Setter Property="BorderBrush" Value="#2A3240"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource TemplatePanelFocusVisual}"/>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#3A475A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TemplatePanelListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E6EAF2"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource TemplatePanelFocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#1C232F"/>
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#2A3240"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#23455F"/>
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#4DA3FF"/>
+                                <Setter Property="Foreground" Value="#E6EAF2"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                    <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#1F3347"/>
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#3A475A"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#4DA3FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TemplatePanelListBoxStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="#151A22"/>
+            <Setter Property="Foreground" Value="#E6EAF2"/>
+            <Setter Property="BorderBrush" Value="#2A3240"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource TemplatePanelFocusVisual}"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource TemplatePanelListBoxItemStyle}"/>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="Header" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Text}" />
             <Setter Property="FontSize" Value="20"/>

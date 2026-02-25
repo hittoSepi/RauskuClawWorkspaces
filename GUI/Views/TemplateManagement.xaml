@@ -14,7 +14,9 @@
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
             <TextBox Width="240" Margin="0,0,8,0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Hae nimellä, kategorialla tai palvelulla"/>
-            <ComboBox Width="180" Margin="0,0,8,0" ItemsSource="{Binding Categories}" SelectedItem="{Binding CategoryFilter}"/>
+            <ComboBox x:Name="CategoryFilter" Width="180" Margin="0,0,8,0"
+                      Style="{StaticResource TemplatePanelComboBoxStyle}"
+                      ItemsSource="{Binding Categories}" SelectedItem="{Binding CategoryFilter}"/>
             <Button Content="New" Command="{Binding NewTemplateCommand}" Margin="0,0,6,0"/>
             <Button Content="Save custom" Command="{Binding SaveTemplateCommand}" Margin="0,0,6,0"/>
             <Button Content="Delete custom" Command="{Binding DeleteTemplateCommand}" Margin="0,0,6,0"/>
@@ -30,13 +32,15 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <ListBox Grid.Column="0" ItemsSource="{Binding FilteredTemplates}" SelectedItem="{Binding SelectedTemplate}">
+            <ListBox x:Name="FilteredTemplates" Grid.Column="0"
+                     Style="{StaticResource TemplatePanelListBoxStyle}"
+                     ItemsSource="{Binding FilteredTemplates}" SelectedItem="{Binding SelectedTemplate}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Margin="4">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{Binding Category}" FontSize="11"/>
-                            <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#666"/>
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#E6EAF2"/>
+                            <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#CFD7E6"/>
+                            <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#A9B4C8"/>
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
