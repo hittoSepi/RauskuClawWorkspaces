@@ -74,6 +74,7 @@ namespace RauskuClaw.GUI.ViewModels
         private WorkspaceTemplateOptionViewModel? _selectedTemplate;
         private bool _isCustomTemplate = true;
         private int _reviewBackStep = 2;
+        private WizardStartupState _startupState = WizardStartupState.Idle;
 
         public WizardViewModel(Settings? settings = null, PortAllocation? suggestedPorts = null)
             : this(new ProvisioningScriptBuilder(), new ProvisioningSecretsService(), settings, suggestedPorts)
@@ -577,6 +578,17 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 if (_startAfterCreateRequested == value) return;
                 _startAfterCreateRequested = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public WizardStartupState StartupState
+        {
+            get => _startupState;
+            private set
+            {
+                if (_startupState == value) return;
+                _startupState = value;
                 OnPropertyChanged();
             }
         }
@@ -1091,6 +1103,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             StartAfterCreateRequested = true;
             StartSucceeded = false;
+            StartupState = WizardStartupState.Starting;
             StepIndex = 4;
             RunLog = string.Empty;
             FailureReason = string.Empty;
@@ -1107,6 +1120,14 @@ namespace RauskuClaw.GUI.ViewModels
                 });
 
                 var provisioningSecrets = await LoadProvisioningSecretsAsync(progress, _startCts.Token);
+                if (provisioningSecrets.Status == ProvisioningSecretStatus.MissingCredentials)
+                {
+                    StartAfterCreateRequested = false;
+                    StartSucceeded = false;
+                    StartupState = WizardStartupState.NeedsSecretsConfiguration;
+                    HandleMissingSecretsConfiguration();
+                    return;
+                }
 
                 UpdateStage("seed", "in_progress", "Creating cloud-init seed ISO...");
                 _seedIsoService.CreateSeedIso(CreatedWorkspace.SeedIsoPath, BuildUserData(provisioningSecrets), BuildMetaData());
@@ -1122,6 +1143,7 @@ namespace RauskuClaw.GUI.ViewModels
                 if (result.Success)
                 {
                     StartSucceeded = true;
+                    StartupState = WizardStartupState.Started;
                     FailureReason = string.Empty;
                     UpdateStage("done", "success", string.IsNullOrWhiteSpace(result.Message) ? "Workspace ready." : result.Message);
                     AppendRunLog("Startup complete. You can now close the wizard.");
@@ -1132,6 +1154,7 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     StartAfterCreateRequested = false;
                     StartSucceeded = false;
+                    StartupState = WizardStartupState.Failed;
                     UpdateStage("done", "failed", $"Start failed: {result.Message}");
                 }
             }
@@ -1139,12 +1162,14 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 StartAfterCreateRequested = false;
                 StartSucceeded = false;
+                StartupState = WizardStartupState.Cancelled;
                 UpdateStage("done", "failed", "Start cancelled by user.");
             }
             catch (Exception ex)
             {
                 StartAfterCreateRequested = false;
                 StartSucceeded = false;
+                StartupState = WizardStartupState.Failed;
                 UpdateStage("done", "failed", "Start failed: " + ex.Message);
             }
             finally
@@ -1645,6 +1670,16 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public enum WizardStartupState
+    {
+        Idle,
+        Starting,
+        NeedsSecretsConfiguration,
+        Started,
+        Failed,
+        Cancelled
     }
 
     public sealed class WorkspaceTemplateOptionViewModel : INotifyPropertyChanged

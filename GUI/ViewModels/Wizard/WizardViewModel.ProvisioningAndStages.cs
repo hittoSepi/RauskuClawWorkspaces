@@ -40,7 +40,7 @@ namespace RauskuClaw.GUI.ViewModels
             UpdateStage("env", "in_progress", "Loading runtime secrets for provisioning...");
             var requestedKeys = new[] { "API_KEY", "API_TOKEN" };
             var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, cancellationToken);
-            UpdateStage("env", "success", BuildSecretsStageMessage(result));
+            UpdateStage("env", result.Status == ProvisioningSecretStatus.MissingCredentials ? "warning" : "success", BuildSecretsStageMessage(result));
             if (!string.IsNullOrWhiteSpace(result.ActionHint))
             {
                 AppendRunLog($"Action: {result.ActionHint}");
@@ -121,6 +121,7 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     "in_progress" => "In progress",
                     "success" => "OK",
+                    "warning" => "Warning",
                     "failed" => "Failed",
                     _ => "Pending"
                 };
@@ -128,6 +129,7 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     "in_progress" => "#D29922",
                     "success" => "#2EA043",
+                    "warning" => "#D29922",
                     "failed" => "#DA3633",
                     _ => "#6A7382"
                 };
@@ -144,6 +146,16 @@ namespace RauskuClaw.GUI.ViewModels
 
             Status = message;
             AppendRunLog(message);
+        }
+
+        private void HandleMissingSecretsConfiguration()
+        {
+            var message = "Provisioning paused: secret-manager credentials are missing. Configure secrets in Settings > Secrets and retry startup.";
+            UpdateStage("env", "failed", message);
+            UpdateStage("env", "warning", message);
+            UpdateStage("done", "warning", "Waiting for secrets configuration before continuing startup.");
+            Status = message;
+            AppendRunLog("Provisioning paused until required secrets configuration is completed.");
         }
 
         private SetupStageItem? FindStage(string key)
