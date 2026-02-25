@@ -82,11 +82,15 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <StackPanel Width="120" Margin="0,0,8,0">
                             <TextBlock Text="CPU" Style="{StaticResource FieldLabelStyle}"/>
-                            <TextBox Text="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <ComboBox ItemsSource="{Binding DataContext.CpuCoreOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      SelectedItem="{Binding CpuCores, UpdateSourceTrigger=PropertyChanged}"
+                                      IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                         </StackPanel>
                         <StackPanel Width="120">
                             <TextBlock Text="Memory" Style="{StaticResource FieldLabelStyle}"/>
-                            <TextBox Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <ComboBox ItemsSource="{Binding DataContext.MemoryOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      SelectedItem="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"
+                                      IsEnabled="{Binding DataContext.IsCustomSelected, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                         </StackPanel>
                     </StackPanel>
 

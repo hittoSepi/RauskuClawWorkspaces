@@ -14,6 +14,9 @@ namespace RauskuClaw.GUI.ViewModels
 {
     public class TemplateManagementViewModel : INotifyPropertyChanged
     {
+        private static readonly int HostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
+        private static readonly int HostMemoryLimitMb = GetHostMemoryLimitMb();
+
         private readonly WorkspaceTemplateService _templateService;
         private WorkspaceTemplate? _selectedTemplate;
         private string _searchText = string.Empty;
@@ -33,12 +36,17 @@ namespace RauskuClaw.GUI.ViewModels
             ExportTemplateCommand = new RelayCommand(ExportTemplate, () => SelectedTemplate != null);
             RefreshCommand = new RelayCommand(LoadTemplates);
 
+            BuildCpuCoreOptions();
+            BuildMemoryOptions();
+
             LoadTemplates();
         }
 
         public ObservableCollection<WorkspaceTemplate> Templates { get; } = new();
         public ObservableCollection<WorkspaceTemplate> FilteredTemplates { get; } = new();
         public ObservableCollection<string> Categories { get; } = new() { "All" };
+        public ObservableCollection<int> CpuCoreOptions { get; } = new();
+        public ObservableCollection<int> MemoryOptions { get; } = new();
 
         public WorkspaceTemplate? SelectedTemplate
         {
@@ -147,6 +155,46 @@ namespace RauskuClaw.GUI.ViewModels
             ApplyFilters();
             StatusMessage = $"Loaded {Templates.Count} templates.";
             ValidationDetails = string.Empty;
+        }
+
+        private static int GetHostMemoryLimitMb()
+        {
+            try
+            {
+                var bytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                if (bytes > 0)
+                {
+                    return Math.Max(512, (int)(bytes / (1024 * 1024)));
+                }
+            }
+            catch
+            {
+                // Fall back below.
+            }
+
+            return 8192;
+        }
+
+        private void BuildCpuCoreOptions()
+        {
+            CpuCoreOptions.Clear();
+            for (var i = 1; i <= HostLogicalCpuCount; i++)
+            {
+                CpuCoreOptions.Add(i);
+            }
+        }
+
+        private void BuildMemoryOptions()
+        {
+            MemoryOptions.Clear();
+            var candidates = new[] { 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152, 65536 };
+            foreach (var option in candidates)
+            {
+                if (option <= HostMemoryLimitMb)
+                {
+                    MemoryOptions.Add(option);
+                }
+            }
         }
 
         private void ApplyFilters()
