@@ -49,6 +49,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Sidebar workspace selection now auto-navigates to `Workspace Views` when a workspace is clicked from the left list.
 - Workspace header resource metrics (CPU/RAM/Disk) were moved to the right side of workspace name/status area to reduce header vertical height.
 - Workspace Views single-VM resource usage card was removed; CPU/RAM/Disk usage is now shown as a compact text line in the workspace header/status area.
 - Docker SSH command execution now captures transport aborts inside the command task and normalizes them to controlled runtime errors, reducing debugger-breaking exceptions during VM stop.

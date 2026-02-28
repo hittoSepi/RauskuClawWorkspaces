@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using RauskuClaw.GUI.ViewModels;
@@ -107,6 +108,24 @@ namespace RauskuClaw.GUI.Views
             WindowState = WindowState == WindowState.Maximized
                 ? WindowState.Normal
                 : WindowState.Maximized;
+        }
+
+        private void WorkspaceList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_mainViewModel == null)
+            {
+                return;
+            }
+
+            if (_mainViewModel.SelectedWorkspace == null)
+            {
+                return;
+            }
+
+            if (_mainViewModel.SelectedMainSection != MainViewModel.MainContentSection.WorkspaceTabs)
+            {
+                _mainViewModel.SelectedMainSection = MainViewModel.MainContentSection.WorkspaceTabs;
+            }
         }
     }
 }

@@ -191,6 +191,7 @@
                 <!-- Workspace List -->
                 <ListBox x:Name="WorkspaceList" ItemsSource="{Binding Workspaces}"
                          SelectedItem="{Binding SelectedWorkspace}"
+                         SelectionChanged="WorkspaceList_OnSelectionChanged"
                          Background="Transparent"
                          BorderThickness="0"
                          Padding="8"

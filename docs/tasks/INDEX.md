@@ -1,4 +1,4 @@
-# Task Index (001-039)
+# Task Index (001-040)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -41,3 +41,4 @@
 | 037 | Completed | Docker SSH command transport abort handling normalized during stop transitions | [037-docker-ssh-command-transport-hardening.md](037-docker-ssh-command-transport-hardening.md) |
 | 038 | Completed | Workspace single resource usage moved to header text line; duplicate panel removed | [038-workspace-resource-usage-header-line.md](038-workspace-resource-usage-header-line.md) |
 | 039 | Completed | Workspace header metrics moved to name/status right side to reduce header height | [039-workspace-header-metrics-right-align.md](039-workspace-header-metrics-right-align.md) |
+| 040 | Completed | Sidebar workspace click now opens Workspace Views automatically | [040-sidebar-workspace-click-opens-views.md](040-sidebar-workspace-click-opens-views.md) |
