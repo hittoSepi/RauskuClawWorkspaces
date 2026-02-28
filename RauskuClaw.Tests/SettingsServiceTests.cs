@@ -58,7 +58,8 @@ public class SettingsServiceTests
             QemuPath = "custom-qemu",
             DefaultHostname = "host",
             HolviApiKeySecretRef = "secret://holvi",
-            InfisicalClientSecretSecretRef = "secret://infisical"
+            InfisicalClientSecretSecretRef = "secret://infisical",
+            ShowStartPageOnStartup = false
         };
 
         var json = JsonSerializer.Serialize(settings);
@@ -68,5 +69,29 @@ public class SettingsServiceTests
         Assert.Equal("custom-qemu", restored!.QemuPath);
         Assert.Equal("secret://holvi", restored.HolviApiKeySecretRef);
         Assert.Equal("secret://infisical", restored.InfisicalClientSecretSecretRef);
+        Assert.False(restored.ShowStartPageOnStartup);
+    }
+
+    [Fact]
+    public void LoadSettings_DefaultsShowStartPageOnStartupToTrue_WhenFieldMissing()
+    {
+        using var temp = new TempDir();
+        var resolver = new AppPathResolver(temp.Path);
+        var filePath = resolver.ResolveSettingsFilePath();
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+        var payload = """
+        {
+          "QemuPath": "qemu-system-x86_64.exe",
+          "DefaultMemoryMb": 4096
+        }
+        """;
+
+        File.WriteAllText(filePath, payload);
+        var service = new SettingsService(new SettingsServiceOptions(), resolver, new SecretStorageService(resolver));
+
+        var settings = service.LoadSettings();
+
+        Assert.True(settings.ShowStartPageOnStartup);
     }
 }

@@ -30,6 +30,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         public enum MainContentSection
         {
+            Home,
             WorkspaceTabs,
             TemplateManagement,
             Settings,
@@ -127,10 +128,15 @@ namespace RauskuClaw.GUI.ViewModels
             StopVmCommand = new RelayCommand(async () => await StopVmAsync(), () => (SelectedWorkspace?.CanStop ?? false) && !_isVmStopping && !_isVmRestarting);
             RestartVmCommand = new RelayCommand(async () => await RestartVmAsync(), () => (SelectedWorkspace?.IsRunning ?? false) && !_isVmStopping && !_isVmRestarting);
             DeleteWorkspaceCommand = new RelayCommand(async () => await DeleteWorkspaceAsync(), () => SelectedWorkspace != null && !_isVmStopping && !_isVmRestarting);
+            ShowHomeCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Home);
             ShowWorkspaceViewsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.WorkspaceTabs);
             ShowTemplatesCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.TemplateManagement);
             ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
             ShowSecretsSettingsCommand = new RelayCommand(NavigateToSecretsSettings);
+            OpenWorkspaceFromHomeCommand = new RelayCommand<Workspace>(OpenWorkspaceFromHome, ws => ws != null);
+            StartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StartWorkspaceFromHome, ws => ws?.CanStart == true && !_isVmStopping && !_isVmRestarting);
+            StopWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StopWorkspaceFromHome, ws => ws?.CanStop == true && !_isVmStopping && !_isVmRestarting);
+            RestartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(RestartWorkspaceFromHome, ws => ws?.IsRunning == true && !_isVmStopping && !_isVmRestarting);
 
             // Initialize child view models for non-null navigation targets.
             Settings = new SettingsViewModel(_settingsService, _pathResolver);
@@ -142,6 +148,10 @@ namespace RauskuClaw.GUI.ViewModels
             Holvi = new HolviViewModel(Settings);
             TemplateManagement = new TemplateManagementViewModel();
             WorkspaceSettings = new WorkspaceSettingsViewModel(_settingsService, _pathResolver, _sshConnectionFactory);
+
+            SelectedMainSection = _appSettings.ShowStartPageOnStartup
+                ? MainContentSection.Home
+                : MainContentSection.WorkspaceTabs;
         }
 
         public ObservableCollection<Workspace> Workspaces => _workspaces;
@@ -289,6 +299,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 _settingsViewModel = value;
                 _holviViewModel?.SetSettingsViewModel(_settingsViewModel);
+                OnPropertyChanged(nameof(DoNotShowStartPageOnStartup));
                 OnPropertyChanged();
             }
         }
@@ -327,6 +338,7 @@ namespace RauskuClaw.GUI.ViewModels
 
                 _selectedMainSection = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsHomeSection));
                 OnPropertyChanged(nameof(IsWorkspaceViewsSection));
                 OnPropertyChanged(nameof(IsTemplateSection));
                 OnPropertyChanged(nameof(IsSettingsSection));
@@ -334,10 +346,41 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        public bool IsHomeSection => SelectedMainSection == MainContentSection.Home;
         public bool IsWorkspaceViewsSection => SelectedMainSection == MainContentSection.WorkspaceTabs;
         public bool IsTemplateSection => SelectedMainSection == MainContentSection.TemplateManagement;
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
         public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
+
+        public IEnumerable<Workspace> RecentWorkspaces => _workspaces
+            .OrderByDescending(w => w.LastRun ?? w.CreatedAt)
+            .Take(5);
+
+        public bool DoNotShowStartPageOnStartup
+        {
+            get
+            {
+                var showStart = _settingsViewModel?.ShowStartPageOnStartup ?? _appSettings.ShowStartPageOnStartup;
+                return !showStart;
+            }
+            set
+            {
+                var showStartPage = !value;
+                if (_appSettings.ShowStartPageOnStartup == showStartPage)
+                {
+                    return;
+                }
+
+                _appSettings.ShowStartPageOnStartup = showStartPage;
+                if (_settingsViewModel != null)
+                {
+                    _settingsViewModel.ShowStartPageOnStartup = showStartPage;
+                }
+
+                _settingsService.SaveSettings(_appSettings);
+                OnPropertyChanged();
+            }
+        }
 
         public int SelectedWorkspaceTabIndex
         {
@@ -375,10 +418,15 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand StopVmCommand { get; }
         public ICommand RestartVmCommand { get; }
         public ICommand DeleteWorkspaceCommand { get; }
+        public ICommand ShowHomeCommand { get; }
         public ICommand ShowWorkspaceViewsCommand { get; }
         public ICommand ShowTemplatesCommand { get; }
         public ICommand ShowGeneralSettingsCommand { get; }
         public ICommand ShowSecretsSettingsCommand { get; }
+        public ICommand OpenWorkspaceFromHomeCommand { get; }
+        public ICommand StartWorkspaceFromHomeCommand { get; }
+        public ICommand StopWorkspaceFromHomeCommand { get; }
+        public ICommand RestartWorkspaceFromHomeCommand { get; }
 
 
         private void NavigateToSecretsSettings()
@@ -393,6 +441,50 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Delay(300);
                 Application.Current?.Dispatcher.Invoke(() => FocusSecretsSection = false);
             });
+        }
+
+        private void OpenWorkspaceFromHome(Workspace? workspace)
+        {
+            if (workspace == null)
+            {
+                return;
+            }
+
+            SelectedWorkspace = workspace;
+            SelectedMainSection = MainContentSection.WorkspaceTabs;
+        }
+
+        private void StartWorkspaceFromHome(Workspace? workspace)
+        {
+            if (workspace == null)
+            {
+                return;
+            }
+
+            SelectedWorkspace = workspace;
+            _ = StartVmAsync();
+        }
+
+        private void StopWorkspaceFromHome(Workspace? workspace)
+        {
+            if (workspace == null)
+            {
+                return;
+            }
+
+            SelectedWorkspace = workspace;
+            _ = StopVmAsync();
+        }
+
+        private void RestartWorkspaceFromHome(Workspace? workspace)
+        {
+            if (workspace == null)
+            {
+                return;
+            }
+
+            SelectedWorkspace = workspace;
+            _ = RestartVmAsync();
         }
 
         private async void ShowNewWorkspaceDialog()
@@ -464,6 +556,7 @@ namespace RauskuClaw.GUI.ViewModels
                 }
                 _workspaces.Add(workspace);
                 SelectedWorkspace = workspace;
+                OnPropertyChanged(nameof(RecentWorkspaces));
 
                 _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
             }
@@ -888,6 +981,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 SelectedWorkspace = _workspaces.FirstOrDefault();
             }
+            OnPropertyChanged(nameof(RecentWorkspaces));
 
             _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
 
@@ -1042,6 +1136,7 @@ namespace RauskuClaw.GUI.ViewModels
                 _vmProcessRegistry.RegisterWorkspaceProcess(workspace.Id, workspace.Name, process);
                 workspace.IsRunning = true;
                 workspace.LastRun = DateTime.Now;
+                OnPropertyChanged(nameof(RecentWorkspaces));
 
                 ReportStage(progress, "qemu", "success", $"QEMU started with PID {process.Id}");
 

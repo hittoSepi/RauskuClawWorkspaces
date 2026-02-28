@@ -246,6 +246,12 @@ namespace RauskuClaw.GUI.ViewModels
             set { _settings.CheckUpdates = value; OnPropertyChanged(); }
         }
 
+        public bool ShowStartPageOnStartup
+        {
+            get => _settings.ShowStartPageOnStartup;
+            set { _settings.ShowStartPageOnStartup = value; OnPropertyChanged(); }
+        }
+
         // Secret Manager Settings
         public string? HolviApiKey
         {
@@ -339,6 +345,7 @@ namespace RauskuClaw.GUI.ViewModels
             OnPropertyChanged(nameof(AutoStartVMs));
             OnPropertyChanged(nameof(MinimizeToTray));
             OnPropertyChanged(nameof(CheckUpdates));
+            OnPropertyChanged(nameof(ShowStartPageOnStartup));
             OnPropertyChanged(nameof(HolviApiKey));
             OnPropertyChanged(nameof(HolviProjectId));
             OnPropertyChanged(nameof(InfisicalClientId));

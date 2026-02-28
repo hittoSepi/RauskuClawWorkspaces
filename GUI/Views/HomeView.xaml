@@ -1,0 +1,164 @@
+<UserControl x:Class="RauskuClaw.GUI.Views.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="700"
+             d:DesignWidth="1100"
+             Background="#0F1115">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Welcome to RauskuClaw"
+                       FontSize="28"
+                       FontWeight="Bold"
+                       Foreground="#E6EAF2"/>
+            <TextBlock Text="Quickly open and manage your latest workspaces."
+                       FontSize="13"
+                       Foreground="#9AA3B2"
+                       Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    Margin="0,0,0,12">
+            <Button Command="{Binding NewWorkspaceCommand}"
+                    Style="{StaticResource GreenIconButton}"
+                    Tag="Plus"
+                    Content="New Workspace"
+                    Padding="12,8"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding RecentWorkspaces}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel IsItemsHost="True"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="320"
+                                Margin="0,0,12,12"
+                                Padding="12"
+                                Background="#151A22"
+                                BorderBrush="#2A3240"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0"
+                                            Content="{Binding Name}"
+                                            HorizontalAlignment="Left"
+                                            Background="Transparent"
+                                            Foreground="#4DA3FF"
+                                            BorderThickness="0"
+                                            Padding="0"
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Cursor="Hand"
+                                            ToolTip="Open workspace views"
+                                            Command="{Binding DataContext.OpenWorkspaceFromHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+
+                                    <Border Grid.Column="1"
+                                            Background="#0F1115"
+                                            BorderBrush="#2A3240"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="8,2"
+                                            Margin="8,0,0,0">
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   Foreground="{Binding StatusColor}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </Grid>
+
+                                <StackPanel Grid.Row="1" Margin="0,10,0,12">
+                                    <TextBlock Text="{Binding Description}"
+                                               Foreground="#9AA3B2"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxHeight="34"/>
+                                    <TextBlock Text="{Binding DockerStatus, StringFormat=Docker: {0}}"
+                                               Foreground="#9AA3B2"
+                                               FontSize="11"
+                                               Margin="0,8,0,0"/>
+                                    <TextBlock Foreground="#6A7382"
+                                               FontSize="11"
+                                               Margin="0,6,0,0">
+                                        <Run Text="CPU "/>
+                                        <Run Text="{Binding CpuCores}"/>
+                                        <Run Text=" | RAM "/>
+                                        <Run Text="{Binding MemoryMb}"/>
+                                        <Run Text=" MB"/>
+                                    </TextBlock>
+                                </StackPanel>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0"
+                                            Content="Start"
+                                            Style="{StaticResource GreenIconButton}"
+                                            Tag="Play"
+                                            Margin="0,0,6,0"
+                                            Padding="10,6"
+                                            Command="{Binding DataContext.StartWorkspaceFromHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+
+                                    <Button Grid.Column="1"
+                                            Content="Stop"
+                                            Style="{StaticResource RedIconButton}"
+                                            Tag="Stop"
+                                            Margin="0,0,6,0"
+                                            Padding="10,6"
+                                            Command="{Binding DataContext.StopWorkspaceFromHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+
+                                    <Button Grid.Column="2"
+                                            Content="Restart"
+                                            Style="{StaticResource SecondaryIconButton}"
+                                            Tag="Refresh"
+                                            Padding="10,6"
+                                            Command="{Binding DataContext.RestartWorkspaceFromHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <CheckBox Grid.Row="3"
+                  Content="Don't show on startup"
+                  IsChecked="{Binding DoNotShowStartPageOnStartup}"
+                  Foreground="#E6EAF2"
+                  Margin="0,8,0,0"/>
+    </Grid>
+</UserControl>

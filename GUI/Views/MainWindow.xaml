@@ -118,6 +118,23 @@
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,16">
                     <TextBlock Text="General" FontSize="12" Foreground="#9AA3B2" Margin="4,0,0,8"/>
+                    <Button Command="{Binding ShowHomeCommand}"
+                            Tag="House"
+                            Content="Home"
+                            Padding="10,8"
+                            ToolTip="Open start page"
+                            Margin="0,0,0,6">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsHomeSection}" Value="True">
+                                        <Setter Property="Background" Value="#2A3240"/>
+                                        <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Command="{Binding ShowWorkspaceViewsCommand}"
                             Tag="Desktop"
                             Content="Workspace Views"
@@ -589,6 +606,25 @@
                     <ContentControl.ContentTemplate>
                         <DataTemplate>
                             <views:TemplateManagement/>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+
+                <ContentControl HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsHomeSection}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <views:HomeView/>
                         </DataTemplate>
                     </ContentControl.ContentTemplate>
                 </ContentControl>

@@ -28,6 +28,9 @@
 
                         <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckUpdates}"
                                   Foreground="#E6EAF2"/>
+
+                        <CheckBox Content="Show start page on startup" IsChecked="{Binding ShowStartPageOnStartup}"
+                                  Foreground="#E6EAF2" Margin="0,8,0,0"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

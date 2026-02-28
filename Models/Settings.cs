@@ -25,6 +25,7 @@ namespace RauskuClaw.Models
         private bool _autoStartVms = false;
         private bool _minimizeToTray = false;
         private bool _checkUpdates = true;
+        private bool _showStartPageOnStartup = true;
         private string? _holviApiKeySecretRef;
         private string? _holviProjectIdSecretRef;
         private string? _infisicalClientIdSecretRef;
@@ -129,6 +130,12 @@ namespace RauskuClaw.Models
         {
             get => _checkUpdates;
             set { _checkUpdates = value; OnPropertyChanged(); }
+        }
+
+        public bool ShowStartPageOnStartup
+        {
+            get => _showStartPageOnStartup;
+            set { _showStartPageOnStartup = value; OnPropertyChanged(); }
         }
 
         // Secret Manager Settings (Holvi)

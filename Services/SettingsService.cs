@@ -88,6 +88,7 @@ namespace RauskuClaw.Services
                     settings.AutoStartVMs = data.AutoStartVMs;
                     settings.MinimizeToTray = data.MinimizeToTray;
                     settings.CheckUpdates = data.CheckUpdates;
+                    settings.ShowStartPageOnStartup = data.ShowStartPageOnStartup ?? true;
                     settings.HolviApiKeySecretRef = data.HolviApiKeySecretRef;
                     settings.HolviProjectIdSecretRef = data.HolviProjectIdSecretRef;
                     settings.InfisicalClientIdSecretRef = data.InfisicalClientIdSecretRef;
@@ -144,6 +145,7 @@ namespace RauskuClaw.Services
                 AutoStartVMs = settings.AutoStartVMs,
                 MinimizeToTray = settings.MinimizeToTray,
                 CheckUpdates = settings.CheckUpdates,
+                ShowStartPageOnStartup = settings.ShowStartPageOnStartup,
                 HolviApiKeySecretRef = settings.HolviApiKeySecretRef,
                 HolviProjectIdSecretRef = settings.HolviProjectIdSecretRef,
                 InfisicalClientIdSecretRef = settings.InfisicalClientIdSecretRef,
@@ -239,6 +241,7 @@ namespace RauskuClaw.Services
             public bool AutoStartVMs { get; set; }
             public bool MinimizeToTray { get; set; }
             public bool CheckUpdates { get; set; }
+            public bool? ShowStartPageOnStartup { get; set; }
 
             public string? HolviApiKeySecretRef { get; set; }
             public string? HolviProjectIdSecretRef { get; set; }
