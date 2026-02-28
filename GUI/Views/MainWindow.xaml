@@ -317,6 +317,16 @@
                                            FontWeight="SemiBold"/>
                             </Border>
                         </StackPanel>
+                        <TextBlock Margin="0,6,0,0"
+                                   FontSize="12"
+                                   Foreground="#9AA3B2">
+                            <Run Text="CPU "/>
+                            <Run Text="{Binding SelectedWorkspace.RuntimeCpuUsageText, Mode=OneWay}"/>
+                            <Run Text=" | RAM "/>
+                            <Run Text="{Binding SelectedWorkspace.RuntimeMemoryUsageText, Mode=OneWay}"/>
+                            <Run Text=" | Disk "/>
+                            <Run Text="{Binding SelectedWorkspace.RuntimeDiskUsageText, Mode=OneWay}"/>
+                        </TextBlock>
                         <TextBlock Text="{Binding InlineNotice}"
                                    FontSize="11"
                                    Foreground="#4DA3FF"
@@ -406,12 +416,6 @@
                     </StackPanel>
                 </Grid>
             </Border>
-
-            <controls:ResourceUsagePanel DockPanel.Dock="Top"
-                                         Margin="12,10,12,10"
-                                         Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
-                                         Scope="SelectedWorkspace"
-                                         AllowScopeToggle="False"/>
 
             <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <!-- Tab Control: Views -->

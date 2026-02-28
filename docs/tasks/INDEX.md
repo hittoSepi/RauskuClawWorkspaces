@@ -1,4 +1,4 @@
-# Task Index (001-037)
+# Task Index (001-038)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -39,3 +39,4 @@
 | 035 | Completed | Start/stop race cancellation + Docker/SSH readiness gates | [035-start-stop-race-cancellation-and-readiness-gates.md](035-start-stop-race-cancellation-and-readiness-gates.md) |
 | 036 | Completed | Stop verify fallback keeps Start disabled until shutdown/ports are really released | [036-stop-verify-background-holdoff.md](036-stop-verify-background-holdoff.md) |
 | 037 | Completed | Docker SSH command transport abort handling normalized during stop transitions | [037-docker-ssh-command-transport-hardening.md](037-docker-ssh-command-transport-hardening.md) |
+| 038 | Completed | Workspace single resource usage moved to header text line; duplicate panel removed | [038-workspace-resource-usage-header-line.md](038-workspace-resource-usage-header-line.md) |
