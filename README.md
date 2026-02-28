@@ -49,6 +49,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- VM resource telemetry switched to a centralized 1s cache service (`VmResourceStatsCache`) so all panels consume shared cached data instead of reading metrics independently.
 - Added reusable VM resource usage UserControl to Home and Workspace views:
   - aggregate scope (all running VMs) and selected-VM scope,
   - CPU and RAM sampled from tracked QEMU processes,

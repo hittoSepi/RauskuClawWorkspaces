@@ -16,14 +16,13 @@ Completed
 
 ## Technical notes
 - `MainViewModel`:
-  - Added 2s runtime sampling timer (`DispatcherTimer`) for VM usage updates.
   - Added per-workspace CPU delta sampling cache and aggregate totals:
     - `TotalCpuUsagePercent`,
     - `TotalMemoryUsageMb`,
     - `TotalDiskUsageMb`,
     - `RunningWorkspaceCount`,
     - `RunningWorkspaces`.
-  - Added shutdown stop for usage timer.
+  - Runtime sampling was later centralized into `VmResourceStatsCache` (see Task 030).
 - `Workspace` model:
   - Added runtime usage properties with change notifications:
     - `RuntimeCpuUsagePercent`, `RuntimeMemoryUsageMb`, `RuntimeDiskUsageMb`,

@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Threading;
 using RauskuClaw.Models;
 using RauskuClaw.Services;
 using System.Diagnostics;
@@ -57,8 +56,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly object _startPortReservationLock = new();
         private readonly HashSet<int> _activeStartPortReservations = new();
         private readonly HashSet<string> _activeWorkspaceStarts = new();
-        private readonly Dictionary<string, (TimeSpan CpuTime, DateTime SampleUtc)> _workspaceCpuSamples = new();
-        private readonly DispatcherTimer _resourceUsageTimer;
+        private readonly VmResourceStatsCache _resourceStatsCache;
         private bool _isVmStopping;
         private bool _isVmRestarting;
         private ObservableCollection<Workspace> _workspaces;
@@ -95,7 +93,8 @@ namespace RauskuClaw.GUI.ViewModels
             warmupService: null,
             workspacePathPolicy: null,
             sshConnectionFactory: null,
-            vmProcessRegistry: null)
+            vmProcessRegistry: null,
+            resourceStatsCache: null)
         {
         }
 
@@ -111,7 +110,8 @@ namespace RauskuClaw.GUI.ViewModels
             IWorkspaceWarmupService? warmupService = null,
             WorkspacePathPolicy? workspacePathPolicy = null,
             ISshConnectionFactory? sshConnectionFactory = null,
-            VmProcessRegistry? vmProcessRegistry = null)
+            VmProcessRegistry? vmProcessRegistry = null,
+            VmResourceStatsCache? resourceStatsCache = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
             _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
@@ -126,18 +126,26 @@ namespace RauskuClaw.GUI.ViewModels
             _workspacePathPolicy = workspacePathPolicy ?? new WorkspacePathPolicy(_pathResolver);
             _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory(new KnownHostStore(_pathResolver));
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
+            _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
             _workspaces.CollectionChanged += OnWorkspacesCollectionChanged;
             EnsureWorkspaceHostDirectories();
             ReserveExistingWorkspacePorts();
-            _resourceUsageTimer = new DispatcherTimer(DispatcherPriority.Background)
-            {
-                Interval = TimeSpan.FromSeconds(2)
-            };
-            _resourceUsageTimer.Tick += (_, _) => RefreshWorkspaceRuntimeMetrics();
-            RefreshWorkspaceRuntimeMetrics();
-            _resourceUsageTimer.Start();
+            _resourceStatsCache.ConfigureProviders(
+                workspaceProvider: () => _workspaces.ToList(),
+                processProvider: workspaceId =>
+                {
+                    if (_workspaceProcesses.TryGetValue(workspaceId, out var process))
+                    {
+                        return process;
+                    }
+
+                    return null;
+                });
+            _resourceStatsCache.StatsUpdated += (_, _) => ApplyCachedResourceStats();
+            _resourceStatsCache.Start();
+            ApplyCachedResourceStats();
 
             NewWorkspaceCommand = new RelayCommand(ShowNewWorkspaceDialog);
             StartVmCommand = new RelayCommand(async () => await StartVmAsync(), () => (SelectedWorkspace?.CanStart ?? false) && !_isVmStopping && !_isVmRestarting);
@@ -1822,7 +1830,7 @@ namespace RauskuClaw.GUI.ViewModels
         public void ShutdownWithProgress(Action<string>? reportStatus)
         {
             reportStatus?.Invoke("Closing connections...");
-            _resourceUsageTimer.Stop();
+            _resourceStatsCache.Stop();
             _inlineNoticeCts?.Cancel();
             _inlineNoticeCts?.Dispose();
             _inlineNoticeCts = null;
@@ -2033,7 +2041,7 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     _sftpFiles?.SetWorkspace(SelectedWorkspace);
                 }
-                RefreshWorkspaceRuntimeMetrics();
+                _resourceStatsCache.RefreshNow();
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -2042,7 +2050,7 @@ namespace RauskuClaw.GUI.ViewModels
         {
             OnPropertyChanged(nameof(RecentWorkspaces));
             OnPropertyChanged(nameof(RunningWorkspaces));
-            RefreshWorkspaceRuntimeMetrics();
+            _resourceStatsCache.RefreshNow();
             CommandManager.InvalidateRequerySuggested();
         }
 
@@ -2109,103 +2117,32 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
-        private void RefreshWorkspaceRuntimeMetrics()
+        private void ApplyCachedResourceStats()
         {
-            var nowUtc = DateTime.UtcNow;
-            var hostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
-            var totalCpu = 0d;
-            var totalMemoryMb = 0;
-            var totalDiskMb = 0d;
-            var runningCount = 0;
-
+            var snapshot = _resourceStatsCache.GetSnapshot();
             foreach (var workspace in _workspaces)
             {
-                var cpuPercent = 0d;
-                var memoryMb = 0;
-                var diskMb = TryGetDiskUsageMb(workspace.DiskPath);
-
-                if (_workspaceProcesses.TryGetValue(workspace.Id, out var process))
+                if (snapshot.TryGetValue(workspace.Id, out var stats))
                 {
-                    try
-                    {
-                        if (!process.HasExited)
-                        {
-                            process.Refresh();
-                            runningCount++;
-                            memoryMb = (int)Math.Max(0, Math.Round(process.WorkingSet64 / (1024d * 1024d)));
-
-                            var totalProcessorTime = process.TotalProcessorTime;
-                            if (_workspaceCpuSamples.TryGetValue(workspace.Id, out var last))
-                            {
-                                var elapsedMs = (nowUtc - last.SampleUtc).TotalMilliseconds;
-                                if (elapsedMs > 0)
-                                {
-                                    var cpuDeltaMs = (totalProcessorTime - last.CpuTime).TotalMilliseconds;
-                                    cpuPercent = Math.Clamp((cpuDeltaMs / (elapsedMs * hostLogicalCpuCount)) * 100d, 0d, 100d);
-                                }
-                            }
-
-                            _workspaceCpuSamples[workspace.Id] = (totalProcessorTime, nowUtc);
-                        }
-                        else
-                        {
-                            _workspaceCpuSamples.Remove(workspace.Id);
-                        }
-                    }
-                    catch
-                    {
-                        _workspaceCpuSamples.Remove(workspace.Id);
-                    }
+                    workspace.RuntimeCpuUsagePercent = stats.CpuUsagePercent;
+                    workspace.RuntimeMemoryUsageMb = stats.MemoryUsageMb;
+                    workspace.RuntimeDiskUsageMb = stats.DiskUsageMb;
+                    workspace.RuntimeMetricsUpdatedAt = stats.UpdatedAtLocal;
                 }
                 else
                 {
-                    _workspaceCpuSamples.Remove(workspace.Id);
+                    workspace.RuntimeCpuUsagePercent = 0;
+                    workspace.RuntimeMemoryUsageMb = 0;
+                    workspace.RuntimeDiskUsageMb = 0;
+                    workspace.RuntimeMetricsUpdatedAt = _resourceStatsCache.LastUpdatedLocal;
                 }
-
-                if (!workspace.IsRunning)
-                {
-                    cpuPercent = 0;
-                    memoryMb = 0;
-                }
-
-                workspace.RuntimeCpuUsagePercent = cpuPercent;
-                workspace.RuntimeMemoryUsageMb = memoryMb;
-                workspace.RuntimeDiskUsageMb = diskMb;
-                workspace.RuntimeMetricsUpdatedAt = DateTime.Now;
-
-                totalCpu += cpuPercent;
-                totalMemoryMb += memoryMb;
-                totalDiskMb += diskMb;
             }
 
-            TotalCpuUsagePercent = totalCpu;
-            TotalMemoryUsageMb = totalMemoryMb;
-            TotalDiskUsageMb = totalDiskMb;
-            RunningWorkspaceCount = runningCount;
+            TotalCpuUsagePercent = _resourceStatsCache.TotalCpuUsagePercent;
+            TotalMemoryUsageMb = _resourceStatsCache.TotalMemoryUsageMb;
+            TotalDiskUsageMb = _resourceStatsCache.TotalDiskUsageMb;
+            RunningWorkspaceCount = _resourceStatsCache.RunningWorkspaceCount;
             OnPropertyChanged(nameof(RunningWorkspaces));
-        }
-
-        private static double TryGetDiskUsageMb(string? diskPath)
-        {
-            if (string.IsNullOrWhiteSpace(diskPath))
-            {
-                return 0;
-            }
-
-            try
-            {
-                if (!File.Exists(diskPath))
-                {
-                    return 0;
-                }
-
-                var bytes = new FileInfo(diskPath).Length;
-                return Math.Max(0, Math.Round(bytes / (1024d * 1024d), 1));
-            }
-            catch
-            {
-                return 0;
-            }
         }
 
         private void AppendLog(string message)
