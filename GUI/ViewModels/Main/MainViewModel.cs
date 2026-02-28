@@ -50,6 +50,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly AppPathResolver _pathResolver;
         private readonly WorkspacePathPolicy _workspacePathPolicy;
         private readonly ISshConnectionFactory _sshConnectionFactory;
+        private readonly IWorkspaceSshCommandService _workspaceSshCommandService;
         private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly IWorkspacePortManager _portManager;
         private readonly RauskuClaw.Models.Settings _appSettings;
@@ -94,6 +95,7 @@ namespace RauskuClaw.GUI.ViewModels
             warmupService: null,
             workspacePathPolicy: null,
             sshConnectionFactory: null,
+            workspaceSshCommandService: null,
             vmProcessRegistry: null,
             resourceStatsCache: null,
             portManager: null)
@@ -112,6 +114,7 @@ namespace RauskuClaw.GUI.ViewModels
             IWorkspaceWarmupService? warmupService = null,
             WorkspacePathPolicy? workspacePathPolicy = null,
             ISshConnectionFactory? sshConnectionFactory = null,
+            IWorkspaceSshCommandService? workspaceSshCommandService = null,
             VmProcessRegistry? vmProcessRegistry = null,
             VmResourceStatsCache? resourceStatsCache = null,
             IWorkspacePortManager? portManager = null)
@@ -128,6 +131,7 @@ namespace RauskuClaw.GUI.ViewModels
             _warmupService = warmupService ?? new WorkspaceWarmupService();
             _workspacePathPolicy = workspacePathPolicy ?? new WorkspacePathPolicy(_pathResolver);
             _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory(new KnownHostStore(_pathResolver));
+            _workspaceSshCommandService = workspaceSshCommandService ?? new WorkspaceSshCommandService(_sshConnectionFactory);
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
             _portManager = portManager ?? new WorkspacePortManager();

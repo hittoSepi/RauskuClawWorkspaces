@@ -148,88 +148,7 @@ namespace RauskuClaw.GUI.ViewModels
                 return await SshCommandRunnerOverride(workspace, command, ct);
             }
 
-            if (string.IsNullOrWhiteSpace(workspace.SshPrivateKeyPath) || !File.Exists(workspace.SshPrivateKeyPath))
-            {
-                return (false, $"SSH key file not found: {workspace.SshPrivateKeyPath}");
-            }
-
-            try
-            {
-                return await Task.Run(() =>
-                {
-                    Exception? lastTransientError = null;
-                    var maxAttempts = 3;
-                    for (var attempt = 1; attempt <= maxAttempts; attempt++)
-                    {
-                        ct.ThrowIfCancellationRequested();
-
-                        try
-                        {
-                            using var ssh = _sshConnectionFactory.ConnectSshClient(
-                                "127.0.0.1",
-                                workspace.Ports?.Ssh ?? 2222,
-                                workspace.Username,
-                                workspace.SshPrivateKeyPath);
-                            var result = ssh.RunCommand(command);
-                            ssh.Disconnect();
-
-                            if (result.ExitStatus == 0)
-                            {
-                                return (true, result.Result?.Trim() ?? string.Empty);
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(result.Error))
-                            {
-                                return (false, result.Error.Trim());
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(result.Result))
-                            {
-                                return (false, result.Result.Trim());
-                            }
-
-                            return (false, $"SSH command failed with exit {result.ExitStatus}");
-                        }
-                        catch (SshHostKeyMismatchException ex)
-                        {
-                            return (false, ex.Message);
-                        }
-                        catch (Exception ex) when (ex is SocketException
-                            || ex is SshConnectionException
-                            || ex is SshOperationTimeoutException
-                            || ex is SshException
-                            || ex is IOException
-                            || ex is ObjectDisposedException
-                            || (ex is InvalidOperationException ioEx
-                                && ioEx.Message.Contains("SSH endpoint", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            if (ct.IsCancellationRequested)
-                            {
-                                return (false, "SSH command cancelled.");
-                            }
-
-                            lastTransientError = ex;
-                            if (attempt < maxAttempts)
-                            {
-                                var delayMs = 400 * attempt;
-                                ct.WaitHandle.WaitOne(delayMs);
-                                continue;
-                            }
-                        }
-                    }
-
-                    var message = lastTransientError?.Message ?? "SSH command failed after retries.";
-                    return (false, $"SSH transient error: {message}");
-                }, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                return (false, "SSH command cancelled.");
-            }
-            catch (Exception ex)
-            {
-                return (false, ex.Message);
-            }
+            return await _workspaceSshCommandService.RunSshCommandAsync(workspace, command, ct);
         }
 
         private async Task<(bool Success, string Message)> WaitWebUiAsync(Workspace workspace, CancellationToken ct)
@@ -1055,18 +974,6 @@ namespace RauskuClaw.GUI.ViewModels
 
         private static string EscapeSingleQuotes(string value) => (value ?? string.Empty).Replace("'", "'\\''");
 
-        private static bool IsTransientConnectionIssue(string message)
-        {
-            if (string.IsNullOrWhiteSpace(message))
-            {
-                return false;
-            }
-
-            var text = message.ToLowerInvariant();
-            return text.Contains("socket")
-                || text.Contains("connection")
-                || text.Contains("aborted by")
-                || text.Contains("forcibly closed");
-        }
+        private bool IsTransientConnectionIssue(string message) => _workspaceSshCommandService.IsTransientConnectionIssue(message);
     }
 }
