@@ -270,7 +270,7 @@
                                    Foreground="#E6EAF2"/>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Text="Status:" FontSize="12" Foreground="#9AA3B2"/>
-                            <TextBlock Text="{Binding SelectedWorkspace.StatusText}"
+                            <TextBlock Text="{Binding SelectedWorkspace.StatusText, Mode=OneWay}"
                                        FontSize="12"
                                        Foreground="{Binding SelectedWorkspace.StatusColor}"
                                        Margin="6,0,0,0"/>

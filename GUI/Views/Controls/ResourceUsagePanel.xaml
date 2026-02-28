@@ -142,18 +142,18 @@
                                             <Run Text="{Binding Name}"/>
                                             <Run Text="  "/>
                                             <Run Text="CPU "/>
-                                            <Run Text="{Binding RuntimeCpuUsageText}"/>
+                                            <Run Text="{Binding RuntimeCpuUsageText, Mode=OneWay}"/>
                                             <Run Text=" | RAM "/>
-                                            <Run Text="{Binding RuntimeMemoryUsageText}"/>
+                                            <Run Text="{Binding RuntimeMemoryUsageText, Mode=OneWay}"/>
                                             <Run Text=" | Disk "/>
-                                            <Run Text="{Binding RuntimeDiskUsageText}"/>
+                                            <Run Text="{Binding RuntimeDiskUsageText, Mode=OneWay}"/>
                                         </TextBlock>
 
                                         <TextBlock Grid.Column="1"
                                                    Margin="8,0,0,0"
                                                    Foreground="#6A7382"
                                                    FontSize="11"
-                                                   Text="{Binding StatusText}"/>
+                                                   Text="{Binding StatusText, Mode=OneWay}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -194,13 +194,13 @@
                                    Foreground="#9AA3B2"
                                    FontSize="12">
                             <Run Text="CPU "/>
-                            <Run Text="{Binding SelectedWorkspace.RuntimeCpuUsageText}"/>
+                            <Run Text="{Binding SelectedWorkspace.RuntimeCpuUsageText, Mode=OneWay}"/>
                             <Run Text=" | RAM "/>
-                            <Run Text="{Binding SelectedWorkspace.RuntimeMemoryUsageText}"/>
+                            <Run Text="{Binding SelectedWorkspace.RuntimeMemoryUsageText, Mode=OneWay}"/>
                             <Run Text=" | Disk "/>
-                            <Run Text="{Binding SelectedWorkspace.RuntimeDiskUsageText}"/>
+                            <Run Text="{Binding SelectedWorkspace.RuntimeDiskUsageText, Mode=OneWay}"/>
                             <Run Text=" | Status "/>
-                            <Run Text="{Binding SelectedWorkspace.StatusText}"/>
+                            <Run Text="{Binding SelectedWorkspace.StatusText, Mode=OneWay}"/>
                         </TextBlock>
                     </Grid>
                 </Border>
