@@ -49,6 +49,8 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Hardened workspace card and main control start/stop/restart async paths to observe/log faulted tasks instead of leaking unhandled async command exceptions.
+- Docker SSH command handling now normalizes aggregate transport aborts (for example connection aborted during VM stop) into controlled runtime errors.
 - VM resource telemetry switched to a centralized 1s cache service (`VmResourceStatsCache`) so all panels consume shared cached data instead of reading metrics independently.
 - Added reusable VM resource usage UserControl to Home and Workspace views:
   - aggregate scope (all running VMs) and selected-VM scope,

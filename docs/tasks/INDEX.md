@@ -1,4 +1,4 @@
-# Task Index (001-030)
+# Task Index (001-031)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -32,3 +32,4 @@
 | 028 | Completed | Home visual cleanup + Open Recent action + workspace Auto Start -asetus | [028-home-cleanup-open-recent-and-workspace-autostart.md](028-home-cleanup-open-recent-and-workspace-autostart.md) |
 | 029 | Completed | VM resource usage UserControl (aggregate + selected scope, CPU/RAM/disk metrics) | [029-vm-resource-usage-usercontrol.md](029-vm-resource-usage-usercontrol.md) |
 | 030 | Completed | VM resource stats centralized 1s cache for shared multi-panel usage | [030-vm-resource-stats-central-cache.md](030-vm-resource-stats-central-cache.md) |
+| 031 | Completed | Stop/start/restart polkujen async hardening + Docker SSH abort -käsittely | [031-stop-path-ssh-abort-hardening.md](031-stop-path-ssh-abort-hardening.md) |

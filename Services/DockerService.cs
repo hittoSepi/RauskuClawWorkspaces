@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Renci.SshNet;
@@ -207,6 +208,18 @@ namespace RauskuClaw.Services
             {
                 Disconnect();
                 throw new InvalidOperationException("Docker SSH connection failed.", ex);
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.Count > 0
+                && ex.InnerExceptions.All(inner =>
+                    inner is SocketException
+                    || inner is SshConnectionException
+                    || inner is SshOperationTimeoutException
+                    || inner is SshException
+                    || inner is IOException
+                    || inner is ObjectDisposedException))
+            {
+                Disconnect();
+                throw new InvalidOperationException("Docker SSH connection failed.", ex.GetBaseException());
             }
         }
 

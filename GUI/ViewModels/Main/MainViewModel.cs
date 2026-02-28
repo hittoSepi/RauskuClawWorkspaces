@@ -148,9 +148,9 @@ namespace RauskuClaw.GUI.ViewModels
             ApplyCachedResourceStats();
 
             NewWorkspaceCommand = new RelayCommand(ShowNewWorkspaceDialog);
-            StartVmCommand = new RelayCommand(async () => await StartVmAsync(), () => (SelectedWorkspace?.CanStart ?? false) && !_isVmStopping && !_isVmRestarting);
-            StopVmCommand = new RelayCommand(async () => await StopVmAsync(), () => (SelectedWorkspace?.CanStop ?? false) && !_isVmStopping && !_isVmRestarting);
-            RestartVmCommand = new RelayCommand(async () => await RestartVmAsync(), () => (SelectedWorkspace?.IsRunning ?? false) && !_isVmStopping && !_isVmRestarting);
+            StartVmCommand = new RelayCommand(() => RunSafeAndForget(StartVmAsync(), "Start VM"), () => (SelectedWorkspace?.CanStart ?? false) && !_isVmStopping && !_isVmRestarting);
+            StopVmCommand = new RelayCommand(() => RunSafeAndForget(StopVmAsync(), "Stop VM"), () => (SelectedWorkspace?.CanStop ?? false) && !_isVmStopping && !_isVmRestarting);
+            RestartVmCommand = new RelayCommand(() => RunSafeAndForget(RestartVmAsync(), "Restart VM"), () => (SelectedWorkspace?.IsRunning ?? false) && !_isVmStopping && !_isVmRestarting);
             DeleteWorkspaceCommand = new RelayCommand(async () => await DeleteWorkspaceAsync(), () => SelectedWorkspace != null && !_isVmStopping && !_isVmRestarting);
             ShowHomeCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Home);
             ShowWorkspaceViewsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.WorkspaceTabs);
@@ -564,7 +564,7 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             SelectedWorkspace = workspace;
-            _ = StartVmAsync();
+            RunSafeAndForget(StartVmAsync(), "Start VM from Home");
         }
 
         private void OpenRecentWorkspace()
@@ -586,7 +586,7 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             SelectedWorkspace = workspace;
-            _ = StopVmAsync();
+            RunSafeAndForget(StopVmAsync(), "Stop VM from Home");
         }
 
         private void RestartWorkspaceFromHome(Workspace? workspace)
@@ -597,7 +597,21 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             SelectedWorkspace = workspace;
-            _ = RestartVmAsync();
+            RunSafeAndForget(RestartVmAsync(), "Restart VM from Home");
+        }
+
+        private void RunSafeAndForget(Task task, string operation)
+        {
+            _ = task.ContinueWith(t =>
+            {
+                if (t.Exception == null)
+                {
+                    return;
+                }
+
+                var ex = t.Exception.GetBaseException();
+                AppendLog($"{operation} failed: {ex.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private void OnSettingsViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
