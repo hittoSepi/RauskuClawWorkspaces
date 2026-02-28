@@ -14,8 +14,8 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
-        MinWidth="1000"
-        MinHeight="620"
+        MinWidth="1920"
+        MinHeight="1080"
         Background="#0F1115">
     <Border BorderBrush="#2A3240" BorderThickness="1" Background="#0F1115">
         <Grid>

@@ -48,6 +48,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Main window minimum size updated to `1920x1080` to improve default layout usability on larger screens.
 - Security hardening wave 1: path policy, SSH host key TOFU, secret resilience, and startup reason-code diagnostics.
 - SSH terminal auto-connect UI-thread fix: removed cross-thread command/property update path that could trigger "different thread owns it" connection errors.
 - SSH terminal UX parity with serial console toolbar: added `Clear`, `Pause/Resume`, and `Auto-scroll` controls with output buffering while paused.
