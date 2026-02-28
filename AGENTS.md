@@ -26,6 +26,12 @@ Kun kehitys etenee, pidä `docs/tasks` ajan tasalla:
 - Päivitä `docs/tasks/INDEX.md` aina kun task-lista muuttuu.
 - Jos vanhan taskin status muuttuu, päivitä status + puuttuvat kohdat selkeästi.
 
+## Github commits/push
+
+Kun tehtävä on valmis ja koodi testattu + ei ole build virheita
+  - Tee commit+push asianmukaisilla kommenteilla.
+  - Käytä englantia kommenteissa.
+
 ## Committeihin perustuva dokumentointirutiini
 
 Kun käyttäjä pyytää dokumentit ajan tasalle:
