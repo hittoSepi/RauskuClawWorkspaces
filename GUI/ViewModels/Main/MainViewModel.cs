@@ -55,6 +55,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly IWorkspacePathManager _workspacePathManager;
         private readonly IVmLifecycleController _vmLifecycleController;
         private readonly IWorkspaceManagementService _workspaceManagementService;
+        private readonly IStartupProgressReporter _startupProgressReporter;
         private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly IWorkspacePortManager _portManager;
         private readonly RauskuClaw.Models.Settings _appSettings;
@@ -105,6 +106,7 @@ namespace RauskuClaw.GUI.ViewModels
             workspacePathManager: null,
             vmLifecycleController: null,
             workspaceManagementService: null,
+            startupProgressReporter: null,
             vmProcessRegistry: null,
             resourceStatsCache: null,
             portManager: null)
@@ -129,6 +131,7 @@ namespace RauskuClaw.GUI.ViewModels
             IWorkspacePathManager? workspacePathManager = null,
             IVmLifecycleController? vmLifecycleController = null,
             IWorkspaceManagementService? workspaceManagementService = null,
+            IStartupProgressReporter? startupProgressReporter = null,
             VmProcessRegistry? vmProcessRegistry = null,
             VmResourceStatsCache? resourceStatsCache = null,
             IWorkspacePortManager? portManager = null)
@@ -157,6 +160,7 @@ namespace RauskuClaw.GUI.ViewModels
                 AppendLog);
             _vmLifecycleController = vmLifecycleController ?? new VmLifecycleController();
             _workspaceManagementService = workspaceManagementService ?? new WorkspaceManagementService();
+            _startupProgressReporter = startupProgressReporter ?? new StartupProgressReporter();
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
             _portManager = portManager ?? new WorkspacePortManager();
