@@ -183,10 +183,39 @@ namespace RauskuClaw.Services
                 throw new InvalidOperationException("SSH is not connected.");
             }
 
+            var client = _ssh;
+            if (client == null || !client.IsConnected)
+            {
+                throw new InvalidOperationException("SSH is not connected.");
+            }
+
             try
             {
                 var effectiveCommand = RewriteDockerCommand(command);
-                var result = await Task.Run(() => _ssh!.RunCommand(effectiveCommand));
+                var execution = await Task.Run(() =>
+                {
+                    try
+                    {
+                        return (Result: client.RunCommand(effectiveCommand), Error: (Exception?)null);
+                    }
+                    catch (Exception ex)
+                    {
+                        return (Result: (SshCommand?)null, Error: ex);
+                    }
+                });
+
+                if (execution.Error != null)
+                {
+                    if (IsSshTransportException(execution.Error))
+                    {
+                        Disconnect();
+                        throw new InvalidOperationException("Docker SSH connection failed.", execution.Error.GetBaseException());
+                    }
+
+                    throw execution.Error;
+                }
+
+                var result = execution.Result!;
                 if (result.ExitStatus != 0)
                 {
                     var error = string.IsNullOrWhiteSpace(result.Error)
@@ -199,27 +228,10 @@ namespace RauskuClaw.Services
 
                 return result;
             }
-            catch (Exception ex) when (ex is SocketException
-                || ex is SshConnectionException
-                || ex is SshOperationTimeoutException
-                || ex is SshException
-                || ex is IOException
-                || ex is ObjectDisposedException)
+            catch (Exception ex) when (IsSshTransportException(ex))
             {
                 Disconnect();
                 throw new InvalidOperationException("Docker SSH connection failed.", ex);
-            }
-            catch (AggregateException ex) when (ex.InnerExceptions.Count > 0
-                && ex.InnerExceptions.All(inner =>
-                    inner is SocketException
-                    || inner is SshConnectionException
-                    || inner is SshOperationTimeoutException
-                    || inner is SshException
-                    || inner is IOException
-                    || inner is ObjectDisposedException))
-            {
-                Disconnect();
-                throw new InvalidOperationException("Docker SSH connection failed.", ex.GetBaseException());
             }
         }
 
@@ -263,13 +275,63 @@ namespace RauskuClaw.Services
             try
             {
                 var cmd = $"{dockerBinary} version --format '{{.Server.Version}}'";
-                var result = await Task.Run(() => _ssh!.RunCommand(cmd));
+                var client = _ssh;
+                if (client == null || !client.IsConnected)
+                {
+                    return false;
+                }
+
+                var execution = await Task.Run(() =>
+                {
+                    try
+                    {
+                        return (Result: client.RunCommand(cmd), Error: (Exception?)null);
+                    }
+                    catch (Exception ex)
+                    {
+                        return (Result: (SshCommand?)null, Error: ex);
+                    }
+                });
+
+                if (execution.Error != null)
+                {
+                    return false;
+                }
+
+                var result = execution.Result!;
                 return result.ExitStatus == 0;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static bool IsSshTransportException(Exception ex)
+        {
+            if (ex is AggregateException agg && agg.InnerExceptions.Count > 0)
+            {
+                return agg.InnerExceptions.All(IsSshTransportException);
+            }
+
+            if (ex is SocketException
+                || ex is SshConnectionException
+                || ex is SshOperationTimeoutException
+                || ex is SshException
+                || ex is IOException
+                || ex is ObjectDisposedException
+                || ex is NullReferenceException)
+            {
+                return true;
+            }
+
+            if (ex is InvalidOperationException ioEx
+                && ioEx.Message.Contains("SSH endpoint", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         public void Disconnect()

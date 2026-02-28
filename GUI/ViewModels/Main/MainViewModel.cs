@@ -14,6 +14,7 @@ using System.Windows.Input;
 using RauskuClaw.Models;
 using RauskuClaw.Services;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using RauskuClaw.Utils;
 using RauskuClaw.GUI.Views;
@@ -2350,6 +2351,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private static bool HasAnyOpenWorkspacePort(Workspace workspace)
         {
+            var listeners = GetActiveTcpListenerPorts();
             foreach (var (_, port) in GetWorkspaceHostPorts(workspace))
             {
                 if (port <= 0 || port > 65535)
@@ -2357,7 +2359,9 @@ namespace RauskuClaw.GUI.ViewModels
                     continue;
                 }
 
-                if (IsTcpPortOpen("127.0.0.1", port))
+                // Port is still considered in use if the OS reports a listener,
+                // or if a quick bind-probe fails.
+                if (listeners.Contains(port) || !IsPortAvailable(port))
                 {
                     return true;
                 }
@@ -2366,17 +2370,19 @@ namespace RauskuClaw.GUI.ViewModels
             return false;
         }
 
-        private static bool IsTcpPortOpen(string host, int port)
+        private static HashSet<int> GetActiveTcpListenerPorts()
         {
             try
             {
-                using var client = new TcpClient();
-                var connectTask = client.ConnectAsync(host, port);
-                return connectTask.Wait(TimeSpan.FromMilliseconds(120)) && client.Connected;
+                var props = IPGlobalProperties.GetIPGlobalProperties();
+                return props.GetActiveTcpListeners()
+                    .Select(ep => ep.Port)
+                    .Where(port => port is > 0 and <= 65535)
+                    .ToHashSet();
             }
             catch
             {
-                return false;
+                return new HashSet<int>();
             }
         }
 

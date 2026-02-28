@@ -49,6 +49,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Docker SSH command execution now captures transport aborts inside the command task and normalizes them to controlled runtime errors, reducing debugger-breaking exceptions during VM stop.
 - Stop verification now continues in background if initial verify window times out: `Start` remains disabled (`IsStopVerificationPending`) until VM process + workspace ports are confirmed released.
 - Startup flow is now canceled per workspace when stop is requested, reducing rapid `Start -> Stop` race exceptions.
 - Docker and SSH tab auto-connect paths now require `workspace.Status == Running`, avoiding connect attempts during warming/stopping windows.

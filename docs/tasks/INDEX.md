@@ -1,4 +1,4 @@
-# Task Index (001-036)
+# Task Index (001-037)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -38,3 +38,4 @@
 | 034 | Completed | Start port reservation stale-guard + concurrent start block per workspace | [034-start-port-reservation-stale-guard.md](034-start-port-reservation-stale-guard.md) |
 | 035 | Completed | Start/stop race cancellation + Docker/SSH readiness gates | [035-start-stop-race-cancellation-and-readiness-gates.md](035-start-stop-race-cancellation-and-readiness-gates.md) |
 | 036 | Completed | Stop verify fallback keeps Start disabled until shutdown/ports are really released | [036-stop-verify-background-holdoff.md](036-stop-verify-background-holdoff.md) |
+| 037 | Completed | Docker SSH command transport abort handling normalized during stop transitions | [037-docker-ssh-command-transport-hardening.md](037-docker-ssh-command-transport-hardening.md) |
