@@ -20,9 +20,14 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public class SshTerminalViewModel : INotifyPropertyChanged
     {
+        private const int MaxOutputChars = 120000;
+        private readonly StringBuilder _terminalBuffer = new();
         private string _terminalOutput = "";
         private string _commandInput = "";
         private string _connectionInfo = "Not connected";
+        private bool _autoScroll = true;
+        private bool _isPaused;
+        private bool _pendingResetAfterPause;
         private bool _isConnected;
         private bool _isVmRunning;
         private Workspace? _workspace;
@@ -37,6 +42,8 @@ namespace RauskuClaw.GUI.ViewModels
             ExecuteCommandCommand = new RelayCommand(async () => await ExecuteCommandAsync(), () => IsConnected);
             CopyOutputCommand = new RelayCommand(CopyOutput);
             SaveOutputCommand = new RelayCommand(SaveOutputToFile);
+            ClearCommand = new RelayCommand(Clear);
+            TogglePauseCommand = new RelayCommand(TogglePause);
         }
 
         public string TerminalOutput
@@ -56,6 +63,31 @@ namespace RauskuClaw.GUI.ViewModels
             get => _connectionInfo;
             set { _connectionInfo = value; OnPropertyChanged(); }
         }
+
+        public bool AutoScroll
+        {
+            get => _autoScroll;
+            set
+            {
+                if (_autoScroll == value) return;
+                _autoScroll = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsPaused
+        {
+            get => _isPaused;
+            private set
+            {
+                if (_isPaused == value) return;
+                _isPaused = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(PauseButtonText));
+            }
+        }
+
+        public string PauseButtonText => IsPaused ? "Resume" : "Pause";
 
         public bool IsConnected
         {
@@ -96,6 +128,8 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand ExecuteCommandCommand { get; }
         public ICommand CopyOutputCommand { get; }
         public ICommand SaveOutputCommand { get; }
+        public ICommand ClearCommand { get; }
+        public ICommand TogglePauseCommand { get; }
 
         public async Task ConnectAsync(Workspace workspace)
         {
@@ -130,13 +164,13 @@ namespace RauskuClaw.GUI.ViewModels
                 ConnectionInfo = $"Connected to {workspace.Name} ({workspace.Username}@127.0.0.1:{sshPort})";
                 IsConnected = true;
 
-                TerminalOutput += $"Connected to {workspace.Name}\n";
-                TerminalOutput += $"SSH: {workspace.Username}@127.0.0.1:{sshPort}\n";
-                TerminalOutput += "Connected with SSH.NET\n\n";
+                AppendOutput($"Connected to {workspace.Name}\n");
+                AppendOutput($"SSH: {workspace.Username}@127.0.0.1:{sshPort}\n");
+                AppendOutput("Connected with SSH.NET\n\n");
             }
             catch (Exception ex)
             {
-                TerminalOutput += $"Connection failed: {ex.Message}\n";
+                AppendOutput($"Connection failed: {ex.Message}\n");
                 ConnectionInfo = workspace.IsRunning ? "SSH disconnected" : "VM is not running";
                 IsConnected = false;
             }
@@ -179,7 +213,7 @@ namespace RauskuClaw.GUI.ViewModels
             ConnectionInfo = IsVmRunning ? "SSH disconnected" : "VM is not running";
             if (wasConnected)
             {
-                TerminalOutput += "\n--- Disconnected ---\n";
+                AppendOutput("\n--- Disconnected ---\n");
             }
         }
 
@@ -191,12 +225,12 @@ namespace RauskuClaw.GUI.ViewModels
             var command = CommandInput;
             if (string.Equals(command.Trim(), "clear", StringComparison.OrdinalIgnoreCase))
             {
-                TerminalOutput = "";
+                Clear();
                 CommandInput = "";
                 return;
             }
 
-            TerminalOutput += $"$ {command}\n";
+            AppendOutput($"$ {command}\n");
 
             try
             {
@@ -223,22 +257,22 @@ namespace RauskuClaw.GUI.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(result))
                 {
-                    TerminalOutput += result.TrimEnd() + "\n";
+                    AppendOutput(result.TrimEnd() + "\n");
                 }
 
                 if (!string.IsNullOrWhiteSpace(error))
                 {
-                    TerminalOutput += error.TrimEnd() + "\n";
+                    AppendOutput(error.TrimEnd() + "\n");
                 }
 
                 if (exitStatus != 0)
                 {
-                    TerminalOutput += $"[exit {exitStatus}]\n";
+                    AppendOutput($"[exit {exitStatus}]\n");
                 }
             }
             catch (InvalidOperationException ex)
             {
-                TerminalOutput += $"Error: {ex.Message}\n";
+                AppendOutput($"Error: {ex.Message}\n");
             }
             catch (SshConnectionException)
             {
@@ -258,10 +292,10 @@ namespace RauskuClaw.GUI.ViewModels
             }
             catch (Exception ex)
             {
-                TerminalOutput += $"Error: {ex.Message}\n";
+                AppendOutput($"Error: {ex.Message}\n");
             }
 
-            TerminalOutput += "\n";
+            AppendOutput("\n");
             CommandInput = "";
         }
 
@@ -296,7 +330,7 @@ namespace RauskuClaw.GUI.ViewModels
                     return;
                 }
 
-                File.WriteAllText(dialog.FileName, TerminalOutput ?? string.Empty);
+                File.WriteAllText(dialog.FileName, _terminalBuffer.ToString());
                 ConnectionInfo = IsConnected
                     ? $"Connected (saved to {Path.GetFileName(dialog.FileName)})"
                     : $"SSH disconnected (saved to {Path.GetFileName(dialog.FileName)})";
@@ -304,6 +338,23 @@ namespace RauskuClaw.GUI.ViewModels
             catch (Exception ex)
             {
                 ConnectionInfo = $"Save failed: {ex.Message}";
+            }
+        }
+
+        private void Clear()
+        {
+            _terminalBuffer.Clear();
+            _pendingResetAfterPause = false;
+            TerminalOutput = string.Empty;
+        }
+
+        private void TogglePause()
+        {
+            IsPaused = !IsPaused;
+            if (!IsPaused && _pendingResetAfterPause)
+            {
+                _pendingResetAfterPause = false;
+                TerminalOutput = _terminalBuffer.ToString();
             }
         }
 
@@ -383,14 +434,36 @@ namespace RauskuClaw.GUI.ViewModels
         {
             if (IsVmRunning)
             {
-                TerminalOutput += "SSH connection was interrupted. Retry shortly.\n";
+                AppendOutput("SSH connection was interrupted. Retry shortly.\n");
             }
             else
             {
-                TerminalOutput += "SSH connection closed because VM is stopping/stopped.\n";
+                AppendOutput("SSH connection closed because VM is stopping/stopped.\n");
             }
 
             Disconnect();
+        }
+
+        private void AppendOutput(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            _terminalBuffer.Append(text);
+            if (_terminalBuffer.Length > MaxOutputChars)
+            {
+                _terminalBuffer.Remove(0, _terminalBuffer.Length - MaxOutputChars);
+            }
+
+            if (IsPaused)
+            {
+                _pendingResetAfterPause = true;
+                return;
+            }
+
+            TerminalOutput = _terminalBuffer.ToString();
         }
 
         private static string NormalizeTerminalText(string? text)

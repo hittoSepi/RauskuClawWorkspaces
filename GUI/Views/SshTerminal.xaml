@@ -12,6 +12,16 @@
         <DockPanel DockPanel.Dock="Top" LastChildFill="False">
             <TextBlock Text="SSH Terminal" FontWeight="SemiBold" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
             <TextBlock Text="{Binding ConnectionInfo}" Foreground="#9AA3B2" VerticalAlignment="Center" Margin="12,8,0,8"/>
+            <CheckBox Content="Auto-scroll" IsChecked="{Binding AutoScroll}" Foreground="#E6EAF2" VerticalAlignment="Center" Margin="12,8,0,8"/>
+            <Button
+                    Command="{Binding TogglePauseCommand}"
+                    Style="{StaticResource SecondaryIconButton}"
+                    Tag="Pause"
+                    Content="{Binding PauseButtonText}"
+                    Padding="12,6"
+                    Cursor="Hand"
+                    DockPanel.Dock="Right"
+                    Margin="0,8,8,8"/>
             <Button
                     Command="{Binding CopyOutputCommand}"
                     Style="{StaticResource SecondaryIconButton}"
@@ -26,6 +36,15 @@
                     Style="{StaticResource SecondaryIconButton}"
                     Tag="Save"
                     Content="Save"
+                    Padding="12,6"
+                    Cursor="Hand"
+                    DockPanel.Dock="Right"
+                    Margin="0,8,8,8"/>
+            <Button
+                    Command="{Binding ClearCommand}"
+                    Style="{StaticResource SecondaryIconButton}"
+                    Tag="Eraser"
+                    Content="Clear"
                     Padding="12,6"
                     Cursor="Hand"
                     DockPanel.Dock="Right"
@@ -75,16 +94,40 @@
         </Border>
 
         <!-- Terminal output -->
-        <TextBox Text="{Binding TerminalOutput, Mode=OneWay}"
-                 IsReadOnly="True"
-                 FontFamily="Consolas"
-                 FontSize="12"
-                 Background="#0A0C0E"
-                 Foreground="#00FF00"
-                 BorderThickness="0"
-                 Padding="8"
-                 VerticalScrollBarVisibility="Auto"
-                 TextWrapping="NoWrap"/>
+        <Grid>
+            <TextBox x:Name="TerminalOutputTextBox"
+                     Text="{Binding TerminalOutput, Mode=OneWay}"
+                     IsReadOnly="True"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Background="#0A0C0E"
+                     Foreground="#00FF00"
+                     BorderThickness="0"
+                     Padding="8"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     TextWrapping="NoWrap"
+                     TextChanged="TerminalOutputTextBox_OnTextChanged"/>
+
+            <Button x:Name="ScrollToBottomButton"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,12,12"
+                    Padding="10,5"
+                    Background="#2A3240"
+                    Foreground="#E6EAF2"
+                    BorderBrush="#4DA3FF"
+                    BorderThickness="1"
+                    Cursor="Hand"
+                    Visibility="Collapsed"
+                    Opacity="0.92"
+                    Click="ScrollToBottomButton_OnClick">
+                <StackPanel Orientation="Horizontal">
+                    <fa:IconBlock Icon="ArrowDown" Style="{StaticResource FaIconInline}"/>
+                    <TextBlock Text="Jump to bottom" Foreground="#E6EAF2"/>
+                </StackPanel>
+            </Button>
+        </Grid>
     </DockPanel>
 </UserControl>
 
