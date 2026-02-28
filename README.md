@@ -2,7 +2,7 @@
 
 WPF app for provisioning and running Arch Linux VM workspaces on Windows with QEMU, cloud-init, and integrated runtime tooling.
 
-## Current status (2026-02-23)
+## Current status (2026-02-28)
 
 Build: Success (`0 warnings`, `0 errors`).
 
@@ -42,6 +42,16 @@ Build: Success (`0 warnings`, `0 errors`).
 - Validated runtime result: Docker stack reaches `healthy (5/5 expected containers)`.
 - Wizard stage telemetry now promotes serial-detected package/docker activity into `Updates` / `Docker` stage hints for clearer progress mapping.
 - Start flow now blocks running two workspaces on the same disk image path and reports a clear error.
+- Workspace path policy now validates and normalizes host workspace roots before runtime operations.
+- SSH host key TOFU persistence is enforced through a known-host store to prevent silent host-key drift.
+- Secret storage loading/writing is hardened with resilience fallbacks to reduce startup failures from malformed secret payloads.
+- Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
+
+### Recent changes (from latest commits)
+- Security hardening wave 1: path policy, SSH host key TOFU, secret resilience, and startup reason-code diagnostics.
+- Wizard startup fallback refactor with clearer runtime decision flow.
+- Workspace Settings and Settings view polish for runtime-critical fields.
+- Holvi connectivity and startup UX flow refinements.
 
 ### Settings and UX
 - CPU and RAM resource inputs aligned between Wizard and Settings.
@@ -83,6 +93,15 @@ Manual verification checklist: `docs/tasks/004-testing-checklist.md`.
 - [Task 14: SFTP UX and Host Workspace Visibility](docs/tasks/014-sftp-ux-and-hostpath.md)
 - [Task 15: HOLVI WebView Tab & Infisical Access Flow](docs/tasks/015-holvi-webview-tab-proposal.md)
 - [Task 16: Hardening & Regression Baseline](docs/tasks/016-hardening-and-regression-baseline.md)
+- [Task 17: Task Status Reconciliation](docs/tasks/017-task-status-reconciliation.md)
+- [Task 18: Documentation & Agent Governance Update](docs/tasks/018-doc-and-governance-update.md)
+- [Task 19: VM start/wizard vakaus ja retry-polut](docs/tasks/019-vm-start-wizard-vakaus-ja-retry-polut.md)
+- [Task 20: Secrets, asetukset ja porttiallokaatio](docs/tasks/020-secrets-asetukset-ja-porttiallokaatio.md)
+- [Task 21: Template-hallinta ja validointi](docs/tasks/021-template-hallinta-ja-validointi.md)
+- [Task 22: UI/UX ja navigaatio](docs/tasks/022-ui-ux-ja-navigaatio.md)
+- [Task 23: Testit, build-gate ja dokumentaation baseline](docs/tasks/023-testit-build-gate-ja-dokumentaation-baseline.md)
+- [Task 24: Arkkitehtuuri- ja refaktoripohja](docs/tasks/024-arkkitehtuuri-ja-refaktoripohja.md)
+- [Task 25: Uusimmat kovennukset ja dokumentointikierros](docs/tasks/025-uusimmat-kovennukset-ja-dokumentointikierros.md)
 
 ## Requirements
 
