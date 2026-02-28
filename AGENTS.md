@@ -39,3 +39,17 @@ Kun käyttäjä pyytää dokumentit ajan tasalle:
 
 - Käytä ensisijaisesti suomea, jos käyttäjä kirjoittaa suomeksi.
 - Pidä teksti tiiviinä ja käytännönläheisenä.
+
+## Skills
+
+A skill on paikallinen ohjekokonaisuus (`SKILL.md`), jota käytetään vain tilanteissa joissa pyyntö osuu skillin käyttöalaan.
+
+### Available skills
+- `skill-creator`: käytä, kun pyydetään uuden skillin luontia tai olemassa olevan skillin päivittämistä.
+- `skill-installer`: käytä, kun pyydetään listaamaan/asentamaan skill (curated tai GitHub-repo).
+
+### How to use skills
+- Trigger: jos käyttäjä nimeää skillin tai pyyntö selvästi vastaa skillin kuvausta, käytä sitä.
+- Lue ensin `SKILL.md` vain tarvittavalta osin.
+- Jos skill viittaa lisätiedostoihin (`references/`, `scripts/`, `assets/`), avaa vain tarvittavat.
+- Jos skillin käyttö ei onnistu (puuttuva tiedosto/epäselvyys), kerro lyhyesti ja jatka parhaalla fallbackilla.
