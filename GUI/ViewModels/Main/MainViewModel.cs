@@ -53,6 +53,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly IVmStartupReadinessService _vmStartupReadinessService;
         private readonly ISerialDiagnosticsService _serialDiagnosticsService;
         private readonly IWorkspacePathManager _workspacePathManager;
+        private readonly IVmLifecycleController _vmLifecycleController;
         private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly IWorkspacePortManager _portManager;
         private readonly RauskuClaw.Models.Settings _appSettings;
@@ -101,6 +102,7 @@ namespace RauskuClaw.GUI.ViewModels
             vmStartupReadinessService: null,
             serialDiagnosticsService: null,
             workspacePathManager: null,
+            vmLifecycleController: null,
             vmProcessRegistry: null,
             resourceStatsCache: null,
             portManager: null)
@@ -123,6 +125,7 @@ namespace RauskuClaw.GUI.ViewModels
             IVmStartupReadinessService? vmStartupReadinessService = null,
             ISerialDiagnosticsService? serialDiagnosticsService = null,
             IWorkspacePathManager? workspacePathManager = null,
+            IVmLifecycleController? vmLifecycleController = null,
             VmProcessRegistry? vmProcessRegistry = null,
             VmResourceStatsCache? resourceStatsCache = null,
             IWorkspacePortManager? portManager = null)
@@ -149,6 +152,7 @@ namespace RauskuClaw.GUI.ViewModels
                 _appSettings,
                 () => _workspaces,
                 AppendLog);
+            _vmLifecycleController = vmLifecycleController ?? new VmLifecycleController();
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
             _portManager = portManager ?? new WorkspacePortManager();
@@ -1249,6 +1253,18 @@ namespace RauskuClaw.GUI.ViewModels
             IProgress<string>? progress,
             CancellationToken ct)
         {
+            return await _vmLifecycleController.StartWorkspaceAsync(
+                workspace,
+                progress,
+                ct,
+                StartWorkspaceCoreAsync);
+        }
+
+        private async Task<(bool Success, string Message)> StartWorkspaceCoreAsync(
+            Workspace workspace,
+            IProgress<string>? progress,
+            CancellationToken ct)
+        {
             var bootSignalSeen = false;
             var repoPending = false;
             CancellationTokenSource? serialDiagCts = null;
@@ -1843,6 +1859,15 @@ namespace RauskuClaw.GUI.ViewModels
 
         private async Task<bool> StopWorkspaceInternalAsync(Workspace workspace, VmActionProgressWindow? progressWindow, bool showStopFailedDialog)
         {
+            return await _vmLifecycleController.StopWorkspaceAsync(
+                workspace,
+                progressWindow,
+                showStopFailedDialog,
+                StopWorkspaceCoreAsync);
+        }
+
+        private async Task<bool> StopWorkspaceCoreAsync(Workspace workspace, VmActionProgressWindow? progressWindow, bool showStopFailedDialog)
+        {
             if (workspace.Ports == null)
             {
                 return false;
@@ -2187,64 +2212,12 @@ namespace RauskuClaw.GUI.ViewModels
         private void TryKillTrackedProcess(Workspace workspace, bool force)
         {
             CancelWarmupRetry(workspace.Id);
-
-            if (!_workspaceProcesses.TryGetValue(workspace.Id, out var process))
-            {
-                return;
-            }
-
-            var stopped = false;
-            try
-            {
-                if (!process.HasExited)
-                {
-                    if (force)
-                    {
-                        process.Kill(entireProcessTree: true);
-                    }
-                    else
-                    {
-                        process.WaitForExit(2500);
-                        if (!process.HasExited)
-                        {
-                            process.Kill(entireProcessTree: true);
-                        }
-                    }
-                }
-
-                stopped = process.HasExited;
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"Could not stop tracked process for '{workspace.Name}': {ex.Message}");
-            }
-            finally
-            {
-                _workspaceProcesses.Remove(workspace.Id);
-                process.Dispose();
-
-                if (stopped)
-                {
-                    _vmProcessRegistry.UnregisterWorkspace(workspace.Id);
-                }
-            }
+            _vmLifecycleController.TryKillTrackedProcess(workspace, force, _workspaceProcesses, _vmProcessRegistry, AppendLog);
         }
 
         private bool IsTrackedProcessRunning(Workspace workspace)
         {
-            if (!_workspaceProcesses.TryGetValue(workspace.Id, out var process))
-            {
-                return false;
-            }
-
-            try
-            {
-                return !process.HasExited;
-            }
-            catch
-            {
-                return false;
-            }
+            return _vmLifecycleController.IsTrackedProcessRunning(workspace, _workspaceProcesses);
         }
 
         private async Task<bool> VerifyWorkspaceShutdownAsync(Workspace workspace, TimeSpan timeout)
