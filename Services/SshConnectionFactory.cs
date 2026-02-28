@@ -91,7 +91,8 @@ namespace RauskuClaw.Services
                         throw new SshHostKeyMismatchException(validation.MismatchMessage, ex);
                     }
 
-                    if (attempt >= maxAttempts || !IsTransientConnectionFailure(ex))
+                    var transient = IsTransientConnectionFailure(ex);
+                    if (attempt >= maxAttempts || !transient)
                     {
                         try
                         {
@@ -100,6 +101,11 @@ namespace RauskuClaw.Services
                         catch
                         {
                             // Best-effort cleanup on connection failure.
+                        }
+
+                        if (transient)
+                        {
+                            throw BuildTransientConnectException(validation.Endpoint, attempt, ex);
                         }
 
                         throw;
@@ -119,7 +125,15 @@ namespace RauskuClaw.Services
                 // Best-effort cleanup on connection failure.
             }
 
-            throw lastError ?? new InvalidOperationException($"SSH connect failed for {validation.Endpoint}.");
+            throw BuildTransientConnectException(validation.Endpoint, attempt, lastError);
+        }
+
+        private static InvalidOperationException BuildTransientConnectException(string endpoint, int attempts, Exception? ex)
+        {
+            var reason = ex?.Message ?? "endpoint was not ready";
+            return new InvalidOperationException(
+                $"SSH endpoint {endpoint} was not reachable after {attempts} attempt(s): {reason}",
+                ex);
         }
 
         private static bool IsTransientConnectionFailure(Exception ex)

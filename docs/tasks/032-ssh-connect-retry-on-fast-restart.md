@@ -9,6 +9,7 @@ Completed
 
 ## Technical notes
 - `SshConnectionFactory.ConnectClient` now retries transient connect failures before giving up.
+- Exhausted transient retries now return controlled `InvalidOperationException` (with inner exception) instead of surfacing raw socket exceptions.
 - Transient classes include:
   - `SocketException` (connection refused/reset, timeout, host/network unreachable/down),
   - `SshConnectionException`,

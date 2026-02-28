@@ -51,6 +51,7 @@ Build: Success (`0 warnings`, `0 errors`).
 ### Recent changes (from latest commits)
 - Added a stop-verification guard: workspace `Start` stays disabled briefly after `Stop` until shutdown verification completes, reducing fast stop/start race failures.
 - SSH/SFTP connection factory now retries transient connect failures (for example `ConnectionRefused` during fast stop/start) with short backoff before failing.
+- Exhausted SSH transient retries now surface as controlled application errors instead of leaking raw socket exceptions.
 - Read-only workspace status/resource text bindings were pinned to `Mode=OneWay` to avoid WPF runtime binding exceptions during quick VM state transitions.
 - Hardened workspace card and main control start/stop/restart async paths to observe/log faulted tasks instead of leaking unhandled async command exceptions.
 - Docker SSH command handling now normalizes aggregate transport aborts (for example connection aborted during VM stop) into controlled runtime errors.
