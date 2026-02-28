@@ -29,29 +29,76 @@
                   Background="#151A22"
                   MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="TitleSidebarColumn" Width="280"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            Margin="12,0,0,0"
-                            VerticalAlignment="Center">
-                    <Image Width="32" Height="32" Source="pack://application:,,,/Assets/rausku-icon-64.png" Margin="0,0,10,0"/>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="RauskuClaw"
-                                   Foreground="#4DA3FF"
-                                   FontSize="27"
-                                   FontWeight="Bold"
-                                   LineHeight="27"/>
-                        <TextBlock Text="AI Workspaces"
-                                   Foreground="#9AA3B2"
-                                   FontSize="11"
-                                   Margin="0,-4,0,0"/>
-                    </StackPanel>
-                </StackPanel>
+                <Grid Grid.Column="0" Margin="16,0,8,0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Image Source="pack://application:,,,/Assets/rausku-icon-64.png"
+                               Margin="0,0,10,0">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Setter Property="Width" Value="40"/>
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="Margin" Value="0,0,10,0"/>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="RauskuClaw"
+                                       Foreground="#4DA3FF"
+                                       FontSize="27"
+                                       FontWeight="Bold"
+                                       LineHeight="27"/>
+                            <TextBlock Text="AI Workspaces"
+                                       Foreground="#9AA3B2"
+                                       FontSize="11"
+                                       Margin="0,-4,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <Button Grid.Column="1"
+                        Command="{Binding ToggleSidebarCommand}"
+                        Content="&lt;&lt;"
+                        Padding="8,6"
+                        Width="40"
+                        Height="40"
+                        Margin="0,0,10,0"
+                        HorizontalAlignment="Right"
+                        ToolTip="Collapse sidebar">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                            <Setter Property="ToolTip" Value="Collapse sidebar"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                    <Setter Property="ToolTip" Value="Expand sidebar"/>
+                                    <Setter Property="Content" Value="&gt;&gt;"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource WindowTitleBarButtonStyle}" Click="MinimizeButton_OnClick" ToolTip="Minimize">
                         <fa:IconBlock Icon="Minus"
                                       Width="10"
@@ -82,42 +129,26 @@
         <!-- Sidebar: Workspace List -->
         <Border Grid.Column="0" Background="#151A22" BorderBrush="#2A3240" BorderThickness="0,0,1,0">
             <DockPanel>
-                <!-- Header: App title + New button -->
+                <!-- Header: New button -->
                 <StackPanel DockPanel.Dock="Top" Margin="16">
-                    <Button Command="{Binding ToggleSidebarCommand}"
-                            Tag="AngleDoubleLeft"
-                            Padding="8,6"
-                            Width="40"
-                            Height="40"
-                            HorizontalAlignment="Left"
-                            ToolTip="Collapse sidebar">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
-                                <Setter Property="ToolTip" Value="Collapse sidebar"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
-                                        <Setter Property="ToolTip" Value="Expand sidebar"/>
-                                        <Setter Property="Tag" Value="AngleDoubleRight"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
                     <Button Command="{Binding NewWorkspaceCommand}"
                             Tag="Plus"
-                            Padding="10"
-                            Width="40"
+                            Padding="12,8"
                             Height="40"
-                            Margin="0,8,0,0"
+                            Margin="0,0,0,0"
                             ToolTip="Create a new workspace"
-                            Cursor="Hand"
-                            Content="New Workspace">
+                            Cursor="Hand">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Setter Property="Content" Value="New Workspace"/>
+                                <Setter Property="Width" Value="Auto"/>
+                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
                                         <Setter Property="Content" Value=""/>
+                                        <Setter Property="Padding" Value="10"/>
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Width" Value="40"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -139,6 +170,9 @@
                                 <DataTrigger Binding="{Binding ElementName=WorkspaceList, Path=HasItems}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
@@ -151,13 +185,13 @@
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,16">
                     <Button Command="{Binding ShowHomeCommand}"
                             Tag="House"
-                            Content="Home"
                             Height="40"
                             Padding="10,0"
                             ToolTip="Open start page"
                             Margin="0,0,0,6">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Setter Property="Content" Value="Home"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsHomeSection}" Value="True">
                                         <Setter Property="Background" Value="#2A3240"/>
@@ -175,13 +209,13 @@
                     </Button>
                     <Button Command="{Binding ShowWorkspaceViewsCommand}"
                             Tag="Desktop"
-                            Content="Workspace Views"
                             Height="40"
                             Padding="10,0"
                             ToolTip="Open workspace tabs"
                             Margin="0,0,0,6">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Setter Property="Content" Value="Workspace Views"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsWorkspaceViewsSection}" Value="True">
                                         <Setter Property="Background" Value="#2A3240"/>
@@ -199,13 +233,13 @@
                     </Button>
                     <Button Command="{Binding ShowTemplatesCommand}"
                             Tag="Clone"
-                            Content="Templates"
                             Height="40"
                             Padding="10,0"
                             ToolTip="Open template management"
                             Margin="0,0,0,6">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Setter Property="Content" Value="Templates"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsTemplateSection}" Value="True">
                                         <Setter Property="Background" Value="#2A3240"/>
@@ -223,12 +257,12 @@
                     </Button>
                     <Button Command="{Binding ShowGeneralSettingsCommand}"
                             Tag="Cog"
-                            Content="General Settings"
                             Height="40"
                             Padding="10,0"
                             ToolTip="Open app settings">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Setter Property="Content" Value="General Settings"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsSettingsSection}" Value="True">
                                         <Setter Property="Background" Value="#2A3240"/>
@@ -264,27 +298,32 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <!-- Workspace icon -->
-                                    <Border Grid.Column="0"
-                                            Width="28"
-                                            Height="28"
-                                            CornerRadius="6"
-                                            Background="{Binding AccentColor}"
-                                            HorizontalAlignment="Left"
-                                            VerticalAlignment="Top">
-                                        <TextBlock Text="{Binding IconLetter}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="14"
-                                                   FontWeight="Bold"
-                                                   Foreground="{Binding AccentForegroundColor}"/>
-                                    </Border>
-                                    <DockPanel Grid.Column="1" Margin="8,0,0,0">
-                                        <!-- Status indicator -->
-                                        <Ellipse Width="8" Height="8"
-                                                 DockPanel.Dock="Right"
+                                    <Grid Grid.Column="0"
+                                          Width="28"
+                                          Height="28"
+                                          HorizontalAlignment="Left"
+                                          VerticalAlignment="Top">
+                                        <Border Width="28"
+                                                Height="28"
+                                                CornerRadius="6"
+                                                Background="{Binding AccentColor}">
+                                            <TextBlock Text="{Binding IconLetter}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="14"
+                                                       FontWeight="Bold"
+                                                       Foreground="{Binding AccentForegroundColor}"/>
+                                        </Border>
+                                        <Ellipse Width="10"
+                                                 Height="10"
                                                  Fill="{Binding StatusColor}"
+                                                 Stroke="#151A22"
+                                                 StrokeThickness="1"
+                                                 HorizontalAlignment="Right"
                                                  VerticalAlignment="Top"
-                                                 Margin="8,0,0,0"/>
+                                                 Margin="0,-2,-2,0"/>
+                                    </Grid>
+                                    <DockPanel Grid.Column="1" Margin="8,0,0,0">
                                         <StackPanel>
                                             <StackPanel.Style>
                                                 <Style TargetType="StackPanel">

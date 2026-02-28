@@ -12,7 +12,10 @@ namespace RauskuClaw
     /// </summary>
     public partial class App : Application
     {
+        private static readonly StartupMessageQueue _startupMessageQueue = new();
         private VmProcessRegistry? _vmProcessRegistry;
+
+        internal static StartupMessageQueue StartupMessages => _startupMessageQueue;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -59,11 +62,9 @@ namespace RauskuClaw
                     return;
                 }
 
-                MessageBox.Show(
-                    $"Recovered and stopped {result.Killed} orphaned VM process(es) from a previous run.",
+                _startupMessageQueue.QueueInfo(
                     "RauskuClaw VM cleanup",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                    $"Recovered and stopped {result.Killed} orphaned VM process(es) from a previous run.");
             }
             catch
             {
@@ -104,19 +105,15 @@ namespace RauskuClaw
                     return;
                 }
 
-                MessageBox.Show(
-                    "One or more configured paths are invalid or not writable:\n\n" + string.Join("\n", failures),
+                _startupMessageQueue.QueueInfo(
                     "RauskuClaw path validation",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    "One or more configured paths are invalid or not writable:\n\n" + string.Join("\n", failures));
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Startup path validation failed: {ex.Message}",
+                _startupMessageQueue.QueueInfo(
                     "RauskuClaw path validation",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    $"Startup path validation failed: {ex.Message}");
             }
         }
 

@@ -1,7 +1,10 @@
+using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using System.Windows.Media.Animation;
 using RauskuClaw.Models;
 using RauskuClaw.GUI.ViewModels;
 using RauskuClaw.Services;
@@ -15,6 +18,8 @@ namespace RauskuClaw.GUI.Views
     {
         private MainViewModel? _mainViewModel;
         private bool _shutdownRoutineActive;
+        private const double SidebarExpandedWidth = 280;
+        private const double SidebarCollapsedWidth = 72;
 
         public MainWindow()
         {
@@ -24,6 +29,21 @@ namespace RauskuClaw.GUI.Views
             _mainViewModel = new MainViewModel(settingsService, pathResolver);
             DataContext = _mainViewModel;
 
+            if (_mainViewModel != null)
+            {
+                _mainViewModel.PropertyChanged += MainViewModel_OnPropertyChanged;
+            }
+
+            Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Show any queued startup messages
+            App.StartupMessages.ShowQueuedMessages();
+
+            // Unsubscribe after showing
+            Loaded -= MainWindow_Loaded;
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -147,6 +167,41 @@ namespace RauskuClaw.GUI.Views
             }
 
             _mainViewModel.SelectedMainSection = MainViewModel.MainContentSection.WorkspaceTabs;
+        }
+
+        private void MainViewModel_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsSidebarCollapsed) && _mainViewModel != null)
+            {
+                AnimateSidebar(_mainViewModel.IsSidebarCollapsed);
+            }
+        }
+
+        private void AnimateSidebar(bool collapse)
+        {
+            double to = collapse ? SidebarCollapsedWidth : SidebarExpandedWidth;
+            AnimateSidebarColumn(SidebarColumn, to);
+            AnimateSidebarColumn(TitleSidebarColumn, to);
+        }
+
+        private static void AnimateSidebarColumn(ColumnDefinition column, double to)
+        {
+            double from = column.Width.Value;
+            if (Math.Abs(from - to) < 0.1)
+            {
+                return;
+            }
+
+            var duration = new Duration(TimeSpan.FromMilliseconds(180));
+            var animation = new GridLengthAnimation
+            {
+                From = new GridLength(from),
+                To = new GridLength(to),
+                Duration = duration,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+            };
+
+            column.BeginAnimation(ColumnDefinition.WidthProperty, animation);
         }
     }
 }

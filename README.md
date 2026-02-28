@@ -49,6 +49,13 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Workspace list status indicator was moved onto the workspace icon corner (slightly larger), so VM status remains visible also in collapsed sidebar mode.
+- Sidebar logo column alignment was finalized by locking the header logo container to a fixed left offset (`16px`) that matches sidebar button column alignment in both expanded and collapsed states.
+- Sidebar logo alignment was further refined in collapsed mode using image-level margin trigger so the logo lines up with the sidebar 40px button column.
+- Sidebar `New Workspace` button no longer disappears in collapsed mode; it now follows the same icon-only compact behavior as other sidebar buttons, and restores full text/width in expanded mode.
+- Sidebar collapse state no longer swaps to a custom icon-only content template; collapsed nav buttons now clear text content safely while preserving icons to avoid runtime `FontFamily` binding exceptions during `IsSidebarCollapsed` updates.
+- Sidebar navigation labels now collapse cleanly to icon-only buttons, and `New Workspace` returns to full-width/text mode when sidebar is expanded (no longer stuck as 40x40).
+- Sidebar collapse toggle in title/header was fixed to avoid runtime `FontFamily` exceptions on click by switching the toggle to a non-icon text button state (`<<` / `>>`).
 - Sidebar workspace card click now always opens `Workspace Views` even when the clicked workspace was already selected (not only on selection-change).
 - Global ComboBox template was upgraded for readability parity with text inputs: closed field, editable field, and dropdown items now use the same dark theme and contrast profile.
 - ComboBox/dropdown styling was unified to a single global app style: removed per-view inline ComboBox visual overrides and dropped an unused view-specific ComboBox style.

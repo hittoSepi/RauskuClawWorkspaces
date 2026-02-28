@@ -29,7 +29,14 @@ namespace RauskuClaw.Models
         public string Name
         {
             get => _name;
-            set { _name = value; OnPropertyChanged(); }
+            set
+            {
+                _name = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IconLetter));
+                OnPropertyChanged(nameof(AccentColor));
+                OnPropertyChanged(nameof(AccentForegroundColor));
+            }
         }
 
         public string Description
@@ -243,6 +250,40 @@ namespace RauskuClaw.Models
             _ => "#6A7382"
         };
 
+        public string IconLetter
+        {
+            get
+            {
+                var name = Name?.Trim();
+                if (string.IsNullOrEmpty(name))
+                {
+                    return "?";
+                }
+
+                var first = name[0];
+                return char.ToUpperInvariant(first).ToString();
+            }
+        }
+
+        public string AccentColor
+        {
+            get
+            {
+                var (r, g, b) = ComputeAccentColorFromName(Name);
+                return $"#{r:X2}{g:X2}{b:X2}";
+            }
+        }
+
+        public string AccentForegroundColor
+        {
+            get
+            {
+                var (r, g, b) = ComputeAccentColorFromName(Name);
+                var luminance = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+                return luminance < 140 ? "#FFFFFF" : "#111111";
+            }
+        }
+
         public string ApiUrl => IsRunning && Ports != null ? $"http://127.0.0.1:{Ports.Api}" : "Not available";
         public string WebUiUrl => IsRunning ? $"http://127.0.0.1:{HostWebPort}/" : "Not available";
         public string SshUrl => IsRunning && Ports != null ? $"ssh -p {Ports.Ssh} {Username}@127.0.0.1" : "Not available";
@@ -288,6 +329,82 @@ namespace RauskuClaw.Models
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private static (byte R, byte G, byte B) ComputeAccentColorFromName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                // Fallback to a theme-like accent blue.
+                return (0x4D, 0xA3, 0xFF);
+            }
+
+            var hash = StableHash(name);
+            var hue = (hash % 360 + 360) % 360; // 0..359
+            const double saturation = 0.65;
+            const double lightness = 0.52;
+            return HslToRgb(hue, saturation, lightness);
+        }
+
+        private static int StableHash(string value)
+        {
+            unchecked
+            {
+                var hash = 5381;
+                foreach (var ch in value)
+                {
+                    hash = ((hash << 5) + hash) ^ ch;
+                }
+
+                return hash;
+            }
+        }
+
+        private static (byte R, byte G, byte B) HslToRgb(double h, double s, double l)
+        {
+            h %= 360;
+            if (h < 0)
+            {
+                h += 360;
+            }
+
+            s = Math.Clamp(s, 0, 1);
+            l = Math.Clamp(l, 0, 1);
+
+            var c = (1 - Math.Abs(2 * l - 1)) * s;
+            var x = c * (1 - Math.Abs((h / 60) % 2 - 1));
+            var m = l - (c / 2);
+
+            double r1, g1, b1;
+            if (h < 60)
+            {
+                r1 = c; g1 = x; b1 = 0;
+            }
+            else if (h < 120)
+            {
+                r1 = x; g1 = c; b1 = 0;
+            }
+            else if (h < 180)
+            {
+                r1 = 0; g1 = c; b1 = x;
+            }
+            else if (h < 240)
+            {
+                r1 = 0; g1 = x; b1 = c;
+            }
+            else if (h < 300)
+            {
+                r1 = x; g1 = 0; b1 = c;
+            }
+            else
+            {
+                r1 = c; g1 = 0; b1 = x;
+            }
+
+            var r = (byte)Math.Round((r1 + m) * 255);
+            var g = (byte)Math.Round((g1 + m) * 255);
+            var b = (byte)Math.Round((b1 + m) * 255);
+            return (r, g, b);
         }
     }
 }

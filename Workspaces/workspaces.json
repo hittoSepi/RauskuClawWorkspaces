@@ -1,0 +1,30 @@
+[
+  {
+    "Id": "0d911dee-bcab-4438-873c-1bf5b49d5728",
+    "Name": "rausku-ai",
+    "Description": "Workspace for rausku-ai",
+    "Username": "rausku",
+    "Hostname": "rausku-ai",
+    "SshPublicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINxw9xrHJpP0KuwRxeJm3hesfyGU1K9CMlBKAT9SVPLC hitto@DESKTOP-IB08JAQ",
+    "SshPrivateKeyPath": "C:\\Users\\hitto\\.ssh\\rausku_vm_ed25519",
+    "RepoTargetDir": "/opt/rauskuclaw",
+    "HostWorkspacePath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\Workspaces\\rausku-ai-0d911dee",
+    "HostWebPort": 8080,
+    "MemoryMb": 8192,
+    "CpuCores": 6,
+    "DiskPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\rausku-ai-0d911dee\\arch.qcow2",
+    "SeedIsoPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\rausku-ai-0d911dee\\seed.iso",
+    "QemuExe": "qemu-system-x86_64.exe",
+    "CreatedAt": "2026-02-28T09:21:49.2456314+02:00",
+    "LastRun": "2026-02-28T10:49:33.2526115+02:00",
+    "Ports": {
+      "Ssh": 2222,
+      "Api": 3011,
+      "UiV2": 3013,
+      "UiV1": 3012,
+      "Qmp": 4444,
+      "Serial": 5555
+    },
+    "AutoStart": false
+  }
+]

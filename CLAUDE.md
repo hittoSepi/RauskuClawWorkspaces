@@ -35,7 +35,7 @@ Kun tehtävä on valmis ja koodi testattu + ei ole build virheita
 ## Committeihin perustuva dokumentointirutiini
 
 Kun käyttäjä pyytää dokumentit ajan tasalle:
-1. Tarkista viimeisimmät commitit6 (`git log --oneline -n <N>`).
+1. Tarkista viimeisimmät commitit (`git log --oneline -n <N>`).
 2. Poimi käyttäjälle merkittävät muutokset (ei pelkkiä sisäisiä refaktoreita elleivät vaikuta käytökseen).
 3. Päivitä vähintään:
    - `README.md`

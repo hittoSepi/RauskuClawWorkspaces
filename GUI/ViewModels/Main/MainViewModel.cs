@@ -83,6 +83,7 @@ namespace RauskuClaw.GUI.ViewModels
         private int _totalMemoryUsageMb;
         private double _totalDiskUsageMb;
         private int _runningWorkspaceCount;
+        private bool _isSidebarCollapsed;
 
         public MainViewModel() : this(
             settingsService: null,
@@ -166,6 +167,7 @@ namespace RauskuClaw.GUI.ViewModels
             StartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StartWorkspaceFromHome, ws => CanStartWorkspace(ws));
             StopWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StopWorkspaceFromHome, ws => ws?.CanStop == true && !_isVmStopping && !_isVmRestarting);
             RestartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(RestartWorkspaceFromHome, ws => ws?.IsRunning == true && !_isVmStopping && !_isVmRestarting);
+            ToggleSidebarCommand = new RelayCommand(ToggleSidebar);
 
             // Initialize child view models for non-null navigation targets.
             Settings = new SettingsViewModel(_settingsService, _pathResolver);
@@ -555,6 +557,21 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        public bool IsSidebarCollapsed
+        {
+            get => _isSidebarCollapsed;
+            set
+            {
+                if (_isSidebarCollapsed == value)
+                {
+                    return;
+                }
+
+                _isSidebarCollapsed = value;
+                OnPropertyChanged();
+            }
+        }
+
         // Commands
         public ICommand NewWorkspaceCommand { get; }
         public ICommand StartVmCommand { get; }
@@ -572,6 +589,7 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand StartWorkspaceFromHomeCommand { get; }
         public ICommand StopWorkspaceFromHomeCommand { get; }
         public ICommand RestartWorkspaceFromHomeCommand { get; }
+        public ICommand ToggleSidebarCommand { get; }
 
         private bool CanStartSelectedWorkspace() => CanStartWorkspace(SelectedWorkspace);
 
@@ -712,6 +730,11 @@ namespace RauskuClaw.GUI.ViewModels
 
             SelectedWorkspace = workspace;
             RunSafeAndForget(RestartVmAsync(), "Restart VM from Home");
+        }
+
+        private void ToggleSidebar()
+        {
+            IsSidebarCollapsed = !IsSidebarCollapsed;
         }
 
         private void RunSafeAndForget(Task task, string operation)

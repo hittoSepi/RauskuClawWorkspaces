@@ -1,0 +1,8 @@
+{
+  "127.0.0.1:2222": {
+    "Algorithm": "ssh-ed25519",
+    "FingerprintHex": "4494bd191ecbbe1c9c8fbea455c2b21b",
+    "FirstSeenUtc": "2026-02-28T07:22:10.9847537+00:00",
+    "LastSeenUtc": "2026-02-28T07:22:10.9847537+00:00"
+  }
+}

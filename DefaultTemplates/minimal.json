@@ -1,0 +1,38 @@
+{
+  "Id": "minimal",
+  "Name": "Minimal Stack",
+  "Description": "Lightweight setup with just API and Ollama - suitable for testing and development",
+  "Category": "Minimal",
+  "MemoryMb": 2048,
+  "CpuCores": 2,
+  "Username": "rausku",
+  "Hostname": "rausku-minimal",
+  "PortMappings": [
+    {
+      "Name": "SSH",
+      "Port": 2222,
+      "Description": "SSH access"
+    },
+    {
+      "Name": "API",
+      "Port": 3011,
+      "Description": "RauskuClaw API"
+    },
+    {
+      "Name": "QMP",
+      "Port": 4444,
+      "Description": "QEMU Monitor Protocol"
+    },
+    {
+      "Name": "Serial",
+      "Port": 5555,
+      "Description": "Serial console"
+    }
+  ],
+  "EnabledServices": [
+    "api",
+    "ollama"
+  ],
+  "Icon": "\u26A1",
+  "IsDefault": false
+}

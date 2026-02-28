@@ -1,4 +1,4 @@
-# Task Index (001-045)
+# Task Index (001-053)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -47,3 +47,11 @@
 | 043 | Completed | ComboBox/dropdown visuals unified to one global style; per-view ComboBox style overrides removed | [043-global-combobox-style-unification.md](043-global-combobox-style-unification.md) |
 | 044 | Completed | Global ComboBox template now matches text-input dark theme for closed, editable, and dropdown states | [044-combobox-readability-theme-parity.md](044-combobox-readability-theme-parity.md) |
 | 045 | Completed | Sidebar workspace card click now always opens Workspace Views even when same workspace is already selected | [045-sidebar-click-always-opens-workspace-views.md](045-sidebar-click-always-opens-workspace-views.md) |
+| 046 | Completed | Header sidebar toggle crash fixed by replacing icon-tag toggle with text-based toggle states (`<<` / `>>`) | [046-header-sidebar-toggle-fontfamily-fix.md](046-header-sidebar-toggle-fontfamily-fix.md) |
+| 047 | Completed | Removed collapsed-state custom icon-only content template to prevent `FontFamily` exception on `IsSidebarCollapsed` updates | [047-sidebar-collapsed-contenttemplate-fontfamily-fix.md](047-sidebar-collapsed-contenttemplate-fontfamily-fix.md) |
+| 048 | Completed | Sidebar nav labels now hide cleanly in collapsed mode, and New Workspace returns to full-width mode when expanded | [048-sidebar-label-collapse-and-newworkspace-width-fix.md](048-sidebar-label-collapse-and-newworkspace-width-fix.md) |
+| 049 | Completed | New Workspace button now stays visible in collapsed mode (icon-only) and restores full text width in expanded mode | [049-sidebar-newworkspace-collapsed-visibility.md](049-sidebar-newworkspace-collapsed-visibility.md) |
+| 050 | Completed | Sidebar logo is now fixed to 40x40 in all sidebar states (no resize jump on collapse/expand) | [050-sidebar-logo-fixed-40x40.md](050-sidebar-logo-fixed-40x40.md) |
+| 051 | Completed | Sidebar logo collapsed-mode horizontal alignment tuned to match the 40px button column | [051-sidebar-logo-column-alignment.md](051-sidebar-logo-column-alignment.md) |
+| 052 | Completed | Sidebar logo header container now uses fixed 16px left offset for matching button-column alignment in both expanded and collapsed states | [052-sidebar-logo-fixed-left-offset.md](052-sidebar-logo-fixed-left-offset.md) |
+| 053 | Completed | Workspace status indicator moved to workspace icon corner (larger + visible in collapsed sidebar) | [053-workspace-status-indicator-on-icon-corner.md](053-workspace-status-indicator-on-icon-corner.md) |

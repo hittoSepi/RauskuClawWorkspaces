@@ -1,0 +1,51 @@
+{
+  "Id": "default",
+  "Name": "Default RauskuClaw",
+  "Description": "Standard RauskuClaw AI Platform with all services (API, Worker, UI v2, Ollama, Nginx)",
+  "Category": "Default",
+  "MemoryMb": 4096,
+  "CpuCores": 4,
+  "Username": "rausku",
+  "Hostname": "rausku-vm",
+  "PortMappings": [
+    {
+      "Name": "SSH",
+      "Port": 2222,
+      "Description": "SSH access"
+    },
+    {
+      "Name": "API",
+      "Port": 3011,
+      "Description": "RauskuClaw API"
+    },
+    {
+      "Name": "UIv2",
+      "Port": 3013,
+      "Description": "Web UI v2"
+    },
+    {
+      "Name": "UIv1",
+      "Port": 3012,
+      "Description": "Web UI v1"
+    },
+    {
+      "Name": "QMP",
+      "Port": 4444,
+      "Description": "QEMU Monitor Protocol"
+    },
+    {
+      "Name": "Serial",
+      "Port": 5555,
+      "Description": "Serial console"
+    }
+  ],
+  "EnabledServices": [
+    "api",
+    "worker",
+    "ui-v2",
+    "ollama",
+    "nginx"
+  ],
+  "Icon": "\uD83D\uDE80",
+  "IsDefault": true
+}

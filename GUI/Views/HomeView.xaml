@@ -149,11 +149,26 @@
 
                                             <Grid Grid.Row="0">
                                                 <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0"
+                                                        Width="28"
+                                                        Height="28"
+                                                        CornerRadius="6"
+                                                        Background="{Binding AccentColor}"
+                                                        Margin="0,0,8,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding IconLetter}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="14"
+                                                               FontWeight="Bold"
+                                                               Foreground="{Binding AccentForegroundColor}"/>
+                                                </Border>
 
-                                                <Button Grid.Column="0"
+                                                <Button Grid.Column="1"
                                                         Content="{Binding Name}"
                                                         HorizontalAlignment="Left"
                                                         Background="Transparent"
@@ -167,7 +182,7 @@
                                                         Command="{Binding DataContext.OpenWorkspaceFromHomeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
 
-                                                <Border Grid.Column="1"
+                                                <Border Grid.Column="2"
                                                         Background="#0F1115"
                                                         BorderBrush="#2A3240"
                                                         BorderThickness="1"
