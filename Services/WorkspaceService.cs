@@ -67,6 +67,7 @@ namespace RauskuClaw.Services
                             CreatedAt = item.CreatedAt,
                             LastRun = item.LastRun,
                             Ports = item.Ports,
+                            AutoStart = item.AutoStart,
                             Status = VmStatus.Stopped,
                             IsRunning = false
                         });
@@ -106,7 +107,8 @@ namespace RauskuClaw.Services
                 QemuExe = w.QemuExe,
                 CreatedAt = w.CreatedAt,
                 LastRun = w.LastRun,
-                Ports = w.Ports
+                Ports = w.Ports,
+                AutoStart = w.AutoStart
             }).ToList();
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -135,6 +137,7 @@ namespace RauskuClaw.Services
             public DateTime CreatedAt { get; set; }
             public DateTime? LastRun { get; set; }
             public PortAllocation? Ports { get; set; }
+            public bool AutoStart { get; set; }
         }
     }
 }

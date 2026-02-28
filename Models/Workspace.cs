@@ -17,6 +17,7 @@ namespace RauskuClaw.Models
         private DateTime? _lastRun;
         private int _dockerContainerCount = -1;
         private bool _dockerAvailable;
+        private bool _autoStart;
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
@@ -111,6 +112,17 @@ namespace RauskuClaw.Models
                 _dockerAvailable = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DockerStatus));
+            }
+        }
+
+        public bool AutoStart
+        {
+            get => _autoStart;
+            set
+            {
+                if (_autoStart == value) return;
+                _autoStart = value;
+                OnPropertyChanged();
             }
         }
 

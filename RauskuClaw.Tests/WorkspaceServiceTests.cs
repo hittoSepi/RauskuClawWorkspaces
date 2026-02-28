@@ -27,6 +27,7 @@ public class WorkspaceServiceTests
                 HostWebPort = 9090,
                 MemoryMb = 8192,
                 CpuCores = 8,
+                AutoStart = true,
                 DiskPath = "disk.qcow2",
                 SeedIsoPath = "seed.iso",
                 QemuExe = "qemu-system-x86_64",
@@ -42,6 +43,7 @@ public class WorkspaceServiceTests
         Assert.Equal("Test Workspace", loaded[0].Name);
         Assert.Equal(9090, loaded[0].HostWebPort);
         Assert.Equal(2022, loaded[0].Ports?.Ssh);
+        Assert.True(loaded[0].AutoStart);
     }
 
     [Fact]
@@ -88,6 +90,7 @@ public class WorkspaceServiceTests
             Name = "Round Trip",
             TemplateId = "full-ai",
             TemplateName = "Full AI",
+            AutoStart = true,
             Ports = new PortAllocation { Ssh = 2222, Api = 3011, UiV2 = 3013, UiV1 = 3012, Qmp = 4444, Serial = 5555 },
             LastRun = DateTime.UtcNow
         };
@@ -99,5 +102,6 @@ public class WorkspaceServiceTests
         Assert.Equal(workspace.Id, restored!.Id);
         Assert.Equal(workspace.TemplateId, restored.TemplateId);
         Assert.Equal(workspace.Ports?.Api, restored.Ports?.Api);
+        Assert.True(restored.AutoStart);
     }
 }

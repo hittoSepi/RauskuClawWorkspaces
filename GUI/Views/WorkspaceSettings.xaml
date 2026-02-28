@@ -61,6 +61,30 @@
                                     VerticalAlignment="Center"
                                     Margin="8,0,0,0"/>
                         </Grid>
+
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Auto Start:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Column="1"
+                                      Content="Start this workspace when app auto-start is enabled"
+                                      IsChecked="{Binding DataContext.SelectedWorkspace.AutoStart, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"
+                                      Foreground="#E6EAF2"
+                                      VerticalAlignment="Center">
+                                <CheckBox.Style>
+                                    <Style TargetType="CheckBox">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}" Value="{x:Null}">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </CheckBox.Style>
+                            </CheckBox>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

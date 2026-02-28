@@ -48,6 +48,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Home page visuals simplified (reduced container boxes), quick action row now includes `Open Recent Workspace` (disabled when no workspace exists), and workspace-level `Auto Start` setting was added.
 - Home welcome page redesigned to a denser VS Code-inspired centered layout with quick actions and integrated `rausku-avatar.png` hero card.
 - Added startup Home page with recent workspace cards (Open via title + Start/Stop/Restart actions) and a persisted startup visibility toggle.
 - Main window minimum size updated to `1920x1080` to improve default layout usability on larger screens.

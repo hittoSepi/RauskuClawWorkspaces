@@ -20,13 +20,8 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0"
-                        Background="#151A22"
-                        BorderBrush="#2A3240"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="18"
-                        Margin="0,0,0,14">
+                <Grid Grid.Row="0"
+                      Margin="0,0,0,14">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -73,20 +68,20 @@
                             </Grid>
                         </Border>
                     </Grid>
-                </Border>
+                </Grid>
 
-                <Border Grid.Row="1"
-                        Background="#151A22"
-                        BorderBrush="#2A3240"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="12"
-                        Margin="0,0,0,14">
+                <Grid Grid.Row="1" Margin="0,0,0,14">
                     <StackPanel Orientation="Horizontal">
                         <Button Command="{Binding NewWorkspaceCommand}"
                                 Style="{StaticResource GreenIconButton}"
                                 Tag="Plus"
                                 Content="New Workspace"
+                                Padding="12,7"
+                                Margin="0,0,8,0"/>
+                        <Button Command="{Binding OpenRecentWorkspaceCommand}"
+                                Style="{StaticResource SecondaryIconButton}"
+                                Tag="History"
+                                Content="Open Recent Workspace"
                                 Padding="12,7"
                                 Margin="0,0,8,0"/>
                         <Button Command="{Binding ShowWorkspaceViewsCommand}"
@@ -101,15 +96,9 @@
                                 Content="Templates"
                                 Padding="12,7"/>
                     </StackPanel>
-                </Border>
+                </Grid>
 
-                <Border Grid.Row="2"
-                        Background="#151A22"
-                        BorderBrush="#2A3240"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="16"
-                        Margin="0,0,0,14">
+                <Grid Grid.Row="2" Margin="0,0,0,14">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -188,7 +177,6 @@
                                             <Grid Grid.Row="1" Margin="0,9,0,12">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="170"/>
                                                 </Grid.ColumnDefinitions>
 
                                                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
@@ -202,26 +190,14 @@
                                                                Foreground="#9AA3B2"
                                                                FontSize="12"
                                                                Margin="0,7,0,0"/>
+                                                    <TextBlock Foreground="#6A7382" FontSize="11" Margin="0,6,0,0">
+                                                        <Run Text="CPU: "/>
+                                                        <Run Text="{Binding CpuCores}"/>
+                                                        <Run Text="   RAM: "/>
+                                                        <Run Text="{Binding MemoryMb}"/>
+                                                        <Run Text=" MB"/>
+                                                    </TextBlock>
                                                 </StackPanel>
-
-                                                <Border Grid.Column="1"
-                                                        Background="#0F1115"
-                                                        BorderBrush="#2A3240"
-                                                        BorderThickness="1"
-                                                        CornerRadius="8"
-                                                        Padding="10,8">
-                                                    <StackPanel>
-                                                        <TextBlock Foreground="#6A7382" FontSize="11">
-                                                            <Run Text="CPU: "/>
-                                                            <Run Text="{Binding CpuCores}"/>
-                                                        </TextBlock>
-                                                        <TextBlock Foreground="#6A7382" FontSize="11" Margin="0,4,0,0">
-                                                            <Run Text="RAM: "/>
-                                                            <Run Text="{Binding MemoryMb}"/>
-                                                            <Run Text=" MB"/>
-                                                        </TextBlock>
-                                                    </StackPanel>
-                                                </Border>
                                             </Grid>
 
                                             <Grid Grid.Row="2">
@@ -263,19 +239,14 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </Grid>
-                </Border>
+                </Grid>
 
-                <Border Grid.Row="3"
-                        Background="#151A22"
-                        BorderBrush="#2A3240"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="10,8">
+                <Grid Grid.Row="3">
                     <CheckBox Content="Don't show on startup"
                               IsChecked="{Binding DoNotShowStartPageOnStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               Foreground="#E6EAF2"
                               HorizontalAlignment="Center"/>
-                </Border>
+                </Grid>
             </Grid>
         </ScrollViewer>
     </Grid>

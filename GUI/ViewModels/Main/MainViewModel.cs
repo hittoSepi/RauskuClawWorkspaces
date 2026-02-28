@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Collections.Generic;
 using System.IO;
@@ -120,6 +121,7 @@ namespace RauskuClaw.GUI.ViewModels
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
+            _workspaces.CollectionChanged += OnWorkspacesCollectionChanged;
             EnsureWorkspaceHostDirectories();
             ReserveExistingWorkspacePorts();
 
@@ -134,6 +136,7 @@ namespace RauskuClaw.GUI.ViewModels
             ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
             ShowSecretsSettingsCommand = new RelayCommand(NavigateToSecretsSettings);
             OpenWorkspaceFromHomeCommand = new RelayCommand<Workspace>(OpenWorkspaceFromHome, ws => ws != null);
+            OpenRecentWorkspaceCommand = new RelayCommand(OpenRecentWorkspace, () => RecentWorkspaces.Any());
             StartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StartWorkspaceFromHome, ws => ws?.CanStart == true && !_isVmStopping && !_isVmRestarting);
             StopWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StopWorkspaceFromHome, ws => ws?.CanStop == true && !_isVmStopping && !_isVmRestarting);
             RestartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(RestartWorkspaceFromHome, ws => ws?.IsRunning == true && !_isVmStopping && !_isVmRestarting);
@@ -436,6 +439,7 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand ShowGeneralSettingsCommand { get; }
         public ICommand ShowSecretsSettingsCommand { get; }
         public ICommand OpenWorkspaceFromHomeCommand { get; }
+        public ICommand OpenRecentWorkspaceCommand { get; }
         public ICommand StartWorkspaceFromHomeCommand { get; }
         public ICommand StopWorkspaceFromHomeCommand { get; }
         public ICommand RestartWorkspaceFromHomeCommand { get; }
@@ -475,6 +479,17 @@ namespace RauskuClaw.GUI.ViewModels
 
             SelectedWorkspace = workspace;
             _ = StartVmAsync();
+        }
+
+        private void OpenRecentWorkspace()
+        {
+            var recent = RecentWorkspaces.FirstOrDefault();
+            if (recent == null)
+            {
+                return;
+            }
+
+            OpenWorkspaceFromHome(recent);
         }
 
         private void StopWorkspaceFromHome(Workspace? workspace)
@@ -1927,6 +1942,12 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void OnSelectedWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(Workspace.AutoStart) && sender is Workspace workspace)
+            {
+                _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                AppendLog($"Workspace auto-start {(workspace.AutoStart ? "enabled" : "disabled")} for '{workspace.Name}'.");
+            }
+
             if (e.PropertyName == nameof(Workspace.IsRunning) || e.PropertyName == nameof(Workspace.Status))
             {
                 if (SelectedWorkspace != null)
@@ -1935,6 +1956,12 @@ namespace RauskuClaw.GUI.ViewModels
                 }
                 CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+        private void OnWorkspacesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(RecentWorkspaces));
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void TryKillTrackedProcess(Workspace workspace, bool force)
