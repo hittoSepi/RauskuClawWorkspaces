@@ -1120,10 +1120,16 @@ namespace RauskuClaw.GUI.ViewModels
             try
             {
                 // Create progress reporter to show serial output during infra VM startup
-                var infraProgress = new Progress<string>(msg => AppendLog(msg));
+                // Use Dispatcher to ensure UI updates happen on the UI thread
+                var infraProgress = new Progress<string>(msg =>
+                {
+                    Application.Current?.Dispatcher.InvokeAsync(() => AppendLog(msg));
+                });
+                AppendLog($"[infra] Starting infra VM (serial port {workspace.Ports?.Serial ?? 0})...");
                 var startResult = await _startupOrchestrator.StartWorkspaceAsync(workspace, infraProgress, startToken, StartWorkspaceInternalAsync);
                 if (startResult.Success)
                 {
+                    AppendLog("[infra] Infra VM started successfully.");
                     return startResult;
                 }
 
@@ -1845,25 +1851,31 @@ namespace RauskuClaw.GUI.ViewModels
                     {
                         // System workspaces need longer serial port timeout
                         var serialTimeout = workspace.IsSystemWorkspace ? TimeSpan.FromSeconds(60) : TimeSpan.FromSeconds(30);
-                        ReportStage(progress, "ssh", "in_progress", $"Waiting for serial boot signal on 127.0.0.1:{workspace.Ports.Serial}...");
-                        await NetWait.WaitTcpAsync("127.0.0.1", workspace.Ports.Serial, serialTimeout, ct);
+                        var serialPort = workspace.Ports.Serial;
+                        AppendLog($"[serial] Waiting for serial port 127.0.0.1:{serialPort} (timeout: {(int)serialTimeout.TotalSeconds}s)...");
+                        ReportStage(progress, "ssh", "in_progress", $"Waiting for serial boot signal on 127.0.0.1:{serialPort}...");
+                        await NetWait.WaitTcpAsync("127.0.0.1", serialPort, serialTimeout, ct);
                         bootSignalSeen = true;
                         _workspaceBootSignals[workspace.Id] = true;
-                        AppendLog("Serial port is reachable.");
+                        AppendLog($"[serial] Serial port 127.0.0.1:{serialPort} is reachable. Starting diagnostics capture...");
                         if (progress != null)
                         {
                             serialDiagCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                            _ = CaptureSerialDiagnosticsAsync(workspace.Ports.Serial, progress, serialDiagCts.Token);
+                            _ = CaptureSerialDiagnosticsAsync(serialPort, progress, serialDiagCts.Token);
                         }
                     }
                     catch (OperationCanceledException)
                     {
                         throw;
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        AppendLog("Serial boot signal not detected in time; proceeding with SSH checks.");
+                        AppendLog($"[serial] Serial port wait failed: {ex.Message}. Proceeding with SSH checks.");
                     }
+                }
+                else
+                {
+                    AppendLog("[serial] No serial port configured, skipping serial diagnostics.");
                 }
 
                 ReportStage(progress, "ssh", "in_progress", $"Waiting for SSH on 127.0.0.1:{workspace.Ports?.Ssh}...");
