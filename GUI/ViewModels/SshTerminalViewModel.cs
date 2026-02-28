@@ -142,6 +142,15 @@ namespace RauskuClaw.GUI.ViewModels
                 return;
             }
 
+            if (workspace.Status != VmStatus.Running)
+            {
+                ConnectionInfo = workspace.Status == VmStatus.WarmingUp || workspace.Status == VmStatus.Starting
+                    ? "SSH waiting for stable readiness..."
+                    : "SSH waiting for VM readiness...";
+                IsConnected = false;
+                return;
+            }
+
             try
             {
                 Disconnect();

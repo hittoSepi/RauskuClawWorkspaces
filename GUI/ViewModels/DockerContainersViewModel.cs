@@ -102,6 +102,16 @@ namespace RauskuClaw.GUI.ViewModels
                 return;
             }
 
+            if (_workspace.Status != VmStatus.Running)
+            {
+                _dockerService.Disconnect();
+                _ = RunOnUiAsync(() => _containers.Clear());
+                StatusText = _workspace.Status == VmStatus.WarmingUp || _workspace.Status == VmStatus.Starting
+                    ? "Docker waiting for stable SSH readiness..."
+                    : "Docker waiting for VM readiness...";
+                return;
+            }
+
             _ = RefreshSafeAsync();
         }
 
@@ -240,6 +250,11 @@ namespace RauskuClaw.GUI.ViewModels
             if (_workspace == null || !_workspace.IsRunning)
             {
                 throw new InvalidOperationException("Workspace is not running.");
+            }
+
+            if (_workspace.Status != VmStatus.Running)
+            {
+                throw new InvalidOperationException("Docker view is waiting for stable SSH readiness.");
             }
 
             if (_dockerService.IsConnected)

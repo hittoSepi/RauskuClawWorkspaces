@@ -1,4 +1,4 @@
-# Task Index (001-034)
+# Task Index (001-035)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -36,3 +36,4 @@
 | 032 | Completed | SSH/SFTP connect retry + backoff fast stop/start transient connection refused -tiloihin | [032-ssh-connect-retry-on-fast-restart.md](032-ssh-connect-retry-on-fast-restart.md) |
 | 033 | Completed | Workspace start disabled while stop verification is pending | [033-stop-verification-and-start-disable-guard.md](033-stop-verification-and-start-disable-guard.md) |
 | 034 | Completed | Start port reservation stale-guard + concurrent start block per workspace | [034-start-port-reservation-stale-guard.md](034-start-port-reservation-stale-guard.md) |
+| 035 | Completed | Start/stop race cancellation + Docker/SSH readiness gates | [035-start-stop-race-cancellation-and-readiness-gates.md](035-start-stop-race-cancellation-and-readiness-gates.md) |

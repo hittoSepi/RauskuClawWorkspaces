@@ -57,6 +57,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly HashSet<int> _activeStartPortReservations = new();
         private readonly HashSet<string> _activeWorkspaceStarts = new();
         private readonly Dictionary<string, HashSet<int>> _workspaceStartPortReservations = new();
+        private readonly Dictionary<string, CancellationTokenSource> _workspaceStartCancellationSources = new();
         private readonly VmResourceStatsCache _resourceStatsCache;
         private bool _isVmStopping;
         private bool _isVmRestarting;
@@ -546,6 +547,51 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        private CancellationToken RegisterWorkspaceStartCancellation(string workspaceId)
+        {
+            lock (_startPortReservationLock)
+            {
+                if (_workspaceStartCancellationSources.TryGetValue(workspaceId, out var existing))
+                {
+                    return existing.Token;
+                }
+
+                var cts = new CancellationTokenSource();
+                _workspaceStartCancellationSources[workspaceId] = cts;
+                return cts.Token;
+            }
+        }
+
+        private void CancelWorkspaceStartCancellation(string workspaceId)
+        {
+            lock (_startPortReservationLock)
+            {
+                if (_workspaceStartCancellationSources.TryGetValue(workspaceId, out var cts))
+                {
+                    try
+                    {
+                        cts.Cancel();
+                    }
+                    catch
+                    {
+                        // Best effort cancellation.
+                    }
+                }
+            }
+        }
+
+        private void CompleteWorkspaceStartCancellation(string workspaceId)
+        {
+            lock (_startPortReservationLock)
+            {
+                if (_workspaceStartCancellationSources.TryGetValue(workspaceId, out var cts))
+                {
+                    _workspaceStartCancellationSources.Remove(workspaceId);
+                    cts.Dispose();
+                }
+            }
+        }
+
 
         private void NavigateToSecretsSettings()
         {
@@ -973,30 +1019,40 @@ namespace RauskuClaw.GUI.ViewModels
         private async Task StartVmAsync()
         {
             if (SelectedWorkspace == null) return;
+            var workspace = SelectedWorkspace;
+            var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
+
             if (SelectedWorkspace.Ports == null)
             {
                 SelectedWorkspace.Ports = _portAllocator.AllocatePorts();
                 _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
             }
 
-            var result = await _startupOrchestrator.StartWorkspaceAsync(SelectedWorkspace, progress: null, CancellationToken.None, StartWorkspaceInternalAsync);
-            if (!result.Success)
+            try
             {
-                AppendLog($"Start failed for '{SelectedWorkspace.Name}': {result.Message}");
-                var bootSignalSeen = TryGetBootSignalState(SelectedWorkspace);
-                var suppressTransientAlert = IsTransientConnectionIssue(result.Message) && !bootSignalSeen;
-                if (!suppressTransientAlert)
+                var result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, startToken, StartWorkspaceInternalAsync);
+                if (!result.Success)
                 {
-                    ThemedDialogWindow.ShowInfo(
-                        Application.Current?.MainWindow,
-                        "VM Start Failed",
-                        $"Workspace '{SelectedWorkspace.Name}' failed to start.\n\n{result.Message}");
+                    AppendLog($"Start failed for '{workspace.Name}': {result.Message}");
+                    var bootSignalSeen = TryGetBootSignalState(workspace);
+                    var suppressTransientAlert = IsTransientConnectionIssue(result.Message) && !bootSignalSeen;
+                    if (!suppressTransientAlert)
+                    {
+                        ThemedDialogWindow.ShowInfo(
+                            Application.Current?.MainWindow,
+                            "VM Start Failed",
+                            $"Workspace '{workspace.Name}' failed to start.\n\n{result.Message}");
+                    }
+                    _sftpFiles?.SetWorkspace(workspace);
                 }
-                _sftpFiles?.SetWorkspace(SelectedWorkspace);
+                else
+                {
+                    _sftpFiles?.SetWorkspace(workspace);
+                }
             }
-            else
+            finally
             {
-                _sftpFiles?.SetWorkspace(SelectedWorkspace);
+                CompleteWorkspaceStartCancellation(workspace.Id);
             }
         }
 
@@ -1006,6 +1062,7 @@ namespace RauskuClaw.GUI.ViewModels
             if (_isVmStopping) return;
 
             var workspace = SelectedWorkspace;
+            CancelWorkspaceStartCancellation(workspace.Id);
             _isVmStopping = true;
             workspace.IsStopVerificationPending = true;
             CommandManager.InvalidateRequerySuggested();
@@ -1066,7 +1123,16 @@ namespace RauskuClaw.GUI.ViewModels
 
                 progressWindow.UpdateStatus("Starting VM...");
                 await Task.Delay(500);
-                var result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, CancellationToken.None, StartWorkspaceInternalAsync);
+                var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
+                var result = (Success: false, Message: "Start did not run.");
+                try
+                {
+                    result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, startToken, StartWorkspaceInternalAsync);
+                }
+                finally
+                {
+                    CompleteWorkspaceStartCancellation(workspace.Id);
+                }
                 if (!result.Success)
                 {
                     ThemedDialogWindow.ShowInfo(
@@ -1880,6 +1946,22 @@ namespace RauskuClaw.GUI.ViewModels
             _inlineNoticeCts?.Cancel();
             _inlineNoticeCts?.Dispose();
             _inlineNoticeCts = null;
+            lock (_startPortReservationLock)
+            {
+                foreach (var cts in _workspaceStartCancellationSources.Values)
+                {
+                    try
+                    {
+                        cts.Cancel();
+                    }
+                    catch
+                    {
+                        // Best effort cancellation.
+                    }
+                    cts.Dispose();
+                }
+                _workspaceStartCancellationSources.Clear();
+            }
 
             foreach (var workspace in _workspaces)
             {

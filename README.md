@@ -49,6 +49,8 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Startup flow is now canceled per workspace when stop is requested, reducing rapid `Start -> Stop` race exceptions.
+- Docker and SSH tab auto-connect paths now require `workspace.Status == Running`, avoiding connect attempts during warming/stopping windows.
 - Start port reservation handling now tracks reservations per workspace and purges stale entries, preventing false `Host port reservation conflict` after rapid stop/start cycles.
 - Workspace start actions now block overlapping start attempts for the same workspace while a start is already active.
 - Added a stop-verification guard: workspace `Start` stays disabled briefly after `Stop` until shutdown verification completes, reducing fast stop/start race failures.
