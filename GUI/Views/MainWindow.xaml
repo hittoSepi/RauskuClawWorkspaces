@@ -610,7 +610,8 @@
                     </ContentControl.ContentTemplate>
                 </ContentControl>
 
-                <ContentControl HorizontalAlignment="Stretch"
+                <ContentControl Content="{Binding}"
+                                HorizontalAlignment="Stretch"
                                 VerticalAlignment="Stretch">
                     <ContentControl.Style>
                         <Style TargetType="ContentControl">

@@ -157,7 +157,7 @@
 
         <CheckBox Grid.Row="3"
                   Content="Don't show on startup"
-                  IsChecked="{Binding DoNotShowStartPageOnStartup}"
+                  IsChecked="{Binding DoNotShowStartPageOnStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                   Foreground="#E6EAF2"
                   Margin="0,8,0,0"/>
     </Grid>
