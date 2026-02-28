@@ -1031,9 +1031,16 @@ namespace RauskuClaw.GUI.ViewModels
             try
             {
                 var result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, startToken, StartWorkspaceInternalAsync);
+                var startWasCancelled = startToken.IsCancellationRequested;
                 if (!result.Success)
                 {
                     AppendLog($"Start failed for '{workspace.Name}': {result.Message}");
+                    if (startWasCancelled)
+                    {
+                        _sftpFiles?.SetWorkspace(workspace);
+                        return;
+                    }
+
                     var bootSignalSeen = TryGetBootSignalState(workspace);
                     var suppressTransientAlert = IsTransientConnectionIssue(result.Message) && !bootSignalSeen;
                     if (!suppressTransientAlert)
@@ -1070,17 +1077,21 @@ namespace RauskuClaw.GUI.ViewModels
             var progressWindow = new VmActionProgressWindow("Stopping Workspace", $"Stopping '{workspace.Name}'...");
             progressWindow.Owner = Application.Current?.MainWindow;
             progressWindow.Show();
+            var stopVerified = false;
+            var stopAttempted = false;
 
             try
             {
                 var stopped = await StopWorkspaceInternalAsync(workspace, progressWindow, showStopFailedDialog: true);
+                stopAttempted = true;
                 if (stopped)
                 {
                     progressWindow.UpdateStatus("Verifying shutdown...");
-                    var verified = await VerifyWorkspaceShutdownAsync(workspace, timeout: TimeSpan.FromSeconds(8));
-                    if (!verified)
+                    stopVerified = await VerifyWorkspaceShutdownAsync(workspace, timeout: TimeSpan.FromSeconds(8));
+                    if (!stopVerified)
                     {
                         AppendLog($"Shutdown verification timed out for '{workspace.Name}'. Some ports may still be closing.");
+                        SetInlineNotice("Workspace stopping is still being verified. Start stays disabled until ports are released.", 7000);
                     }
                 }
             }
@@ -1090,9 +1101,17 @@ namespace RauskuClaw.GUI.ViewModels
                 progressWindow.AllowClose();
                 progressWindow.Close();
                 ReleaseWorkspaceStartPortReservations(workspace.Id);
-                workspace.IsStopVerificationPending = false;
                 _isVmStopping = false;
                 CommandManager.InvalidateRequerySuggested();
+
+                if (!stopAttempted || stopVerified || workspace.IsRunning)
+                {
+                    workspace.IsStopVerificationPending = false;
+                }
+                else
+                {
+                    _ = ContinueStopVerificationAsync(workspace, TimeSpan.FromSeconds(45));
+                }
             }
         }
 
@@ -2265,6 +2284,27 @@ namespace RauskuClaw.GUI.ViewModels
             return !workspace.IsRunning
                 && IsWorkspaceProcessConfirmedStopped(workspace)
                 && !HasAnyOpenWorkspacePort(workspace);
+        }
+
+        private async Task ContinueStopVerificationAsync(Workspace workspace, TimeSpan timeout)
+        {
+            try
+            {
+                var verified = await VerifyWorkspaceShutdownAsync(workspace, timeout);
+                if (verified)
+                {
+                    AppendLog($"Shutdown verification completed for '{workspace.Name}'.");
+                }
+                else
+                {
+                    AppendLog($"Shutdown verification still pending for '{workspace.Name}' after {timeout.TotalSeconds:0}s. Start enabled as fallback.");
+                }
+            }
+            finally
+            {
+                workspace.IsStopVerificationPending = false;
+                CommandManager.InvalidateRequerySuggested();
+            }
         }
 
         private bool IsWorkspaceProcessConfirmedStopped(Workspace workspace)

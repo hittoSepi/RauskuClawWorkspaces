@@ -433,7 +433,9 @@ namespace RauskuClaw.GUI.ViewModels
                             || ex is SshOperationTimeoutException
                             || ex is SshException
                             || ex is IOException
-                            || ex is ObjectDisposedException)
+                            || ex is ObjectDisposedException
+                            || (ex is InvalidOperationException ioEx
+                                && ioEx.Message.Contains("SSH endpoint", StringComparison.OrdinalIgnoreCase)))
                         {
                             if (ct.IsCancellationRequested)
                             {

@@ -49,6 +49,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Stop verification now continues in background if initial verify window times out: `Start` remains disabled (`IsStopVerificationPending`) until VM process + workspace ports are confirmed released.
 - Startup flow is now canceled per workspace when stop is requested, reducing rapid `Start -> Stop` race exceptions.
 - Docker and SSH tab auto-connect paths now require `workspace.Status == Running`, avoiding connect attempts during warming/stopping windows.
 - Start port reservation handling now tracks reservations per workspace and purges stale entries, preventing false `Host port reservation conflict` after rapid stop/start cycles.
