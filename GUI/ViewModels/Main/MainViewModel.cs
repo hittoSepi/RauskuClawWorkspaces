@@ -297,7 +297,19 @@ namespace RauskuClaw.GUI.ViewModels
             get => _settingsViewModel;
             set
             {
+                if (_settingsViewModel != null)
+                {
+                    _settingsViewModel.PropertyChanged -= OnSettingsViewModelPropertyChanged;
+                }
+
                 _settingsViewModel = value;
+
+                if (_settingsViewModel != null)
+                {
+                    _settingsViewModel.PropertyChanged += OnSettingsViewModelPropertyChanged;
+                    _appSettings.ShowStartPageOnStartup = _settingsViewModel.ShowStartPageOnStartup;
+                }
+
                 _holviViewModel?.SetSettingsViewModel(_settingsViewModel);
                 OnPropertyChanged(nameof(DoNotShowStartPageOnStartup));
                 OnPropertyChanged();
@@ -485,6 +497,21 @@ namespace RauskuClaw.GUI.ViewModels
 
             SelectedWorkspace = workspace;
             _ = RestartVmAsync();
+        }
+
+        private void OnSettingsViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(SettingsViewModel.ShowStartPageOnStartup))
+            {
+                return;
+            }
+
+            if (_settingsViewModel != null)
+            {
+                _appSettings.ShowStartPageOnStartup = _settingsViewModel.ShowStartPageOnStartup;
+            }
+
+            OnPropertyChanged(nameof(DoNotShowStartPageOnStartup));
         }
 
         private async void ShowNewWorkspaceDialog()
