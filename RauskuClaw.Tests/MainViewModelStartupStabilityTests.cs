@@ -65,17 +65,8 @@ public class MainViewModelStartupStabilityTests
     [Fact]
     public async Task WaitForCloudInitFinalizationAsync_RetriesTransientSsh_AndSucceeds()
     {
-        using var temp = new TempDir();
-        var resolver = new AppPathResolver(temp.Path);
-        var settingsService = new SettingsService(new SettingsServiceOptions(), resolver, new SecretStorageService(resolver));
-        var workspaceService = new WorkspaceService(pathResolver: resolver);
-        var vm = new MainViewModel(
-            settingsService: settingsService,
-            pathResolver: resolver,
-            workspaceService: workspaceService);
-
         var attempts = 0;
-        vm.SshCommandRunnerOverride = (_workspace, _command, _ct) =>
+        var sshService = new FakeWorkspaceSshCommandService((_workspace, _command, _ct) =>
         {
             attempts++;
             return attempts switch
@@ -84,19 +75,20 @@ public class MainViewModelStartupStabilityTests
                 2 => Task.FromResult((true, "status: running")),
                 _ => Task.FromResult((true, "status: done"))
             };
-        };
+        });
 
+        var readinessService = new VmStartupReadinessService(sshService);
         var workspace = new Workspace();
-        var result = await vm.WaitForCloudInitFinalizationAsync(
+        var result = await readinessService.WaitForCloudInitFinalizationAsync(
             workspace,
             progress: null,
             CancellationToken.None,
+            reportLog: null,
             timeoutOverride: TimeSpan.FromSeconds(2),
             retryDelayOverride: TimeSpan.FromMilliseconds(10));
 
         Assert.True(result.Success);
         Assert.Equal(3, attempts);
-        vm.Shutdown();
     }
 
     [Fact]
@@ -206,5 +198,34 @@ public class MainViewModelStartupStabilityTests
         public void RegisterActiveWorkspaceStart(string workspaceId) { }
         public void CompleteActiveWorkspaceStart(string workspaceId) { }
         public bool IsWorkspaceStartInProgress(string workspaceId) => _isWorkspaceStartInProgress(workspaceId);
+    }
+
+    private sealed class FakeWorkspaceSshCommandService : IWorkspaceSshCommandService
+    {
+        private readonly Func<Workspace, string, CancellationToken, Task<(bool Success, string Message)>> _handler;
+
+        public FakeWorkspaceSshCommandService(Func<Workspace, string, CancellationToken, Task<(bool Success, string Message)>> handler)
+        {
+            _handler = handler;
+        }
+
+        public Task<(bool Success, string Message)> RunSshCommandAsync(Workspace workspace, string command, CancellationToken ct)
+        {
+            return _handler(workspace, command, ct);
+        }
+
+        public bool IsTransientConnectionIssue(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            var text = message.ToLowerInvariant();
+            return text.Contains("socket")
+                || text.Contains("connection")
+                || text.Contains("aborted by")
+                || text.Contains("forcibly closed");
+        }
     }
 }
