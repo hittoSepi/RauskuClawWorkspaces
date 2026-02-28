@@ -2150,7 +2150,9 @@ namespace RauskuClaw.GUI.ViewModels
             var deadlineUtc = DateTime.UtcNow + timeout;
             while (DateTime.UtcNow < deadlineUtc)
             {
-                if (!workspace.IsRunning && IsWorkspaceProcessConfirmedStopped(workspace))
+                if (!workspace.IsRunning
+                    && IsWorkspaceProcessConfirmedStopped(workspace)
+                    && !HasAnyOpenWorkspacePort(workspace))
                 {
                     return true;
                 }
@@ -2158,7 +2160,9 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Delay(220);
             }
 
-            return !workspace.IsRunning && IsWorkspaceProcessConfirmedStopped(workspace);
+            return !workspace.IsRunning
+                && IsWorkspaceProcessConfirmedStopped(workspace)
+                && !HasAnyOpenWorkspacePort(workspace);
         }
 
         private bool IsWorkspaceProcessConfirmedStopped(Workspace workspace)
@@ -2176,6 +2180,38 @@ namespace RauskuClaw.GUI.ViewModels
             catch
             {
                 return true;
+            }
+        }
+
+        private static bool HasAnyOpenWorkspacePort(Workspace workspace)
+        {
+            foreach (var (_, port) in GetWorkspaceHostPorts(workspace))
+            {
+                if (port <= 0 || port > 65535)
+                {
+                    continue;
+                }
+
+                if (IsTcpPortOpen("127.0.0.1", port))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTcpPortOpen(string host, int port)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync(host, port);
+                return connectTask.Wait(TimeSpan.FromMilliseconds(120)) && client.Connected;
+            }
+            catch
+            {
+                return false;
             }
         }
 
