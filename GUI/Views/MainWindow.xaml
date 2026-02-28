@@ -264,10 +264,31 @@
 
                     <!-- Workspace info -->
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding SelectedWorkspace.Name}"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Foreground="#E6EAF2"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding SelectedWorkspace.Name}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="#E6EAF2"/>
+                            <TextBlock Grid.Column="1"
+                                       Margin="12,2,0,0"
+                                       FontSize="12"
+                                       Foreground="#9AA3B2"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis">
+                                <Run Text="CPU "/>
+                                <Run Text="{Binding SelectedWorkspace.RuntimeCpuUsageText, Mode=OneWay}"/>
+                                <Run Text=" | RAM "/>
+                                <Run Text="{Binding SelectedWorkspace.RuntimeMemoryUsageText, Mode=OneWay}"/>
+                                <Run Text=" | Disk "/>
+                                <Run Text="{Binding SelectedWorkspace.RuntimeDiskUsageText, Mode=OneWay}"/>
+                            </TextBlock>
+                        </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Text="Status:" FontSize="12" Foreground="#9AA3B2"/>
                             <TextBlock Text="{Binding SelectedWorkspace.StatusText, Mode=OneWay}"
@@ -317,16 +338,6 @@
                                            FontWeight="SemiBold"/>
                             </Border>
                         </StackPanel>
-                        <TextBlock Margin="0,6,0,0"
-                                   FontSize="12"
-                                   Foreground="#9AA3B2">
-                            <Run Text="CPU "/>
-                            <Run Text="{Binding SelectedWorkspace.RuntimeCpuUsageText, Mode=OneWay}"/>
-                            <Run Text=" | RAM "/>
-                            <Run Text="{Binding SelectedWorkspace.RuntimeMemoryUsageText, Mode=OneWay}"/>
-                            <Run Text=" | Disk "/>
-                            <Run Text="{Binding SelectedWorkspace.RuntimeDiskUsageText, Mode=OneWay}"/>
-                        </TextBlock>
                         <TextBlock Text="{Binding InlineNotice}"
                                    FontSize="11"
                                    Foreground="#4DA3FF"

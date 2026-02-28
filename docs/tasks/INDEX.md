@@ -1,4 +1,4 @@
-# Task Index (001-038)
+# Task Index (001-039)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -40,3 +40,4 @@
 | 036 | Completed | Stop verify fallback keeps Start disabled until shutdown/ports are really released | [036-stop-verify-background-holdoff.md](036-stop-verify-background-holdoff.md) |
 | 037 | Completed | Docker SSH command transport abort handling normalized during stop transitions | [037-docker-ssh-command-transport-hardening.md](037-docker-ssh-command-transport-hardening.md) |
 | 038 | Completed | Workspace single resource usage moved to header text line; duplicate panel removed | [038-workspace-resource-usage-header-line.md](038-workspace-resource-usage-header-line.md) |
+| 039 | Completed | Workspace header metrics moved to name/status right side to reduce header height | [039-workspace-header-metrics-right-align.md](039-workspace-header-metrics-right-align.md) |
