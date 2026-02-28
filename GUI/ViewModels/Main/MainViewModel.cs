@@ -54,6 +54,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly ISerialDiagnosticsService _serialDiagnosticsService;
         private readonly IWorkspacePathManager _workspacePathManager;
         private readonly IVmLifecycleController _vmLifecycleController;
+        private readonly IWorkspaceManagementService _workspaceManagementService;
         private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly IWorkspacePortManager _portManager;
         private readonly RauskuClaw.Models.Settings _appSettings;
@@ -103,6 +104,7 @@ namespace RauskuClaw.GUI.ViewModels
             serialDiagnosticsService: null,
             workspacePathManager: null,
             vmLifecycleController: null,
+            workspaceManagementService: null,
             vmProcessRegistry: null,
             resourceStatsCache: null,
             portManager: null)
@@ -126,6 +128,7 @@ namespace RauskuClaw.GUI.ViewModels
             ISerialDiagnosticsService? serialDiagnosticsService = null,
             IWorkspacePathManager? workspacePathManager = null,
             IVmLifecycleController? vmLifecycleController = null,
+            IWorkspaceManagementService? workspaceManagementService = null,
             VmProcessRegistry? vmProcessRegistry = null,
             VmResourceStatsCache? resourceStatsCache = null,
             IWorkspacePortManager? portManager = null)
@@ -153,6 +156,7 @@ namespace RauskuClaw.GUI.ViewModels
                 () => _workspaces,
                 AppendLog);
             _vmLifecycleController = vmLifecycleController ?? new VmLifecycleController();
+            _workspaceManagementService = workspaceManagementService ?? new WorkspaceManagementService();
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
             _portManager = portManager ?? new WorkspacePortManager();
@@ -912,34 +916,11 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void EnsureWorkspaceHostDirectories()
         {
-            var changed = false;
-            foreach (var workspace in _workspaces)
-            {
-                if (EnsureWorkspaceHostDirectory(workspace))
-                {
-                    changed = true;
-                }
-
-                if (EnsureWorkspaceSeedIsoPath(workspace))
-                {
-                    changed = true;
-                }
-
-                var diskMigration = EnsureWorkspaceDiskPath(workspace);
-                if (!diskMigration.Success)
-                {
-                    AppendLog($"Disk migration skipped for '{workspace.Name}': {diskMigration.Error}");
-                }
-                else if (diskMigration.Changed)
-                {
-                    changed = true;
-                }
-            }
-
-            if (changed)
-            {
-                _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
-            }
+            _workspaceManagementService.EnsureWorkspaceHostDirectories(
+                _workspaces,
+                _workspacePathManager,
+                AppendLog,
+                () => _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces)));
         }
 
         private bool EnsureWorkspaceHostDirectory(Workspace workspace)
@@ -1137,79 +1118,30 @@ namespace RauskuClaw.GUI.ViewModels
             if (SelectedWorkspace == null) return;
 
             var workspaceToDelete = SelectedWorkspace;
-            var confirmDelete = ThemedDialogWindow.ShowConfirm(
-                Application.Current?.MainWindow,
-                "Delete Workspace",
-                $"Delete workspace '{workspaceToDelete.Name}'?");
-
-            if (!confirmDelete)
-            {
-                return;
-            }
-
-            if (workspaceToDelete.IsRunning && workspaceToDelete.Ports != null)
-            {
-                var confirmStop = ThemedDialogWindow.ShowConfirm(
-                    Application.Current?.MainWindow,
-                    "Workspace Running",
-                    $"Workspace '{workspaceToDelete.Name}' is running. Stop VM and continue deleting?");
-
-                if (!confirmStop)
+            await _workspaceManagementService.DeleteWorkspaceAsync(
+                workspaceToDelete,
+                _workspaces,
+                (title, message) => ThemedDialogWindow.ShowConfirm(Application.Current?.MainWindow, title, message),
+                workspace => StopWorkspaceInternalAsync(workspace, progressWindow: null, showStopFailedDialog: false),
+                workspace =>
                 {
-                    return;
-                }
-
-                var stopped = await StopWorkspaceInternalAsync(workspaceToDelete, progressWindow: null, showStopFailedDialog: false);
-                if (!stopped)
+                    CancelWarmupRetry(workspace.Id);
+                    TryKillTrackedProcess(workspace, force: true);
+                },
+                workspace =>
                 {
-                    var forceDelete = ThemedDialogWindow.ShowConfirm(
-                        Application.Current?.MainWindow,
-                        "Stop Failed",
-                        "Could not stop VM cleanly.\n\nDelete workspace entry anyway?");
-
-                    if (!forceDelete)
+                    if (workspace.Ports != null)
                     {
-                        return;
+                        _portAllocator.ReleasePorts(workspace.Ports);
                     }
-
-                    TryKillTrackedProcess(workspaceToDelete, force: true);
-                }
-            }
-
-            var deleteFiles = ThemedDialogWindow.ShowConfirm(
-                Application.Current?.MainWindow,
-                "Delete VM Files",
-                "Also delete workspace disk, seed, and host workspace files from disk?");
-
-            if (workspaceToDelete.Ports != null)
-            {
-                _portAllocator.ReleasePorts(workspaceToDelete.Ports);
-            }
-            CancelWarmupRetry(workspaceToDelete.Id);
-            TryKillTrackedProcess(workspaceToDelete, force: true);
-
-            _workspaces.Remove(workspaceToDelete);
-            if (ReferenceEquals(SelectedWorkspace, workspaceToDelete))
-            {
-                SelectedWorkspace = _workspaces.FirstOrDefault();
-            }
-            OnPropertyChanged(nameof(RecentWorkspaces));
-
-            _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
-
-            if (deleteFiles)
-            {
-                TryDeleteFile(workspaceToDelete.SeedIsoPath);
-                if (!IsDiskReferencedByOtherWorkspace(workspaceToDelete))
-                {
-                    TryDeleteFile(workspaceToDelete.DiskPath);
-                }
-                else
-                {
-                    AppendLog($"Skipping disk delete for shared disk: {workspaceToDelete.DiskPath}");
-                }
-                TryDeleteDirectory(workspaceToDelete.HostWorkspacePath);
-            }
+                },
+                () => _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces)),
+                workspace => SelectedWorkspace = workspace,
+                () => OnPropertyChanged(nameof(RecentWorkspaces)),
+                IsDiskReferencedByOtherWorkspace,
+                TryDeleteFile,
+                TryDeleteDirectory,
+                AppendLog);
         }
 
         private async Task RunAutoStartAsync()
@@ -2074,38 +2006,14 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void CleanupAbandonedWorkspaceArtifacts(Workspace workspace)
         {
-            if (workspace == null)
-            {
-                return;
-            }
-
-            TryDeleteFile(workspace.SeedIsoPath);
-
-            if (!IsDiskReferencedByOtherWorkspace(workspace) && IsWorkspaceOwnedArtifactPath(workspace.DiskPath, workspace))
-            {
-                TryDeleteFile(workspace.DiskPath);
-            }
-
-            var seedDir = SafeGetDirectoryName(workspace.SeedIsoPath);
-            var diskDir = SafeGetDirectoryName(workspace.DiskPath);
-            if (!string.IsNullOrWhiteSpace(seedDir) && PathsEqual(seedDir, diskDir))
-            {
-                TryDeleteDirectory(seedDir);
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(seedDir))
-                {
-                    TryDeleteDirectory(seedDir);
-                }
-
-                if (!string.IsNullOrWhiteSpace(diskDir) && IsWorkspaceOwnedArtifactPath(workspace.DiskPath, workspace))
-                {
-                    TryDeleteDirectory(diskDir);
-                }
-            }
-
-            TryDeleteDirectory(workspace.HostWorkspacePath);
+            _workspaceManagementService.CleanupAbandonedWorkspaceArtifacts(
+                workspace,
+                IsDiskReferencedByOtherWorkspace,
+                path => IsWorkspaceOwnedArtifactPath(path, workspace),
+                path => SafeGetDirectoryName(path),
+                PathsEqual,
+                TryDeleteFile,
+                TryDeleteDirectory);
         }
 
         private bool IsWorkspaceOwnedArtifactPath(string? path, Workspace workspace)
@@ -2144,36 +2052,12 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void ReserveExistingWorkspacePorts()
         {
-            foreach (var workspace in _workspaces)
-            {
-                if (workspace.Ports == null) continue;
-
-                try
-                {
-                    _portAllocator.AllocatePorts(workspace.Ports);
-                }
-                catch
-                {
-                    // Ignore invalid historical data and continue bootstrapping.
-                }
-            }
+            _workspaceManagementService.ReserveExistingWorkspacePorts(_workspaces, _portAllocator);
         }
 
         private string BuildUniqueWorkspaceName(string preferredName)
         {
-            var baseName = string.IsNullOrWhiteSpace(preferredName)
-                ? $"Workspace {_workspaces.Count + 1}"
-                : preferredName.Trim();
-
-            var uniqueName = baseName;
-            var counter = 2;
-            while (_workspaces.Any(w => string.Equals(w.Name, uniqueName, StringComparison.OrdinalIgnoreCase)))
-            {
-                uniqueName = $"{baseName} ({counter})";
-                counter++;
-            }
-
-            return uniqueName;
+            return _workspaceManagementService.BuildUniqueWorkspaceName(preferredName, _workspaces);
         }
 
         private void OnSelectedWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs e)
