@@ -1119,7 +1119,9 @@ namespace RauskuClaw.GUI.ViewModels
             var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
             try
             {
-                var startResult = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, startToken, StartWorkspaceInternalAsync);
+                // Create progress reporter to show serial output during infra VM startup
+                var infraProgress = new Progress<string>(msg => AppendLog(msg));
+                var startResult = await _startupOrchestrator.StartWorkspaceAsync(workspace, infraProgress, startToken, StartWorkspaceInternalAsync);
                 if (startResult.Success)
                 {
                     return startResult;
