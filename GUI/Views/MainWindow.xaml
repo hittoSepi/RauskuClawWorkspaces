@@ -608,14 +608,30 @@
                 <Border Background="#05070C"
                         Visibility="{Binding IsWorkspaceStoppedOverlayVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                     <Grid>
-                        <StackPanel HorizontalAlignment="Center"
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0"
+                                    HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                            <TextBlock Text="WORKSPACE IS STOPPED"
-                                       Foreground="#D6D9DF"
+                            <TextBlock Foreground="#D6D9DF"
                                        FontSize="56"
                                        FontWeight="Light"
                                        HorizontalAlignment="Center"
-                                       Margin="0,0,0,28"/>
+                                       Margin="0,0,0,28">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="WORKSPACE IS STOPPED"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedWorkspace.Status}" Value="{x:Static models:VmStatus.Starting}">
+                                                <Setter Property="Text" Value="WORKSPACE IS STARTING"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <Button Command="{Binding StartVmCommand}"
                                     Style="{StaticResource GreenIconButton}"
                                     Tag="Play"
@@ -630,6 +646,47 @@
                                     HorizontalAlignment="Center"
                                     Padding="14,6"/>
                         </StackPanel>
+
+                        <Border Grid.Row="1"
+                                Margin="40,0,40,32"
+                                Background="#05070C"
+                                BorderBrush="#2A3240"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedWorkspace.Status}" Value="{x:Static models:VmStatus.Starting}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           Text="Serial boot log"
+                                           Margin="12,8,12,4"
+                                           FontSize="12"
+                                           Foreground="#9AA3B2"/>
+
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding VmLog, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Background="#05070C"
+                                         Foreground="#E6EAF2"
+                                         FontFamily="Consolas"
+                                         BorderThickness="0"
+                                         Padding="12"
+                                         TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"/>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
 

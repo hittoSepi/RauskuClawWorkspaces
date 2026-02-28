@@ -181,6 +181,12 @@ namespace RauskuClaw.GUI.ViewModels
             SelectedMainSection = _appSettings.ShowStartPageOnStartup
                 ? MainContentSection.Home
                 : MainContentSection.WorkspaceTabs;
+
+            // Auto-start workspaces if enabled
+            if (_appSettings.AutoStartVMs)
+            {
+                _ = RunAutoStartAsync();
+            }
         }
 
         public ObservableCollection<Workspace> Workspaces => _workspaces;
@@ -399,7 +405,25 @@ namespace RauskuClaw.GUI.ViewModels
         public bool IsTemplateSection => SelectedMainSection == MainContentSection.TemplateManagement;
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
         public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
-        public bool IsWorkspaceVmStopped => SelectedWorkspace != null && !SelectedWorkspace.IsRunning;
+
+        public bool IsWorkspaceVmStopped
+        {
+            get
+            {
+                if (SelectedWorkspace == null)
+                {
+                    return true;
+                }
+
+                var status = SelectedWorkspace.Status;
+                if (status == VmStatus.Stopped || status == VmStatus.Starting)
+                {
+                    return true;
+                }
+
+                return !SelectedWorkspace.IsRunning;
+            }
+        }
         public bool ShowWorkspaceTabControl => IsWorkspaceViewsSection && !IsWorkspaceVmStopped;
         public bool IsWorkspaceStoppedOverlayVisible => IsWorkspaceViewsSection && IsWorkspaceVmStopped && SelectedWorkspaceTabIndex != WorkspaceSettingsTabIndex;
         public bool ShowWorkspaceSettingsWhileStopped => IsWorkspaceViewsSection && IsWorkspaceVmStopped && SelectedWorkspaceTabIndex == WorkspaceSettingsTabIndex;
@@ -1049,6 +1073,7 @@ namespace RauskuClaw.GUI.ViewModels
             if (SelectedWorkspace == null) return;
             var workspace = SelectedWorkspace;
             var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
+            var progress = new Progress<string>(message => AppendLog(message));
 
             if (SelectedWorkspace.Ports == null)
             {
@@ -1058,7 +1083,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             try
             {
-                var result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, startToken, StartWorkspaceInternalAsync);
+                var result = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress, startToken, StartWorkspaceInternalAsync);
                 var startWasCancelled = startToken.IsCancellationRequested;
                 if (!result.Success)
                 {
@@ -1281,6 +1306,35 @@ namespace RauskuClaw.GUI.ViewModels
                     AppendLog($"Skipping disk delete for shared disk: {workspaceToDelete.DiskPath}");
                 }
                 TryDeleteDirectory(workspaceToDelete.HostWorkspacePath);
+            }
+        }
+
+        private async Task RunAutoStartAsync()
+        {
+            var autoStartWorkspaces = _workspaces.Where(w => w.AutoStart && w.CanStart).ToList();
+            if (autoStartWorkspaces.Count == 0)
+            {
+                return;
+            }
+
+            AppendLog($"Auto-starting {autoStartWorkspaces.Count} workspace(s)...");
+
+            foreach (var workspace in autoStartWorkspaces)
+            {
+                try
+                {
+                    var progress = new Progress<string>(message => AppendLog(message));
+                    var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
+                    await _startupOrchestrator.StartWorkspaceAsync(
+                        workspace,
+                        progress,
+                        startToken,
+                        StartWorkspaceInternalAsync);
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"Failed to auto-start '{workspace.Name}': {ex.Message}");
+                }
             }
         }
 
