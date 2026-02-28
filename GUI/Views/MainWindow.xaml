@@ -7,6 +7,7 @@
         xmlns:models="clr-namespace:RauskuClaw.Models"
         xmlns:viewModels="clr-namespace:RauskuClaw.GUI.ViewModels"
         xmlns:views="clr-namespace:RauskuClaw.GUI.Views"
+        xmlns:controls="clr-namespace:RauskuClaw.GUI.Views.Controls"
         xmlns:fa="http://schemas.awesome.incremented/wpf/xaml/fontawesome.sharp"
         mc:Ignorable="d"
         Title="RauskuClaw - AI Workspaces"
@@ -405,6 +406,12 @@
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <controls:ResourceUsagePanel DockPanel.Dock="Top"
+                                         Margin="12,10,12,10"
+                                         Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
+                                         Scope="SelectedWorkspace"
+                                         AllowScopeToggle="False"/>
 
             <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <!-- Tab Control: Views -->

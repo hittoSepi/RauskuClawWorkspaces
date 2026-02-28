@@ -18,6 +18,10 @@ namespace RauskuClaw.Models
         private int _dockerContainerCount = -1;
         private bool _dockerAvailable;
         private bool _autoStart;
+        private double _runtimeCpuUsagePercent;
+        private int _runtimeMemoryUsageMb;
+        private double _runtimeDiskUsageMb;
+        private DateTime? _runtimeMetricsUpdatedAt;
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
@@ -125,6 +129,76 @@ namespace RauskuClaw.Models
                 OnPropertyChanged();
             }
         }
+
+        public double RuntimeCpuUsagePercent
+        {
+            get => _runtimeCpuUsagePercent;
+            set
+            {
+                var clamped = Math.Max(0, value);
+                if (Math.Abs(_runtimeCpuUsagePercent - clamped) < 0.05)
+                {
+                    return;
+                }
+
+                _runtimeCpuUsagePercent = clamped;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RuntimeCpuUsageText));
+            }
+        }
+
+        public int RuntimeMemoryUsageMb
+        {
+            get => _runtimeMemoryUsageMb;
+            set
+            {
+                var normalized = Math.Max(0, value);
+                if (_runtimeMemoryUsageMb == normalized)
+                {
+                    return;
+                }
+
+                _runtimeMemoryUsageMb = normalized;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RuntimeMemoryUsageText));
+            }
+        }
+
+        public double RuntimeDiskUsageMb
+        {
+            get => _runtimeDiskUsageMb;
+            set
+            {
+                var normalized = Math.Max(0, value);
+                if (Math.Abs(_runtimeDiskUsageMb - normalized) < 0.05)
+                {
+                    return;
+                }
+
+                _runtimeDiskUsageMb = normalized;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RuntimeDiskUsageText));
+            }
+        }
+
+        public DateTime? RuntimeMetricsUpdatedAt
+        {
+            get => _runtimeMetricsUpdatedAt;
+            set
+            {
+                if (_runtimeMetricsUpdatedAt == value)
+                {
+                    return;
+                }
+
+                _runtimeMetricsUpdatedAt = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string RuntimeCpuUsageText => $"{RuntimeCpuUsagePercent:0.0}%";
+        public string RuntimeMemoryUsageText => $"{RuntimeMemoryUsageMb} MB";
+        public string RuntimeDiskUsageText => $"{RuntimeDiskUsageMb:0.0} MB";
 
         public string StatusText => Status switch
         {

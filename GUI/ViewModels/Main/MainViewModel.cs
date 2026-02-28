@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using RauskuClaw.Models;
 using RauskuClaw.Services;
 using System.Diagnostics;
@@ -56,6 +57,8 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly object _startPortReservationLock = new();
         private readonly HashSet<int> _activeStartPortReservations = new();
         private readonly HashSet<string> _activeWorkspaceStarts = new();
+        private readonly Dictionary<string, (TimeSpan CpuTime, DateTime SampleUtc)> _workspaceCpuSamples = new();
+        private readonly DispatcherTimer _resourceUsageTimer;
         private bool _isVmStopping;
         private bool _isVmRestarting;
         private ObservableCollection<Workspace> _workspaces;
@@ -75,6 +78,10 @@ namespace RauskuClaw.GUI.ViewModels
         private MainContentSection _selectedMainSection = MainContentSection.WorkspaceTabs;
         private bool _focusSecretsSection;
         private int _selectedWorkspaceTabIndex;
+        private double _totalCpuUsagePercent;
+        private int _totalMemoryUsageMb;
+        private double _totalDiskUsageMb;
+        private int _runningWorkspaceCount;
 
         public MainViewModel() : this(
             settingsService: null,
@@ -124,6 +131,13 @@ namespace RauskuClaw.GUI.ViewModels
             _workspaces.CollectionChanged += OnWorkspacesCollectionChanged;
             EnsureWorkspaceHostDirectories();
             ReserveExistingWorkspacePorts();
+            _resourceUsageTimer = new DispatcherTimer(DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            _resourceUsageTimer.Tick += (_, _) => RefreshWorkspaceRuntimeMetrics();
+            RefreshWorkspaceRuntimeMetrics();
+            _resourceUsageTimer.Start();
 
             NewWorkspaceCommand = new RelayCommand(ShowNewWorkspaceDialog);
             StartVmCommand = new RelayCommand(async () => await StartVmAsync(), () => (SelectedWorkspace?.CanStart ?? false) && !_isVmStopping && !_isVmRestarting);
@@ -370,6 +384,70 @@ namespace RauskuClaw.GUI.ViewModels
         public IEnumerable<Workspace> RecentWorkspaces => _workspaces
             .OrderByDescending(w => w.LastRun ?? w.CreatedAt)
             .Take(5);
+
+        public IEnumerable<Workspace> RunningWorkspaces => _workspaces
+            .Where(w => w.IsRunning)
+            .OrderBy(w => w.Name);
+
+        public double TotalCpuUsagePercent
+        {
+            get => _totalCpuUsagePercent;
+            private set
+            {
+                if (Math.Abs(_totalCpuUsagePercent - value) < 0.05)
+                {
+                    return;
+                }
+
+                _totalCpuUsagePercent = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int TotalMemoryUsageMb
+        {
+            get => _totalMemoryUsageMb;
+            private set
+            {
+                if (_totalMemoryUsageMb == value)
+                {
+                    return;
+                }
+
+                _totalMemoryUsageMb = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public double TotalDiskUsageMb
+        {
+            get => _totalDiskUsageMb;
+            private set
+            {
+                if (Math.Abs(_totalDiskUsageMb - value) < 0.05)
+                {
+                    return;
+                }
+
+                _totalDiskUsageMb = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int RunningWorkspaceCount
+        {
+            get => _runningWorkspaceCount;
+            private set
+            {
+                if (_runningWorkspaceCount == value)
+                {
+                    return;
+                }
+
+                _runningWorkspaceCount = value;
+                OnPropertyChanged();
+            }
+        }
 
         public bool DoNotShowStartPageOnStartup
         {
@@ -1744,6 +1822,7 @@ namespace RauskuClaw.GUI.ViewModels
         public void ShutdownWithProgress(Action<string>? reportStatus)
         {
             reportStatus?.Invoke("Closing connections...");
+            _resourceUsageTimer.Stop();
             _inlineNoticeCts?.Cancel();
             _inlineNoticeCts?.Dispose();
             _inlineNoticeCts = null;
@@ -1954,6 +2033,7 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     _sftpFiles?.SetWorkspace(SelectedWorkspace);
                 }
+                RefreshWorkspaceRuntimeMetrics();
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -1961,6 +2041,8 @@ namespace RauskuClaw.GUI.ViewModels
         private void OnWorkspacesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             OnPropertyChanged(nameof(RecentWorkspaces));
+            OnPropertyChanged(nameof(RunningWorkspaces));
+            RefreshWorkspaceRuntimeMetrics();
             CommandManager.InvalidateRequerySuggested();
         }
 
@@ -2024,6 +2106,105 @@ namespace RauskuClaw.GUI.ViewModels
             catch
             {
                 return false;
+            }
+        }
+
+        private void RefreshWorkspaceRuntimeMetrics()
+        {
+            var nowUtc = DateTime.UtcNow;
+            var hostLogicalCpuCount = Math.Max(1, Environment.ProcessorCount);
+            var totalCpu = 0d;
+            var totalMemoryMb = 0;
+            var totalDiskMb = 0d;
+            var runningCount = 0;
+
+            foreach (var workspace in _workspaces)
+            {
+                var cpuPercent = 0d;
+                var memoryMb = 0;
+                var diskMb = TryGetDiskUsageMb(workspace.DiskPath);
+
+                if (_workspaceProcesses.TryGetValue(workspace.Id, out var process))
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.Refresh();
+                            runningCount++;
+                            memoryMb = (int)Math.Max(0, Math.Round(process.WorkingSet64 / (1024d * 1024d)));
+
+                            var totalProcessorTime = process.TotalProcessorTime;
+                            if (_workspaceCpuSamples.TryGetValue(workspace.Id, out var last))
+                            {
+                                var elapsedMs = (nowUtc - last.SampleUtc).TotalMilliseconds;
+                                if (elapsedMs > 0)
+                                {
+                                    var cpuDeltaMs = (totalProcessorTime - last.CpuTime).TotalMilliseconds;
+                                    cpuPercent = Math.Clamp((cpuDeltaMs / (elapsedMs * hostLogicalCpuCount)) * 100d, 0d, 100d);
+                                }
+                            }
+
+                            _workspaceCpuSamples[workspace.Id] = (totalProcessorTime, nowUtc);
+                        }
+                        else
+                        {
+                            _workspaceCpuSamples.Remove(workspace.Id);
+                        }
+                    }
+                    catch
+                    {
+                        _workspaceCpuSamples.Remove(workspace.Id);
+                    }
+                }
+                else
+                {
+                    _workspaceCpuSamples.Remove(workspace.Id);
+                }
+
+                if (!workspace.IsRunning)
+                {
+                    cpuPercent = 0;
+                    memoryMb = 0;
+                }
+
+                workspace.RuntimeCpuUsagePercent = cpuPercent;
+                workspace.RuntimeMemoryUsageMb = memoryMb;
+                workspace.RuntimeDiskUsageMb = diskMb;
+                workspace.RuntimeMetricsUpdatedAt = DateTime.Now;
+
+                totalCpu += cpuPercent;
+                totalMemoryMb += memoryMb;
+                totalDiskMb += diskMb;
+            }
+
+            TotalCpuUsagePercent = totalCpu;
+            TotalMemoryUsageMb = totalMemoryMb;
+            TotalDiskUsageMb = totalDiskMb;
+            RunningWorkspaceCount = runningCount;
+            OnPropertyChanged(nameof(RunningWorkspaces));
+        }
+
+        private static double TryGetDiskUsageMb(string? diskPath)
+        {
+            if (string.IsNullOrWhiteSpace(diskPath))
+            {
+                return 0;
+            }
+
+            try
+            {
+                if (!File.Exists(diskPath))
+                {
+                    return 0;
+                }
+
+                var bytes = new FileInfo(diskPath).Length;
+                return Math.Max(0, Math.Round(bytes / (1024d * 1024d), 1));
+            }
+            catch
+            {
+                return 0;
             }
         }
 

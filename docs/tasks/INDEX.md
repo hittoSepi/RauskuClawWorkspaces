@@ -1,4 +1,4 @@
-# Task Index (001-028)
+# Task Index (001-029)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -30,3 +30,4 @@
 | 026 | Completed | Home-aloitussivu, startup-asetus ja workspace-korttien quick actions koottu | [026-home-start-page-and-workspace-cards.md](026-home-start-page-and-workspace-cards.md) |
 | 027 | Completed | Home welcome redesign VS Code -henkisesti + avatar hero -integraatio | [027-home-welcome-redesign-and-avatar.md](027-home-welcome-redesign-and-avatar.md) |
 | 028 | Completed | Home visual cleanup + Open Recent action + workspace Auto Start -asetus | [028-home-cleanup-open-recent-and-workspace-autostart.md](028-home-cleanup-open-recent-and-workspace-autostart.md) |
+| 029 | Completed | VM resource usage UserControl (aggregate + selected scope, CPU/RAM/disk metrics) | [029-vm-resource-usage-usercontrol.md](029-vm-resource-usage-usercontrol.md) |

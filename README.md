@@ -27,6 +27,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - SSH Terminal using SSH.NET (real command execution, copy/save export).
 - Docker tab using SSH.NET with expected-stack health states (`missing`, `warmup`, `unhealthy`, `healthy`).
 - SFTP tab for remote file management (browse/upload/download/create/rename/delete).
+- VM resource usage panel for live CPU/RAM (QEMU process metrics) and disk usage (workspace qcow2 size), with aggregate and selected-VM scopes.
 
 ### Provisioning and hardening
 - Repo bootstrap in cloud-init (`clone` or `fetch/reset`).
@@ -48,6 +49,10 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Added reusable VM resource usage UserControl to Home and Workspace views:
+  - aggregate scope (all running VMs) and selected-VM scope,
+  - CPU and RAM sampled from tracked QEMU processes,
+  - disk usage from each workspace disk image file size.
 - Home page visuals simplified (reduced container boxes), quick action row now includes `Open Recent Workspace` (disabled when no workspace exists), and workspace-level `Auto Start` setting was added.
 - Home welcome page redesigned to a denser VS Code-inspired centered layout with quick actions and integrated `rausku-avatar.png` hero card.
 - Added startup Home page with recent workspace cards (Open via title + Start/Stop/Restart actions) and a persisted startup visibility toggle.
