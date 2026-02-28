@@ -56,6 +56,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly object _startPortReservationLock = new();
         private readonly HashSet<int> _activeStartPortReservations = new();
         private readonly HashSet<string> _activeWorkspaceStarts = new();
+        private readonly Dictionary<string, HashSet<int>> _workspaceStartPortReservations = new();
         private readonly VmResourceStatsCache _resourceStatsCache;
         private bool _isVmStopping;
         private bool _isVmRestarting;
@@ -148,7 +149,7 @@ namespace RauskuClaw.GUI.ViewModels
             ApplyCachedResourceStats();
 
             NewWorkspaceCommand = new RelayCommand(ShowNewWorkspaceDialog);
-            StartVmCommand = new RelayCommand(() => RunSafeAndForget(StartVmAsync(), "Start VM"), () => (SelectedWorkspace?.CanStart ?? false) && !_isVmStopping && !_isVmRestarting);
+            StartVmCommand = new RelayCommand(() => RunSafeAndForget(StartVmAsync(), "Start VM"), () => CanStartSelectedWorkspace());
             StopVmCommand = new RelayCommand(() => RunSafeAndForget(StopVmAsync(), "Stop VM"), () => (SelectedWorkspace?.CanStop ?? false) && !_isVmStopping && !_isVmRestarting);
             RestartVmCommand = new RelayCommand(() => RunSafeAndForget(RestartVmAsync(), "Restart VM"), () => (SelectedWorkspace?.IsRunning ?? false) && !_isVmStopping && !_isVmRestarting);
             DeleteWorkspaceCommand = new RelayCommand(async () => await DeleteWorkspaceAsync(), () => SelectedWorkspace != null && !_isVmStopping && !_isVmRestarting);
@@ -159,7 +160,7 @@ namespace RauskuClaw.GUI.ViewModels
             ShowSecretsSettingsCommand = new RelayCommand(NavigateToSecretsSettings);
             OpenWorkspaceFromHomeCommand = new RelayCommand<Workspace>(OpenWorkspaceFromHome, ws => ws != null);
             OpenRecentWorkspaceCommand = new RelayCommand(OpenRecentWorkspace, () => RecentWorkspaces.Any());
-            StartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StartWorkspaceFromHome, ws => ws?.CanStart == true && !_isVmStopping && !_isVmRestarting);
+            StartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StartWorkspaceFromHome, ws => CanStartWorkspace(ws));
             StopWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StopWorkspaceFromHome, ws => ws?.CanStop == true && !_isVmStopping && !_isVmRestarting);
             RestartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(RestartWorkspaceFromHome, ws => ws?.IsRunning == true && !_isVmStopping && !_isVmRestarting);
 
@@ -529,6 +530,21 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand StartWorkspaceFromHomeCommand { get; }
         public ICommand StopWorkspaceFromHomeCommand { get; }
         public ICommand RestartWorkspaceFromHomeCommand { get; }
+
+        private bool CanStartSelectedWorkspace() => CanStartWorkspace(SelectedWorkspace);
+
+        private bool CanStartWorkspace(Workspace? workspace)
+        {
+            if (workspace?.CanStart != true || _isVmStopping || _isVmRestarting)
+            {
+                return false;
+            }
+
+            lock (_startPortReservationLock)
+            {
+                return !_activeWorkspaceStarts.Contains(workspace.Id);
+            }
+        }
 
 
         private void NavigateToSecretsSettings()
@@ -1016,6 +1032,7 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Delay(300);
                 progressWindow.AllowClose();
                 progressWindow.Close();
+                ReleaseWorkspaceStartPortReservations(workspace.Id);
                 workspace.IsStopVerificationPending = false;
                 _isVmStopping = false;
                 CommandManager.InvalidateRequerySuggested();
@@ -1566,6 +1583,7 @@ namespace RauskuClaw.GUI.ViewModels
                     if (_activeWorkspaceStarts.Count == 0 && _activeStartPortReservations.Count > 0)
                     {
                         _activeStartPortReservations.Clear();
+                        _workspaceStartPortReservations.Clear();
                     }
                 }
                 _workspaceBootSignals[workspace.Id] = bootSignalSeen;
@@ -1785,6 +1803,7 @@ namespace RauskuClaw.GUI.ViewModels
                 workspace.Status = VmStatus.Stopped;
                 AppendLog("VM stopped");
                 progressWindow?.UpdateStatus("VM stopped.");
+                ReleaseWorkspaceStartPortReservations(workspace.Id);
 
                 _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
                 _serialConsole?.Disconnect();
@@ -1805,6 +1824,7 @@ namespace RauskuClaw.GUI.ViewModels
                     workspace.Status = VmStatus.Stopped;
                     AppendLog("VM force-stopped via tracked process kill.");
                     progressWindow?.UpdateStatus("VM force-stopped.");
+                    ReleaseWorkspaceStartPortReservations(workspace.Id);
                     _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
                     _serialConsole?.Disconnect();
                     _sshTerminal?.Disconnect();
@@ -2180,6 +2200,29 @@ namespace RauskuClaw.GUI.ViewModels
             catch
             {
                 return true;
+            }
+        }
+
+        private void ReleaseWorkspaceStartPortReservations(string workspaceId)
+        {
+            if (string.IsNullOrWhiteSpace(workspaceId))
+            {
+                return;
+            }
+
+            lock (_startPortReservationLock)
+            {
+                if (!_workspaceStartPortReservations.TryGetValue(workspaceId, out var reserved))
+                {
+                    return;
+                }
+
+                foreach (var port in reserved)
+                {
+                    _activeStartPortReservations.Remove(port);
+                }
+
+                _workspaceStartPortReservations.Remove(workspaceId);
             }
         }
 

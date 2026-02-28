@@ -49,6 +49,8 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Start port reservation handling now tracks reservations per workspace and purges stale entries, preventing false `Host port reservation conflict` after rapid stop/start cycles.
+- Workspace start actions now block overlapping start attempts for the same workspace while a start is already active.
 - Added a stop-verification guard: workspace `Start` stays disabled briefly after `Stop` until shutdown verification completes, reducing fast stop/start race failures.
 - Stop verification now requires tracked VM process exit confirmation and workspace port closure before `Start` is enabled again.
 - SSH/SFTP connection factory now retries transient connect failures (for example `ConnectionRefused` during fast stop/start) with short backoff before failing.

@@ -50,6 +50,20 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     // Self-heal stale in-memory reservations after aborted/finished starts.
                     _activeStartPortReservations.Clear();
+                    _workspaceStartPortReservations.Clear();
+                }
+
+                // Purge stale reservations for workspace starts that are no longer active.
+                var staleWorkspaceIds = _workspaceStartPortReservations.Keys
+                    .Where(id => !_activeWorkspaceStarts.Contains(id))
+                    .ToList();
+                foreach (var staleId in staleWorkspaceIds)
+                {
+                    foreach (var stalePort in _workspaceStartPortReservations[staleId])
+                    {
+                        _activeStartPortReservations.Remove(stalePort);
+                    }
+                    _workspaceStartPortReservations.Remove(staleId);
                 }
 
                 var conflicts = ports.Where(port => _activeStartPortReservations.Contains(port)).Distinct().ToList();
@@ -64,6 +78,8 @@ namespace RauskuClaw.GUI.ViewModels
                     _activeStartPortReservations.Add(port);
                     reservedPorts.Add(port);
                 }
+
+                _workspaceStartPortReservations[workspace.Id] = new HashSet<int>(reservedPorts);
             }
 
             var busy = ports.Where(port => !IsPortAvailable(port)).Distinct().ToList();
@@ -90,6 +106,16 @@ namespace RauskuClaw.GUI.ViewModels
                 foreach (var port in reservedPorts)
                 {
                     _activeStartPortReservations.Remove(port);
+                }
+
+                foreach (var workspaceId in _workspaceStartPortReservations.Keys.ToList())
+                {
+                    var mapped = _workspaceStartPortReservations[workspaceId];
+                    if (mapped.SetEquals(reservedPorts))
+                    {
+                        _workspaceStartPortReservations.Remove(workspaceId);
+                        break;
+                    }
                 }
             }
         }
