@@ -1841,8 +1841,10 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     try
                     {
+                        // System workspaces need longer serial port timeout
+                        var serialTimeout = workspace.IsSystemWorkspace ? TimeSpan.FromSeconds(60) : TimeSpan.FromSeconds(30);
                         ReportStage(progress, "ssh", "in_progress", $"Waiting for serial boot signal on 127.0.0.1:{workspace.Ports.Serial}...");
-                        await NetWait.WaitTcpAsync("127.0.0.1", workspace.Ports.Serial, TimeSpan.FromSeconds(30), ct);
+                        await NetWait.WaitTcpAsync("127.0.0.1", workspace.Ports.Serial, serialTimeout, ct);
                         bootSignalSeen = true;
                         _workspaceBootSignals[workspace.Id] = true;
                         AppendLog("Serial port is reachable.");
