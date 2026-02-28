@@ -120,7 +120,10 @@ namespace RauskuClaw.Services
             return text.Contains("socket")
                 || text.Contains("connection")
                 || text.Contains("aborted by")
-                || text.Contains("forcibly closed");
+                || text.Contains("forcibly closed")
+                // Unusual errors during early VM boot - treat as transient
+                || text.Contains("not allowed at this time")
+                || text.Contains("does not contain an ssh identification");
         }
     }
 }

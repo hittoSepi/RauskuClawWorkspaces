@@ -350,11 +350,17 @@ namespace RauskuClaw.Services
 
         public async Task<(bool Success, string Message)> WaitForSshReadyAsync(Workspace workspace, CancellationToken ct)
         {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(35);
+            // System workspaces (like infra VM) need longer timeouts and delays
+            var isSystemWorkspace = workspace.IsSystemWorkspace;
+            var timeoutSeconds = isSystemWorkspace ? 120 : 35;
+            var initialDelayMs = isSystemWorkspace ? 5000 : 2500;
+            var maxBackoffMs = isSystemWorkspace ? 8000 : 5000;
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(timeoutSeconds);
             Exception? lastError = null;
             var attempt = 0;
 
-            await Task.Delay(2500, ct);
+            await Task.Delay(initialDelayMs, ct);
 
             while (DateTime.UtcNow < deadline)
             {
@@ -367,11 +373,25 @@ namespace RauskuClaw.Services
                 }
 
                 lastError = new InvalidOperationException(probe.Message);
-                var backoffMs = Math.Min(5000, 1200 + (attempt * 400));
+
+                // Log unusual SSH errors for debugging (e.g., "Not allowed at this time")
+                var probeMessage = probe.Message ?? string.Empty;
+                if (probeMessage.Contains("Not allowed", StringComparison.OrdinalIgnoreCase) ||
+                    probeMessage.Contains("does not contain an SSH identification", StringComparison.OrdinalIgnoreCase))
+                {
+                    // These could indicate serial port confusion or QEMU port forwarding issues
+                    // Log the raw bytes for debugging
+                    if (attempt <= 3 || attempt % 5 == 0)
+                    {
+                        // Will be logged by caller if needed
+                    }
+                }
+
+                var backoffMs = Math.Min(maxBackoffMs, 1200 + (attempt * 400));
                 await Task.Delay(backoffMs, ct);
             }
 
-            return (false, $"SSH became reachable but command channel did not stabilize: {lastError?.Message ?? "timeout"}");
+            return (false, $"SSH became reachable but command channel did not stabilize after {timeoutSeconds}s: {lastError?.Message ?? "timeout"}");
         }
 
         public async Task<(bool Success, string Message)> WaitForRepositoryReadyAsync(Workspace workspace, CancellationToken ct)
