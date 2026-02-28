@@ -2008,31 +2008,40 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                 }
 
-                ReportStage(progress, "api", "in_progress", $"Waiting for API on 127.0.0.1:{workspace.Ports?.Api ?? 3011}...");
-                var apiReady = await WaitApiAsync(workspace, ct);
-                if (!apiReady.Success)
+                // System workspaces (infra VM) don't have API/WebUI - skip these checks
+                if (workspace.IsSystemWorkspace)
                 {
-                    ReportStage(progress, "api", "failed", apiReady.Message);
-                    startupWarnings.Add("API not reachable");
+                    ReportStage(progress, "api", "success", "Skipped for system workspace (infra VM).");
+                    ReportStage(progress, "webui", "success", "Skipped for system workspace (infra VM).");
                 }
                 else
                 {
-                    ReportStage(progress, "api", "success", apiReady.Message);
-                }
+                    ReportStage(progress, "api", "in_progress", $"Waiting for API on 127.0.0.1:{workspace.Ports?.Api ?? 3011}...");
+                    var apiReady = await WaitApiAsync(workspace, ct);
+                    if (!apiReady.Success)
+                    {
+                        ReportStage(progress, "api", "failed", apiReady.Message);
+                        startupWarnings.Add("API not reachable");
+                    }
+                    else
+                    {
+                        ReportStage(progress, "api", "success", apiReady.Message);
+                    }
 
-                ReportStage(progress, "webui", "in_progress", $"Waiting for WebUI on 127.0.0.1:{workspace.HostWebPort}...");
-                var webPortReady = await WaitWebUiAsync(workspace, ct);
-                if (!webPortReady.Success)
-                {
-                    ReportStage(progress, "webui", "failed", webPortReady.Message);
-                    workspace.Status = VmStatus.Error;
-                    workspace.IsRunning = false;
-                    TryKillTrackedProcess(workspace, force: true);
-                    return FailWithReason("ssh_unstable", webPortReady.Message);
+                    ReportStage(progress, "webui", "in_progress", $"Waiting for WebUI on 127.0.0.1:{workspace.HostWebPort}...");
+                    var webPortReady = await WaitWebUiAsync(workspace, ct);
+                    if (!webPortReady.Success)
+                    {
+                        ReportStage(progress, "webui", "failed", webPortReady.Message);
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        TryKillTrackedProcess(workspace, force: true);
+                        return FailWithReason("ssh_unstable", webPortReady.Message);
+                    }
+                    ReportStage(progress, "webui", "success", webPortReady.Message);
+                    TriggerWebUiRefreshSequence(workspace);
+                    TriggerDockerRefreshSequence(workspace);
                 }
-                ReportStage(progress, "webui", "success", webPortReady.Message);
-                TriggerWebUiRefreshSequence(workspace);
-                TriggerDockerRefreshSequence(workspace);
 
                 ReportStage(progress, "connection", "in_progress", "Running SSH connection test...");
                 if (allowDegradedStartup)
