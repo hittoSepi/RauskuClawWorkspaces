@@ -2147,15 +2147,10 @@ namespace RauskuClaw.GUI.ViewModels
 
         private async Task<bool> VerifyWorkspaceShutdownAsync(Workspace workspace, TimeSpan timeout)
         {
-            if (workspace.Ports == null)
-            {
-                return true;
-            }
-
             var deadlineUtc = DateTime.UtcNow + timeout;
             while (DateTime.UtcNow < deadlineUtc)
             {
-                if (!workspace.IsRunning && !HasAnyOpenWorkspacePort(workspace))
+                if (!workspace.IsRunning && IsWorkspaceProcessConfirmedStopped(workspace))
                 {
                     return true;
                 }
@@ -2163,38 +2158,24 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Delay(220);
             }
 
-            return !workspace.IsRunning && !HasAnyOpenWorkspacePort(workspace);
+            return !workspace.IsRunning && IsWorkspaceProcessConfirmedStopped(workspace);
         }
 
-        private static bool HasAnyOpenWorkspacePort(Workspace workspace)
+        private bool IsWorkspaceProcessConfirmedStopped(Workspace workspace)
         {
-            foreach (var (_, port) in GetWorkspaceHostPorts(workspace))
+            if (!_workspaceProcesses.TryGetValue(workspace.Id, out var process))
             {
-                if (port <= 0 || port > 65535)
-                {
-                    continue;
-                }
-
-                if (IsTcpPortOpen("127.0.0.1", port))
-                {
-                    return true;
-                }
+                // No tracked process handle -> treated as stopped.
+                return true;
             }
 
-            return false;
-        }
-
-        private static bool IsTcpPortOpen(string host, int port)
-        {
             try
             {
-                using var client = new TcpClient();
-                var connectTask = client.ConnectAsync(host, port);
-                return connectTask.Wait(TimeSpan.FromMilliseconds(120)) && client.Connected;
+                return process.HasExited;
             }
             catch
             {
-                return false;
+                return true;
             }
         }
 

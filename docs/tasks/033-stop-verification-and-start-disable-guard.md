@@ -15,7 +15,7 @@ Completed
     - stop verification not pending.
 - `MainViewModel`:
   - `StopVmAsync` now marks workspace as `IsStopVerificationPending = true` during stop+verification window.
-  - Added `VerifyWorkspaceShutdownAsync(...)` (short timeout) to wait for ports/process shutdown stabilization.
+  - `VerifyWorkspaceShutdownAsync(...)` requires tracked VM process exit confirmation before start is re-enabled.
   - Start command requery now reacts to `IsStopVerificationPending` changes.
 
 ## Validation
