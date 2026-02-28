@@ -33,6 +33,72 @@
                                   Foreground="#E6EAF2" Margin="0,8,0,0"/>
                     </StackPanel>
                 </Border>
+
+                <Border Background="#151A22" BorderBrush="#2A3240" BorderThickness="1" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Secrets" FontSize="16" FontWeight="SemiBold" Foreground="#E6EAF2" Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Holvi Configuration" FontSize="14" FontWeight="SemiBold" Foreground="#4DA3FF" Margin="0,0,0,12"/>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Holvi API Key:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding HolviApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                     Padding="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Holvi Project ID:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding HolviProjectId, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                     Padding="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Holvi Base URL:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding HolviBaseUrl, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                     Padding="8,4" VerticalAlignment="Center"
+                                     ToolTip="Example: http://127.0.0.1:8099 or https://infisical.example.com"/>
+                        </Grid>
+
+                        <TextBlock Text="Infisical Configuration" FontSize="14" FontWeight="SemiBold" Foreground="#4DA3FF" Margin="0,4,0,12"/>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Infisical Client ID:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding InfisicalClientId, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                     Padding="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Infisical Client Secret:" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding InfisicalClientSecret, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
+                                     Padding="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

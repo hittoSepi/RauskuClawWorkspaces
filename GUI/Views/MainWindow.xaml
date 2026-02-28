@@ -231,6 +231,30 @@
                             </Style>
                         </Button.Style>
                     </Button>
+                    <Button Command="{Binding ShowHolviCommand}"
+                            Tag="Key"
+                            Height="40"
+                            Padding="10,0"
+                            ToolTip="Open HOLVI tab"
+                            Margin="0,0,0,6">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryIconButton}">
+                                <Setter Property="Content" Value="HOLVI"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsHolviSection}" Value="True">
+                                        <Setter Property="Background" Value="#2A3240"/>
+                                        <Setter Property="BorderBrush" Value="#4DA3FF"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                        <Setter Property="Content" Value=""/>
+                                        <Setter Property="Padding" Value="10"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Width" Value="40"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Command="{Binding ShowTemplatesCommand}"
                             Tag="Clone"
                             Height="40"
@@ -281,7 +305,7 @@
                 </StackPanel>
 
                 <!-- Workspace List -->
-                <ListBox x:Name="WorkspaceList" ItemsSource="{Binding Workspaces}"
+                <ListBox x:Name="WorkspaceList" ItemsSource="{Binding VisibleWorkspaces}"
                          SelectedItem="{Binding SelectedWorkspace}"
                          SelectionChanged="WorkspaceList_OnSelectionChanged"
                          Background="Transparent"
@@ -382,7 +406,7 @@
                    LastChildFill="True">
             <!-- Header: Workspace info + VM controls -->
             <Border DockPanel.Dock="Top"
-                    Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
+                    Visibility="{Binding IsWorkspaceChromeVisible, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="#151A22"
                     Padding="16,12"
                     BorderBrush="#2A3240"
@@ -515,7 +539,7 @@
 
             <!-- Quick Info Bar -->
             <Border DockPanel.Dock="Top"
-                    Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}"
+                    Visibility="{Binding IsWorkspaceChromeVisible, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="#0F1115"
                     Padding="12,8"
                     BorderBrush="#2A3240"
@@ -722,6 +746,17 @@
                                  VerticalScrollBarVisibility="Auto"/>
                     </TabItem>
                 </TabControl>
+
+                <ContentControl Content="{Binding Holvi}"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                Visibility="{Binding ShowHolviStandalone, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <views:HolviView/>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
 
                 <ContentControl Content="{Binding WorkspaceSettings}"
                                 HorizontalAlignment="Stretch"

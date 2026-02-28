@@ -87,7 +87,8 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             Secrets = new Dictionary<string, string>
             {
                 ["API_KEY"] = "super-secret-value"
-            }
+            },
+            CredentialsConfigured = true
         });
 
         Assert.Contains("source=Holvi", message, StringComparison.Ordinal);
@@ -105,7 +106,8 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         var message = WizardViewModel.BuildSecretsStageMessage(new ProvisioningSecretsResult
         {
             Source = ProvisioningSecretSource.LocalTemplate,
-            Status = status
+            Status = status,
+            CredentialsConfigured = false
         });
 
         Assert.Contains(expectedHint, message, StringComparison.OrdinalIgnoreCase);
@@ -127,12 +129,14 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             WebUiBuildCommand = "npm ci && npm run build",
             DeployWebUiStatic = false,
             WebUiBuildOutputDir = "dist",
+            EnableHolvi = true,
+            HolviMode = HolviProvisioningMode.Enabled,
             ProvisioningSecrets = new Dictionary<string, string>()
         });
 
-        var preflightBackend = script.IndexOf("preflight_env_for_dir \"$ROOT_DIR\" \"backend stack\"", StringComparison.Ordinal);
+        var preflightBackend = script.IndexOf("preflight_backend_env_for_dir", StringComparison.Ordinal);
         var runBackend = script.IndexOf("run_up \"$ROOT_DIR\" \"backend stack\"", StringComparison.Ordinal);
-        var preflightHolvi = script.IndexOf("preflight_env_for_dir \"$HOLVI_DIR\" \"holvi stack\"", StringComparison.Ordinal);
+        var preflightHolvi = script.IndexOf("preflight_holvi_env_for_dir", StringComparison.Ordinal);
         var runHolvi = script.IndexOf("run_up \"$HOLVI_DIR\" \"holvi stack\"", StringComparison.Ordinal);
 
         Assert.True(preflightBackend >= 0, "Expected backend env preflight call in provisioning script.");
@@ -157,10 +161,12 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             WebUiBuildCommand = "npm ci && npm run build",
             DeployWebUiStatic = false,
             WebUiBuildOutputDir = "dist",
+            EnableHolvi = false,
+            HolviMode = HolviProvisioningMode.Disabled,
             ProvisioningSecrets = new Dictionary<string, string>()
         });
 
-        Assert.Contains("ensure_api_tokens_for_dir", script, StringComparison.Ordinal);
+        Assert.Contains("ensure_api_tokens_for_backend", script, StringComparison.Ordinal);
         Assert.Contains("openssl rand -hex 32", script, StringComparison.Ordinal);
         Assert.Contains("set_env_var \"$env_file\" \"API_KEY\" \"$api_key\"", script, StringComparison.Ordinal);
     }
@@ -181,10 +187,68 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             WebUiBuildCommand = "npm ci && npm run build",
             DeployWebUiStatic = false,
             WebUiBuildOutputDir = "dist",
+            EnableHolvi = false,
+            HolviMode = HolviProvisioningMode.Disabled,
             ProvisioningSecrets = new Dictionary<string, string>()
         });
 
         Assert.Contains("set_env_var \"$env_file\" \"API_TOKEN\" \"$api_key\"", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CloudInit_HolviPreflight_DoesNotCallBackendApiTokenCheck()
+    {
+        var builder = new ProvisioningScriptBuilder();
+        var script = builder.BuildUserData(new ProvisioningScriptRequest
+        {
+            Username = "tester",
+            Hostname = "rausku-test",
+            SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey",
+            RepoUrl = "https://example.invalid/repo.git",
+            RepoBranch = "main",
+            RepoTargetDir = "/opt/rauskuclaw",
+            BuildWebUi = false,
+            WebUiBuildCommand = "npm ci && npm run build",
+            DeployWebUiStatic = false,
+            WebUiBuildOutputDir = "dist",
+            EnableHolvi = true,
+            HolviMode = HolviProvisioningMode.Enabled,
+            ProvisioningSecrets = new Dictionary<string, string>()
+        });
+
+        var holviPreflightStart = script.IndexOf("preflight_holvi_env_for_dir()", StringComparison.Ordinal);
+        var backendTokenCheck = script.IndexOf("ensure_api_tokens_for_backend", StringComparison.Ordinal);
+        Assert.True(holviPreflightStart >= 0);
+        Assert.True(backendTokenCheck >= 0);
+        Assert.Contains("preflight_holvi_env_for_dir", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("ensure_api_tokens_for_backend \"$HOLVI_DIR\"", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CloudInit_FullHolviMode_ConfiguresBackendHolviVars()
+    {
+        var builder = new ProvisioningScriptBuilder();
+        var script = builder.BuildUserData(new ProvisioningScriptRequest
+        {
+            Username = "tester",
+            Hostname = "rausku-test",
+            SshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey",
+            RepoUrl = "https://example.invalid/repo.git",
+            RepoBranch = "main",
+            RepoTargetDir = "/opt/rauskuclaw",
+            BuildWebUi = false,
+            WebUiBuildCommand = "npm ci && npm run build",
+            DeployWebUiStatic = false,
+            WebUiBuildOutputDir = "dist",
+            EnableHolvi = true,
+            HolviMode = HolviProvisioningMode.Enabled,
+            ProvisioningSecrets = new Dictionary<string, string>()
+        });
+
+        Assert.Contains("set_env_var \"$backend_env\" \"OPENAI_ENABLED\" \"1\"", script, StringComparison.Ordinal);
+        Assert.Contains("set_env_var \"$backend_env\" \"OPENAI_SECRET_ALIAS\" \"sec://openai_api_key\"", script, StringComparison.Ordinal);
+        Assert.Contains("set_env_var \"$backend_env\" \"HOLVI_BASE_URL\" \"http://holvi-proxy:8099\"", script, StringComparison.Ordinal);
+        Assert.Contains("set_env_var \"$backend_env\" \"HOLVI_PROXY_TOKEN\" \"$shared_token\"", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -228,9 +292,11 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             Assert.True(model.StartSucceeded);
 
             var envStage = model.SetupStages.First(s => string.Equals(s.Key, "env", StringComparison.OrdinalIgnoreCase));
+            var holviStage = model.SetupStages.First(s => string.Equals(s.Key, "holvi", StringComparison.OrdinalIgnoreCase));
             var seedStage = model.SetupStages.First(s => string.Equals(s.Key, "seed", StringComparison.OrdinalIgnoreCase));
 
             Assert.Equal("Warning", envStage.State);
+            Assert.Equal("Warning", holviStage.State);
             Assert.Equal("OK", seedStage.State);
         }
         finally
@@ -242,7 +308,6 @@ public sealed class SecretsAdapterAndWizardDecisionTests
         }
     }
 
-
     [Fact]
     public async Task WizardRetryAfterSecretsRefresh_SucceedsWithoutResettingWorkspace()
     {
@@ -251,7 +316,8 @@ public sealed class SecretsAdapterAndWizardDecisionTests
             {
                 Source = ProvisioningSecretSource.LocalTemplate,
                 Status = ProvisioningSecretStatus.MissingCredentials,
-                Message = "Missing credentials"
+                Message = "Missing credentials",
+                CredentialsConfigured = false
             },
             new ProvisioningSecretsResult
             {
@@ -261,7 +327,8 @@ public sealed class SecretsAdapterAndWizardDecisionTests
                 {
                     ["API_KEY"] = "k1",
                     ["API_TOKEN"] = "t1"
-                }
+                },
+                CredentialsConfigured = true
             });
 
         var model = new WizardViewModel(new ProvisioningScriptBuilder(), service);
@@ -361,7 +428,8 @@ public sealed class SecretsAdapterAndWizardDecisionTests
                 Source = ProvisioningSecretSource.LocalTemplate,
                 Status = ProvisioningSecretStatus.MissingCredentials,
                 Message = "Missing secret-manager credentials.",
-                ActionHint = "Configure credentials."
+                ActionHint = "Configure credentials.",
+                CredentialsConfigured = false
             });
         }
     }

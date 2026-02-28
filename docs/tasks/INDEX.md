@@ -1,4 +1,4 @@
-# Task Index (001-054)
+# Task Index (001-058)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -56,3 +56,7 @@
 | 052 | Completed | Sidebar logo header container now uses fixed 16px left offset for matching button-column alignment in both expanded and collapsed states | [052-sidebar-logo-fixed-left-offset.md](052-sidebar-logo-fixed-left-offset.md) |
 | 053 | Completed | Workspace status indicator moved to workspace icon corner (larger + visible in collapsed sidebar) | [053-workspace-status-indicator-on-icon-corner.md](053-workspace-status-indicator-on-icon-corner.md) |
 | 054 | Completed | Restart now cancels+drains in-flight startup before stop/start, cloud-init wait retries transient SSH loss, and auto-start token cleanup is guaranteed | [054-startup-restart-drain-and-cloudinit-retry.md](054-startup-restart-drain-and-cloudinit-retry.md) |
+| 055 | Completed | HOLVI provisioning auto-enable added with stack-specific env preflight split, full HOLVI mode backend wiring, and placeholder generation for missing HOLVI runtime values | [055-holvi-auto-enable-and-env-split.md](055-holvi-auto-enable-and-env-split.md) |
+| 056 | Completed | HOLVI tab now checks VM-side docker readiness and provides in-app `Run Setup` / `Recheck` actions when stack setup is missing | [056-holvi-tab-setup-automation.md](056-holvi-tab-setup-automation.md) |
+| 057 | Completed | HOLVI setup orchestration moved to Windows host-mode using Docker Desktop (`infra/holvi`) with host-side health checks and in-tab setup actions | [057-holvi-host-mode-docker-desktop.md](057-holvi-host-mode-docker-desktop.md) |
+| 058 | Completed | HOLVI setup moved to hidden background infra VM (`system-holvi-infra`), with system-workspace filtering in sidebar and SSH-driven setup orchestration | [058-holvi-background-infra-vm.md](058-holvi-background-infra-vm.md) |

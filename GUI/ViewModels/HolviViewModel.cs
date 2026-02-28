@@ -2,8 +2,11 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using RauskuClaw.Models;
+using RauskuClaw.Services;
 
 namespace RauskuClaw.GUI.ViewModels
 {
@@ -12,6 +15,7 @@ namespace RauskuClaw.GUI.ViewModels
     /// </summary>
     public class HolviViewModel : INotifyPropertyChanged
     {
+        private readonly IHolviHostSetupService _hostSetupService;
         private Workspace? _workspace;
         private SettingsViewModel? _settingsViewModel;
         private string _currentUrl = "about:blank";
@@ -19,11 +23,22 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _isConfigured;
         private string _configuredBaseUrl = string.Empty;
         private bool _isInsecureRemoteUrl;
+        private bool _isSetupChecking;
+        private bool _isSetupRunning;
+        private bool _isSetupRequired;
+        private bool _isSetupFailed;
+        private string _setupStatusText = "HOLVI setup status not checked yet.";
+        private int _setupProbeVersion;
 
-        public HolviViewModel(SettingsViewModel? settingsViewModel = null)
+        public HolviViewModel(
+            SettingsViewModel? settingsViewModel = null,
+            IHolviHostSetupService? hostSetupService = null)
         {
+            _hostSetupService = hostSetupService ?? new HolviHostSetupService();
             OpenExternalCommand = new RelayCommand(OpenExternal, () => IsConfigured);
             RefreshCommand = new RelayCommand(Refresh);
+            RunSetupCommand = new RelayCommand(() => _ = RunSetupAsync(), () => CanRunSetup);
+            RecheckSetupCommand = new RelayCommand(() => _ = CheckSetupStatusAsync(), () => CanRecheckSetup);
             SetSettingsViewModel(settingsViewModel);
         }
 
@@ -68,9 +83,10 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_isVmRunning == value) return;
                 _isVmRunning = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(ShouldShowWebView));
             }
         }
+
+        public bool ShowVmRequiredWarning => false;
 
         public bool IsConfigured
         {
@@ -81,6 +97,9 @@ namespace RauskuClaw.GUI.ViewModels
                 _isConfigured = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ShouldShowWebView));
+                OnPropertyChanged(nameof(ShouldShowSetupPanel));
+                OnPropertyChanged(nameof(CanRunSetup));
+                OnPropertyChanged(nameof(CanRecheckSetup));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -107,10 +126,85 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
-        public bool ShouldShowWebView => IsVmRunning && IsConfigured;
+        public bool ShouldShowWebView => IsConfigured && !IsSetupRequired && !IsSetupChecking && !IsSetupRunning && !IsSetupFailed;
+        public bool ShouldShowSetupPanel => IsConfigured && (IsSetupChecking || IsSetupRunning || IsSetupRequired || IsSetupFailed);
+
+        public bool IsSetupChecking
+        {
+            get => _isSetupChecking;
+            private set
+            {
+                if (_isSetupChecking == value) return;
+                _isSetupChecking = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShouldShowWebView));
+                OnPropertyChanged(nameof(ShouldShowSetupPanel));
+                OnPropertyChanged(nameof(CanRunSetup));
+                OnPropertyChanged(nameof(CanRecheckSetup));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        public bool IsSetupRunning
+        {
+            get => _isSetupRunning;
+            private set
+            {
+                if (_isSetupRunning == value) return;
+                _isSetupRunning = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShouldShowWebView));
+                OnPropertyChanged(nameof(ShouldShowSetupPanel));
+                OnPropertyChanged(nameof(CanRunSetup));
+                OnPropertyChanged(nameof(CanRecheckSetup));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        public bool IsSetupRequired
+        {
+            get => _isSetupRequired;
+            private set
+            {
+                if (_isSetupRequired == value) return;
+                _isSetupRequired = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShouldShowWebView));
+                OnPropertyChanged(nameof(ShouldShowSetupPanel));
+            }
+        }
+
+        public bool IsSetupFailed
+        {
+            get => _isSetupFailed;
+            private set
+            {
+                if (_isSetupFailed == value) return;
+                _isSetupFailed = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShouldShowWebView));
+                OnPropertyChanged(nameof(ShouldShowSetupPanel));
+            }
+        }
+
+        public string SetupStatusText
+        {
+            get => _setupStatusText;
+            private set
+            {
+                if (_setupStatusText == value) return;
+                _setupStatusText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool CanRunSetup => IsConfigured && !IsSetupRunning && !IsSetupChecking;
+        public bool CanRecheckSetup => IsConfigured && !IsSetupRunning && !IsSetupChecking;
 
         public ICommand OpenExternalCommand { get; }
         public ICommand RefreshCommand { get; }
+        public ICommand RunSetupCommand { get; }
+        public ICommand RecheckSetupCommand { get; }
 
         public void SetSettingsViewModel(SettingsViewModel? settingsViewModel)
         {
@@ -147,7 +241,6 @@ namespace RauskuClaw.GUI.ViewModels
             if (e.PropertyName == nameof(Workspace.IsRunning))
             {
                 IsVmRunning = _workspace.IsRunning;
-                UpdateUrlState();
             }
         }
 
@@ -158,17 +251,19 @@ namespace RauskuClaw.GUI.ViewModels
             IsConfigured = !string.IsNullOrWhiteSpace(ConfiguredBaseUrl);
             IsInsecureRemoteUrl = IsConfigured && IsHttpNonLocal(ConfiguredBaseUrl);
 
-            if (IsConfigured && IsVmRunning)
+            if (IsConfigured)
             {
                 CurrentUrl = ConfiguredBaseUrl;
+                _ = CheckSetupStatusAsync();
             }
             else
             {
                 CurrentUrl = "about:blank";
+                ResetSetupState();
             }
         }
 
-        private string? ResolveConfiguredUrl(string? rawUrl)
+        private static string? ResolveConfiguredUrl(string? rawUrl)
         {
             var normalized = NormalizeUrl(rawUrl);
             if (string.IsNullOrWhiteSpace(normalized))
@@ -176,60 +271,138 @@ namespace RauskuClaw.GUI.ViewModels
                 return null;
             }
 
-            if (_workspace == null || !_workspace.IsRunning)
-            {
-                return normalized;
-            }
-
-            if (!Uri.TryCreate(normalized, UriKind.Absolute, out var parsed))
-            {
-                return normalized;
-            }
-
-            var host = parsed.Host;
-            if (!string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase))
-            {
-                return normalized;
-            }
-
-            var targetPort = parsed.Port;
-            if (!HasExplicitPort(rawUrl))
-            {
-                targetPort = GetInfisicalUiHostPort(_workspace);
-            }
-            else if (parsed.Port == VmProfile.GuestHolviProxyPort)
-            {
-                targetPort = GetHolviProxyHostPort(_workspace);
-            }
-            else if (parsed.Port == VmProfile.GuestInfisicalUiPort)
-            {
-                targetPort = GetInfisicalUiHostPort(_workspace);
-            }
-            else
-            {
-                return normalized;
-            }
-
-            var rewritten = new UriBuilder(parsed)
-            {
-                Host = "127.0.0.1",
-                Port = targetPort
-            };
-
-            return rewritten.Uri.ToString().TrimEnd('/') + "/";
+            return normalized;
         }
 
         private void Refresh()
         {
-            if (!IsConfigured || !IsVmRunning)
+            if (!IsConfigured || IsSetupRequired || IsSetupChecking || IsSetupRunning || IsSetupFailed)
             {
                 return;
             }
 
             var separator = ConfiguredBaseUrl.Contains('?') ? "&" : "?";
             CurrentUrl = $"{ConfiguredBaseUrl}{separator}rc_refresh={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+        }
+
+        private void ResetSetupState()
+        {
+            Interlocked.Increment(ref _setupProbeVersion);
+            IsSetupChecking = false;
+            IsSetupRunning = false;
+            IsSetupRequired = false;
+            IsSetupFailed = false;
+            SetupStatusText = "HOLVI setup status not checked yet.";
+        }
+
+        private async Task CheckSetupStatusAsync()
+        {
+            if (!IsConfigured)
+            {
+                return;
+            }
+
+            var probeVersion = Interlocked.Increment(ref _setupProbeVersion);
+            IsSetupChecking = true;
+            IsSetupFailed = false;
+            SetupStatusText = "Checking HOLVI setup...";
+
+            HolviHostSetupResult result;
+            try
+            {
+                result = await _hostSetupService.CheckStatusAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                result = new HolviHostSetupResult
+                {
+                    State = HolviHostSetupState.Error,
+                    Message = $"Setup check failed: {ex.Message}"
+                };
+            }
+
+            if (probeVersion != _setupProbeVersion)
+            {
+                return;
+            }
+
+            IsSetupChecking = false;
+            switch (result.State)
+            {
+                case HolviHostSetupState.Ready:
+                    IsSetupRequired = false;
+                    IsSetupFailed = false;
+                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
+                        ? "HOLVI host setup is ready."
+                        : result.Message;
+                    break;
+                case HolviHostSetupState.NeedsSetup:
+                    IsSetupRequired = true;
+                    IsSetupFailed = false;
+                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
+                        ? "HOLVI host setup is not ready. Run setup."
+                        : result.Message;
+                    break;
+                default:
+                    IsSetupRequired = true;
+                    IsSetupFailed = true;
+                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
+                        ? "HOLVI host setup check failed."
+                        : result.Message;
+                    break;
+            }
+        }
+
+        private async Task RunSetupAsync()
+        {
+            if (!CanRunSetup)
+            {
+                return;
+            }
+
+            IsSetupRunning = true;
+            IsSetupFailed = false;
+            SetupStatusText = "Running HOLVI setup...";
+
+            HolviHostSetupResult result;
+            try
+            {
+                result = await _hostSetupService.RunSetupAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                result = new HolviHostSetupResult
+                {
+                    State = HolviHostSetupState.Error,
+                    Message = $"HOLVI setup failed: {ex.Message}"
+                };
+            }
+
+            IsSetupRunning = false;
+            switch (result.State)
+            {
+                case HolviHostSetupState.Ready:
+                    IsSetupRequired = false;
+                    IsSetupFailed = false;
+                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
+                        ? "HOLVI host setup completed."
+                        : result.Message;
+                    break;
+                case HolviHostSetupState.NeedsSetup:
+                    IsSetupRequired = true;
+                    IsSetupFailed = false;
+                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
+                        ? "HOLVI host setup still requires action."
+                        : result.Message;
+                    break;
+                default:
+                    IsSetupRequired = true;
+                    IsSetupFailed = true;
+                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
+                        ? "HOLVI host setup failed."
+                        : result.Message;
+                    break;
+            }
         }
 
         private void OpenExternal()
@@ -270,47 +443,6 @@ namespace RauskuClaw.GUI.ViewModels
             return Uri.TryCreate(candidate, UriKind.Absolute, out var parsed)
                 ? parsed.ToString().TrimEnd('/') + "/"
                 : null;
-        }
-
-        private static bool HasExplicitPort(string? rawValue)
-        {
-            if (string.IsNullOrWhiteSpace(rawValue))
-            {
-                return false;
-            }
-
-            var candidate = rawValue.Trim();
-            if (!candidate.Contains("://", StringComparison.Ordinal))
-            {
-                candidate = $"http://{candidate}";
-            }
-
-            if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed))
-            {
-                return false;
-            }
-
-            var authority = parsed.Authority;
-            if (authority.StartsWith("[", StringComparison.Ordinal))
-            {
-                return authority.Contains("]:", StringComparison.Ordinal);
-            }
-
-            var firstColon = authority.IndexOf(':');
-            var lastColon = authority.LastIndexOf(':');
-            return firstColon >= 0 && firstColon == lastColon;
-        }
-
-        private static int GetHolviProxyHostPort(Workspace workspace)
-        {
-            var apiPort = workspace.Ports?.Api ?? 3011;
-            return apiPort + VmProfile.HostHolviProxyOffsetFromApi;
-        }
-
-        private static int GetInfisicalUiHostPort(Workspace workspace)
-        {
-            var apiPort = workspace.Ports?.Api ?? 3011;
-            return apiPort + VmProfile.HostInfisicalUiOffsetFromApi;
         }
 
         private static bool IsHttpNonLocal(string url)

@@ -26,6 +26,7 @@ namespace RauskuClaw.Services
                 var updatesHintSent = false;
                 var envHintSent = false;
                 var dockerHintSent = false;
+                var holviHintSent = false;
                 using var client = new TcpClient();
                 await client.ConnectAsync("127.0.0.1", serialPort, ct);
                 using var stream = client.GetStream();
@@ -69,7 +70,7 @@ namespace RauskuClaw.Services
                         if (!string.IsNullOrWhiteSpace(normalized))
                         {
                             _reportLog(progress, $"[serial] {normalized}");
-                            PromoteWizardStageFromSerialLine(normalized, progress, ref updatesHintSent, ref envHintSent, ref dockerHintSent);
+                            PromoteWizardStageFromSerialLine(normalized, progress, ref updatesHintSent, ref envHintSent, ref dockerHintSent, ref holviHintSent);
                         }
                         lastPartialFlushUtc = DateTime.UtcNow;
                     }
@@ -83,7 +84,7 @@ namespace RauskuClaw.Services
                             if (!string.IsNullOrWhiteSpace(normalizedPartial))
                             {
                                 _reportLog(progress, $"[serial] {normalizedPartial}");
-                                PromoteWizardStageFromSerialLine(normalizedPartial, progress, ref updatesHintSent, ref envHintSent, ref dockerHintSent);
+                                PromoteWizardStageFromSerialLine(normalizedPartial, progress, ref updatesHintSent, ref envHintSent, ref dockerHintSent, ref holviHintSent);
                             }
                         }
                         sb.Clear();
@@ -106,7 +107,8 @@ namespace RauskuClaw.Services
             IProgress<string>? progress,
             ref bool updatesHintSent,
             ref bool envHintSent,
-            ref bool dockerHintSent)
+            ref bool dockerHintSent,
+            ref bool holviHintSent)
         {
             if (!updatesHintSent
                 && (serialLine.Contains("Synchronizing package databases", StringComparison.OrdinalIgnoreCase)
@@ -140,6 +142,29 @@ namespace RauskuClaw.Services
             {
                 _reportStage(progress, "env", "in_progress", "Preparing repository and runtime env inside VM...");
                 envHintSent = true;
+            }
+
+            if (!holviHintSent
+                && (serialLine.Contains("HOLVI", StringComparison.OrdinalIgnoreCase)
+                    || serialLine.Contains("holvi stack", StringComparison.OrdinalIgnoreCase)))
+            {
+                _reportStage(progress, "holvi", "in_progress", "HOLVI provisioning/startup detected.");
+                holviHintSent = true;
+            }
+
+            if (serialLine.Contains("HOLVI disabled", StringComparison.OrdinalIgnoreCase))
+            {
+                _reportStage(progress, "holvi", "warning", "HOLVI disabled in wizard provisioning.");
+            }
+
+            if (serialLine.Contains("HOLVI stack started", StringComparison.OrdinalIgnoreCase))
+            {
+                _reportStage(progress, "holvi", "success", "HOLVI stack started.");
+            }
+
+            if (serialLine.Contains("HOLVI stack failed", StringComparison.OrdinalIgnoreCase))
+            {
+                _reportStage(progress, "holvi", "failed", "HOLVI stack failed to start.");
             }
         }
 

@@ -33,7 +33,8 @@ namespace RauskuClaw.GUI.ViewModels
                 HostSerialPort = workspace.Ports?.Serial ?? 5555,
                 HostApiPort = workspace.Ports?.Api ?? 3011,
                 HostUiV1Port = workspace.Ports?.UiV1 ?? 3012,
-                HostUiV2Port = workspace.Ports?.UiV2 ?? 3013
+                HostUiV2Port = workspace.Ports?.UiV2 ?? 3013,
+                UseMinimalHolviPortSet = workspace.IsSystemWorkspace
             };
         }
 
@@ -481,6 +482,43 @@ namespace RauskuClaw.GUI.ViewModels
         }
 
         private static string EscapeSingleQuotes(string value) => (value ?? string.Empty).Replace("'", "'\\''");
+
+        private static bool IsHostKeyMismatchIssue(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            return message.Contains("reason=hostkey_mismatch", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("host key mismatch", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<(bool Success, string Message)> TryRecoverFromHostKeyMismatchAsync(
+            Workspace workspace,
+            string originalMessage,
+            IProgress<string>? progress,
+            CancellationToken ct)
+        {
+            var sshPort = workspace.Ports?.Ssh ?? 2222;
+            var removed = _sshConnectionFactory.ForgetHost("127.0.0.1", sshPort);
+            if (removed)
+            {
+                ReportLog(progress, $"SSH host key changed for 127.0.0.1:{sshPort}; cleared pinned key and retrying once.");
+            }
+            else
+            {
+                ReportLog(progress, $"SSH host key mismatch detected for 127.0.0.1:{sshPort}; retrying once with fresh trust.");
+            }
+
+            var retry = await WaitForSshReadyAsync(workspace, ct);
+            if (retry.Success)
+            {
+                return (true, "SSH command channel is stable after host key refresh.");
+            }
+
+            return (false, $"{originalMessage} Retry after host key refresh failed: {retry.Message}");
+        }
 
         private bool IsTransientConnectionIssue(string message) => _workspaceSshCommandService.IsTransientConnectionIssue(message);
     }

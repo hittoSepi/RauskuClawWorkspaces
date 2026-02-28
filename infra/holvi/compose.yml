@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16
+    profiles: ["local-infisical"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${INFISICAL_DB_USER}
+      POSTGRES_PASSWORD: ${INFISICAL_DB_PASSWORD}
+      POSTGRES_DB: ${INFISICAL_DB_NAME}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks: [holvi_net]
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["local-infisical"]
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks: [holvi_net]
+
+  infisical:
+    image: infisical/infisical:latest
+    profiles: ["local-infisical"]
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      # NÄMÄ pitää mahdollisesti säätää Infisicalin version mukaan:
+      SITE_URL: ${INFISICAL_SITE_URL}
+      ENCRYPTION_KEY: ${INFISICAL_ENCRYPTION_KEY}
+      AUTH_SECRET: ${INFISICAL_AUTH_SECRET}
+
+      DB_CONNECTION_URI: postgresql://${INFISICAL_DB_USER}:${INFISICAL_DB_PASSWORD}@postgres:5432/${INFISICAL_DB_NAME}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8088:8080"
+    networks: [holvi_net]
+
+  holvi-proxy:
+    build:
+      context: ./holvi-proxy
+    restart: unless-stopped
+    environment:
+      PROXY_SHARED_TOKEN: ${PROXY_SHARED_TOKEN}
+      INFISICAL_BASE_URL: ${INFISICAL_BASE_URL:-http://host.docker.internal:8088}
+      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
+      INFISICAL_ENV: ${INFISICAL_ENV}
+      INFISICAL_SERVICE_TOKEN: ${INFISICAL_SERVICE_TOKEN}
+      ALIAS_REGISTRY_PATH: /app/aliases.json
+      PORT: 8099
+      # Hardening options
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-262144}
+      RATE_LIMIT_CAPACITY: ${RATE_LIMIT_CAPACITY:-100}
+      RATE_LIMIT_REFILL_RATE: ${RATE_LIMIT_REFILL_RATE:-10}
+      REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-30000}
+      CONNECT_TIMEOUT_MS: ${CONNECT_TIMEOUT_MS:-5000}
+      HOLVI_BIND: ${HOLVI_BIND:-0.0.0.0}
+    volumes:
+      - ./holvi-proxy/aliases.json:/app/aliases.json:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8099:8099"
+    networks: [holvi_net]
+
+networks:
+  holvi_net:
+
+volumes:
+  pg_data:
+  redis_data:

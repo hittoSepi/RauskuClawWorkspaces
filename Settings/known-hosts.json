@@ -1,8 +1,14 @@
 {
   "127.0.0.1:2222": {
     "Algorithm": "ssh-ed25519",
-    "FingerprintHex": "4494bd191ecbbe1c9c8fbea455c2b21b",
-    "FirstSeenUtc": "2026-02-28T07:22:10.9847537+00:00",
-    "LastSeenUtc": "2026-02-28T07:22:10.9847537+00:00"
+    "FingerprintHex": "b5f5ba70739b1e80d2ae55b731bb759f",
+    "FirstSeenUtc": "2026-02-28T21:10:51.9853596+00:00",
+    "LastSeenUtc": "2026-02-28T21:10:51.9853596+00:00"
+  },
+  "127.0.0.1:6222": {
+    "Algorithm": "ssh-ed25519",
+    "FingerprintHex": "055ba0c72aa2c6446fd7da4943c1fc1d",
+    "FirstSeenUtc": "2026-02-28T21:15:24.3637956+00:00",
+    "LastSeenUtc": "2026-02-28T21:15:24.3637956+00:00"
   }
 }

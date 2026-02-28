@@ -18,6 +18,7 @@ namespace RauskuClaw.Models
         private int _dockerContainerCount = -1;
         private bool _dockerAvailable;
         private bool _autoStart;
+        private bool _isSystemWorkspace;
         private bool _isStopVerificationPending;
         private double _runtimeCpuUsagePercent;
         private int _runtimeMemoryUsageMb;
@@ -136,6 +137,17 @@ namespace RauskuClaw.Models
             {
                 if (_autoStart == value) return;
                 _autoStart = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsSystemWorkspace
+        {
+            get => _isSystemWorkspace;
+            set
+            {
+                if (_isSystemWorkspace == value) return;
+                _isSystemWorkspace = value;
                 OnPropertyChanged();
             }
         }

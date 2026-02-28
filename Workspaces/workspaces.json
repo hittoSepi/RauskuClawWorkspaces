@@ -1,30 +1,31 @@
 [
   {
-    "Id": "0d911dee-bcab-4438-873c-1bf5b49d5728",
-    "Name": "rausku-ai",
-    "Description": "Workspace for rausku-ai",
+    "Id": "system-holvi-infra",
+    "Name": "holvi-infra",
+    "Description": "System HOLVI/Infisical infra VM",
     "Username": "rausku",
-    "Hostname": "rausku-ai",
-    "SshPublicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINxw9xrHJpP0KuwRxeJm3hesfyGU1K9CMlBKAT9SVPLC hitto@DESKTOP-IB08JAQ",
-    "SshPrivateKeyPath": "C:\\Users\\hitto\\.ssh\\rausku_vm_ed25519",
+    "Hostname": "rausku-infra",
+    "SshPublicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqNQzrgLsf64WC7bsUU1nC3Tih/qG75GG3enfJUKwsg holvi-infra",
+    "SshPrivateKeyPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\keys\\system-holvi-infra\\id_ed25519",
     "RepoTargetDir": "/opt/rauskuclaw",
-    "HostWorkspacePath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\Workspaces\\rausku-ai-0d911dee",
-    "HostWebPort": 8080,
-    "MemoryMb": 8192,
-    "CpuCores": 6,
-    "DiskPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\rausku-ai-0d911dee\\arch.qcow2",
-    "SeedIsoPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\rausku-ai-0d911dee\\seed.iso",
+    "HostWorkspacePath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\Workspaces\\system-holvi-infra",
+    "HostWebPort": 18080,
+    "MemoryMb": 4096,
+    "CpuCores": 4,
+    "DiskPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\system-holvi-infra\\arch.qcow2",
+    "SeedIsoPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\system-holvi-infra\\seed.iso",
     "QemuExe": "qemu-system-x86_64.exe",
-    "CreatedAt": "2026-02-28T09:21:49.2456314+02:00",
-    "LastRun": "2026-02-28T11:45:20.1817737+02:00",
+    "CreatedAt": "2026-02-28T23:13:21.5284117+02:00",
+    "LastRun": "2026-02-28T23:15:03.6201137+02:00",
     "Ports": {
-      "Ssh": 2222,
-      "Api": 3011,
+      "Ssh": 6222,
+      "Api": 13011,
       "UiV2": 3013,
       "UiV1": 3012,
-      "Qmp": 4444,
-      "Serial": 5555
+      "Qmp": 14444,
+      "Serial": 15555
     },
-    "AutoStart": false
+    "AutoStart": false,
+    "IsSystemWorkspace": true
   }
 ]

@@ -38,3 +38,5 @@ VM/
 *.qcow2.*
 seed.iso
 **/seed.iso
+Settings/secrets.dpapi.json
+Settings/known-hosts.json

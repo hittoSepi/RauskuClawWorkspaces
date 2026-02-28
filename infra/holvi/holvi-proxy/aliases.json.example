@@ -1,0 +1,10 @@
+{
+  "sec://openai_api_key": {
+    "infisical": { "secretName": "OPENAI_API_KEY" },
+    "usage": { "type": "bearer" },
+    "allow": {
+      "hosts": ["api.openai.com", "api.z.ai"],
+      "methods": ["GET", "POST"]
+    }
+  }
+}

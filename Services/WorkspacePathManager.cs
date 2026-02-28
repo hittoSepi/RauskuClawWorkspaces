@@ -149,8 +149,19 @@ namespace RauskuClaw.Services
                 || sharedByOthers
                 || currentUnsafe;
 
+            var qemuSystem = !string.IsNullOrWhiteSpace(workspace.QemuExe) ? workspace.QemuExe : _appSettings.QemuPath;
+
             if (!requiresOverlay)
             {
+                if (!File.Exists(currentResolved))
+                {
+                    _log($"Disk image missing for '{workspace.Name}', recreating overlay at: {currentResolved}");
+                    if (!_qcowImageService.EnsureOverlayDisk(qemuSystem, baseDisk, currentResolved, out error))
+                    {
+                        return false;
+                    }
+                }
+
                 workspace.DiskPath = currentResolved;
                 changed = !string.Equals(current, currentResolved, StringComparison.Ordinal);
                 return true;
@@ -160,7 +171,6 @@ namespace RauskuClaw.Services
                 _appSettings,
                 BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id),
                 "arch.qcow2");
-            var qemuSystem = !string.IsNullOrWhiteSpace(workspace.QemuExe) ? workspace.QemuExe : _appSettings.QemuPath;
 
             if (!_qcowImageService.EnsureOverlayDisk(qemuSystem, baseDisk, overlayDisk, out error))
             {

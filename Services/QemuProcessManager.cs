@@ -10,15 +10,22 @@ namespace RauskuClaw.Services
     {
         public Process StartVm(VmProfile p)
         {
-            var netdevArgs =
-                $"user,id=n1," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostSshPort}-:22," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostWebPort}-:80," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostApiPort}-:3001," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostUiV1Port}-:3002," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostUiV2Port}-:3003," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostHolviProxyPort}-:{VmProfile.GuestHolviProxyPort}," +
-                $"hostfwd=tcp:127.0.0.1:{p.HostInfisicalUiPort}-:{VmProfile.GuestInfisicalUiPort}";
+            var hostForwards = new List<string>
+            {
+                $"hostfwd=tcp:127.0.0.1:{p.HostSshPort}-:22",
+                $"hostfwd=tcp:127.0.0.1:{p.HostHolviProxyPort}-:{VmProfile.GuestHolviProxyPort}",
+                $"hostfwd=tcp:127.0.0.1:{p.HostInfisicalUiPort}-:{VmProfile.GuestInfisicalUiPort}"
+            };
+
+            if (!p.UseMinimalHolviPortSet)
+            {
+                hostForwards.Add($"hostfwd=tcp:127.0.0.1:{p.HostWebPort}-:80");
+                hostForwards.Add($"hostfwd=tcp:127.0.0.1:{p.HostApiPort}-:3001");
+                hostForwards.Add($"hostfwd=tcp:127.0.0.1:{p.HostUiV1Port}-:3002");
+                hostForwards.Add($"hostfwd=tcp:127.0.0.1:{p.HostUiV2Port}-:3003");
+            }
+
+            var netdevArgs = $"user,id=n1,{string.Join(",", hostForwards)}";
 
             var args = string.Join(" ", new[]
             {

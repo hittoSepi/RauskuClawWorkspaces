@@ -49,6 +49,15 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Hidden HOLVI infra VM now uses a minimal host port set (`SSH + HolviProxy + InfisicalUI + QMP + Serial`) instead of exposing workspace `Web/API/UI` forwards, reducing startup port-conflict surface.
+- Hidden HOLVI infra VM (`system-holvi-infra`) now self-heals host-port mappings before start: it no longer relies on fixed `8080`, and system workspace ports are auto-reassigned to free values to avoid immediate QEMU exit on port conflicts.
+- HOLVI setup now uses a hidden background infra VM (`system-holvi-infra`) instead of Windows Docker Desktop orchestration; sidebar workspace list filters out system workspaces.
+- HOLVI now opens as its own main section (not inside Workspace Views tab strip), so workspace header/VM controls/quick-info/tabs are hidden on HOLVI screen.
+- HOLVI sidepanel navigation now bypasses the stopped-workspace overlay: HOLVI view remains visible even when selected workspace VM is stopped.
+- HOLVI tab now has an automatic setup phase: it checks HOLVI docker readiness (`holvi-proxy`), shows setup status in-tab, and provides `Run Setup` / `Recheck` actions when the stack is missing or not started.
+- Holvi provisioning was refactored to stack-aware env handling: backend and `infra/holvi` now use separate preflight paths, backend API token checks no longer leak into Holvi env, wizard auto-enables Holvi when secret-manager credentials are configured, and full Holvi mode wiring (`OPENAI_SECRET_ALIAS` + `HOLVI_*`) is applied to root runtime `.env`.
+- HOLVI compose defaults now target shared Infisical usage: `holvi-proxy` reads `INFISICAL_BASE_URL` from `infra/holvi/.env`, local `postgres/redis/infisical` are moved behind `local-infisical` profile (`HOLVI_INFISICAL_MODE=local`), and default mode is `shared` with workspace-specific `INFISICAL_PROJECT_ID` + `INFISICAL_SERVICE_TOKEN`.
+- Startup now auto-recovers one SSH known-host mismatch during SSH stabilization by clearing the stale pinned key for the workspace SSH endpoint and retrying once, reducing manual `Forget host key` runs after intentional reprovisioning.
 - VM restart path now explicitly cancels any in-flight workspace startup and waits for startup-drain (up to 20s) before executing stop/start, preventing overlapping startup/restart race flows.
 - Cloud-init finalization wait now retries transient SSH losses instead of failing on first `ConnectionRefused`, and logs clear timeout diagnostics (`cloud-init wait timed out after ...`).
 - Auto-start startup-token lifecycle was hardened with guaranteed cleanup (`try/finally`) to avoid stale per-workspace start cancellation sources.

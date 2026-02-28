@@ -68,6 +68,7 @@ namespace RauskuClaw.Services
                             LastRun = item.LastRun,
                             Ports = item.Ports,
                             AutoStart = item.AutoStart,
+                            IsSystemWorkspace = item.IsSystemWorkspace,
                             Status = VmStatus.Stopped,
                             IsRunning = false
                         });
@@ -108,7 +109,8 @@ namespace RauskuClaw.Services
                 CreatedAt = w.CreatedAt,
                 LastRun = w.LastRun,
                 Ports = w.Ports,
-                AutoStart = w.AutoStart
+                AutoStart = w.AutoStart,
+                IsSystemWorkspace = w.IsSystemWorkspace
             }).ToList();
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -138,6 +140,7 @@ namespace RauskuClaw.Services
             public DateTime? LastRun { get; set; }
             public PortAllocation? Ports { get; set; }
             public bool AutoStart { get; set; }
+            public bool IsSystemWorkspace { get; set; }
         }
     }
 }

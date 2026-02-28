@@ -19,6 +19,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private string BuildUserData(ProvisioningSecretsResult provisioningSecrets)
         {
+            var enableHolvi = provisioningSecrets.CredentialsConfigured;
             return _provisioningScriptBuilder.BuildUserData(new ProvisioningScriptRequest
             {
                 Username = Username,
@@ -31,6 +32,8 @@ namespace RauskuClaw.GUI.ViewModels
                 WebUiBuildCommand = WebUiBuildCommand,
                 DeployWebUiStatic = DeployWebUiStatic,
                 WebUiBuildOutputDir = WebUiBuildOutputDir,
+                EnableHolvi = enableHolvi,
+                HolviMode = enableHolvi ? HolviProvisioningMode.Enabled : HolviProvisioningMode.Disabled,
                 ProvisioningSecrets = provisioningSecrets.Secrets
             });
         }
@@ -38,7 +41,18 @@ namespace RauskuClaw.GUI.ViewModels
         private async Task<ProvisioningSecretsResult> LoadProvisioningSecretsAsync(IProgress<string> progress, CancellationToken cancellationToken)
         {
             UpdateStage("env", "in_progress", "Loading runtime secrets for provisioning...");
-            var requestedKeys = new[] { "API_KEY", "API_TOKEN" };
+            var requestedKeys = new[]
+            {
+                "API_KEY",
+                "API_TOKEN",
+                "PROXY_SHARED_TOKEN",
+                "INFISICAL_BASE_URL",
+                "INFISICAL_PROJECT_ID",
+                "INFISICAL_SERVICE_TOKEN",
+                "INFISICAL_ENCRYPTION_KEY",
+                "INFISICAL_AUTH_SECRET",
+                "HOLVI_INFISICAL_MODE"
+            };
             var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, cancellationToken);
 
             if (result.Status == ProvisioningSecretStatus.MissingCredentials)
@@ -49,13 +63,23 @@ namespace RauskuClaw.GUI.ViewModels
                     Status = ProvisioningSecretStatus.MissingCredentials,
                     Message = "Secret manager not configured; generated local API credentials will be applied in cloud-init.",
                     ActionHint = "Startup continues with local API credential generation. Configure HOLVI/Infisical later when workspace is ready.",
-                    Secrets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    Secrets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                    CredentialsConfigured = false
                 };
                 AppendRunLog("Warning: secret manager credentials missing; cloud-init will generate local API_KEY/API_TOKEN for startup.");
             }
 
             var stageState = result.Status == ProvisioningSecretStatus.Success ? "success" : "warning";
             UpdateStage("env", stageState, BuildSecretsStageMessage(result));
+            if (result.CredentialsConfigured)
+            {
+                UpdateStage("holvi", "in_progress", "HOLVI auto-enable active: secret-manager credentials detected.");
+            }
+            else
+            {
+                UpdateStage("holvi", "warning", "HOLVI skipped: secret-manager credentials not configured.");
+            }
+
             if (!string.IsNullOrWhiteSpace(result.ActionHint))
             {
                 AppendRunLog($"Action: {result.ActionHint}");
@@ -90,7 +114,11 @@ namespace RauskuClaw.GUI.ViewModels
         {
             if (!string.IsNullOrWhiteSpace(message) && message.StartsWith("@log|", StringComparison.Ordinal))
             {
-                AppendRunLog(StripAnsi(message[5..]));
+                var normalizedLog = NormalizeWizardLogLine(StripAnsi(message[5..]));
+                if (!string.IsNullOrWhiteSpace(normalizedLog))
+                {
+                    AppendRunLog(normalizedLog);
+                }
                 return;
             }
 
@@ -104,9 +132,32 @@ namespace RauskuClaw.GUI.ViewModels
                 }
             }
 
-            var clean = StripAnsi(message);
+            var clean = NormalizeWizardLogLine(StripAnsi(message));
+            if (string.IsNullOrWhiteSpace(clean))
+            {
+                return;
+            }
+
             Status = clean;
             AppendRunLog(clean);
+        }
+
+        private static string NormalizeWizardLogLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = line.Trim();
+            if (trimmed.Contains("[serial]", StringComparison.OrdinalIgnoreCase)
+                && trimmed.Contains("Started Session", StringComparison.OrdinalIgnoreCase)
+                && trimmed.Contains("of User", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+
+            return trimmed;
         }
 
         private void InitializeSetupStages()
@@ -119,6 +170,7 @@ namespace RauskuClaw.GUI.ViewModels
                 new("ssh_stable", "SSH Stabilization", "Pending", "#6A7382"),
                 new("updates", "Updates", "Pending", "#6A7382"),
                 new("env", "Provisioning", "Pending", "#6A7382"),
+                new("holvi", "HOLVI", "Pending", "#6A7382"),
                 new("docker", "Docker", "Pending", "#6A7382"),
                 new("api", "API", "Pending", "#6A7382"),
                 new("webui", "WebUI", "Pending", "#6A7382"),

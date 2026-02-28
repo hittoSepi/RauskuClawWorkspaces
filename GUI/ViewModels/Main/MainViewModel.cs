@@ -28,11 +28,16 @@ namespace RauskuClaw.GUI.ViewModels
     public partial class MainViewModel : INotifyPropertyChanged
     {
         private const int WorkspaceSettingsTabIndex = 6;
+        private const string InfraWorkspaceId = "system-holvi-infra";
+        private const string InfraWorkspaceName = "holvi-infra";
+        private const string InfraWorkspaceRepoUrl = "https://github.com/hittoSepi/RauskuClaw.git";
+        private const string InfraWorkspaceRepoBranch = "main";
 
         public enum MainContentSection
         {
             Home,
             WorkspaceTabs,
+            Holvi,
             TemplateManagement,
             Settings,
             WorkspaceSettings
@@ -58,6 +63,9 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly IStartupProgressReporter _startupProgressReporter;
         private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly IWorkspacePortManager _portManager;
+        private readonly SeedIsoService _seedIsoService;
+        private readonly IProvisioningScriptBuilder _provisioningScriptBuilder;
+        private readonly SshKeyService _sshKeyService;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
@@ -164,10 +172,14 @@ namespace RauskuClaw.GUI.ViewModels
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
             _portManager = portManager ?? new WorkspacePortManager();
+            _seedIsoService = new SeedIsoService();
+            _provisioningScriptBuilder = new ProvisioningScriptBuilder();
+            _sshKeyService = new SshKeyService();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
             _workspaces.CollectionChanged += OnWorkspacesCollectionChanged;
             EnsureWorkspaceHostDirectories();
+            EnsureInfraWorkspaceExists();
             ReserveExistingWorkspacePorts();
             _resourceStatsCache.ConfigureProviders(
                 workspaceProvider: () => _workspaces.ToList(),
@@ -191,6 +203,7 @@ namespace RauskuClaw.GUI.ViewModels
             DeleteWorkspaceCommand = new RelayCommand(async () => await DeleteWorkspaceAsync(), () => SelectedWorkspace != null && !_isVmStopping && !_isVmRestarting);
             ShowHomeCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Home);
             ShowWorkspaceViewsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.WorkspaceTabs);
+            ShowHolviCommand = new RelayCommand(OpenHolviTab);
             ShowTemplatesCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.TemplateManagement);
             ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
             ShowSecretsSettingsCommand = new RelayCommand(NavigateToSecretsSettings);
@@ -209,7 +222,11 @@ namespace RauskuClaw.GUI.ViewModels
             DockerContainers = new DockerContainersViewModel(new DockerService(_sshConnectionFactory));
             SshTerminal = new SshTerminalViewModel(_sshConnectionFactory);
             SftpFiles = new SftpFilesViewModel(new SftpService(_sshConnectionFactory));
-            Holvi = new HolviViewModel(Settings);
+            var holviSetupService = new HolviInfraVmSetupService(
+                ResolveInfraWorkspaceAsync,
+                EnsureInfraWorkspaceRunningAsync,
+                _workspaceSshCommandService);
+            Holvi = new HolviViewModel(Settings, holviSetupService);
             TemplateManagement = new TemplateManagementViewModel();
             WorkspaceSettings = new WorkspaceSettingsViewModel(_settingsService, _pathResolver, _sshConnectionFactory);
 
@@ -224,6 +241,7 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        public IEnumerable<Workspace> VisibleWorkspaces => _workspaces.Where(w => !w.IsSystemWorkspace);
         public ObservableCollection<Workspace> Workspaces => _workspaces;
 
         public Workspace? SelectedWorkspace
@@ -254,6 +272,8 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_workspaceSettingsViewModel != null) _workspaceSettingsViewModel.SetSelectedWorkspace(value);
                 CommandManager.InvalidateRequerySuggested();
                 OnPropertyChanged(nameof(IsWorkspaceVmStopped));
+                OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
+                OnPropertyChanged(nameof(ShowHolviStandalone));
                 OnPropertyChanged(nameof(ShowWorkspaceTabControl));
                 OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
                 OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
@@ -426,9 +446,12 @@ namespace RauskuClaw.GUI.ViewModels
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsHomeSection));
                 OnPropertyChanged(nameof(IsWorkspaceViewsSection));
+                OnPropertyChanged(nameof(IsHolviSection));
                 OnPropertyChanged(nameof(IsTemplateSection));
                 OnPropertyChanged(nameof(IsSettingsSection));
                 OnPropertyChanged(nameof(IsWorkspaceSettingsSection));
+                OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
+                OnPropertyChanged(nameof(ShowHolviStandalone));
                 OnPropertyChanged(nameof(ShowWorkspaceTabControl));
                 OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
                 OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
@@ -437,9 +460,12 @@ namespace RauskuClaw.GUI.ViewModels
 
         public bool IsHomeSection => SelectedMainSection == MainContentSection.Home;
         public bool IsWorkspaceViewsSection => SelectedMainSection == MainContentSection.WorkspaceTabs;
+        public bool IsHolviSection => SelectedMainSection == MainContentSection.Holvi;
         public bool IsTemplateSection => SelectedMainSection == MainContentSection.TemplateManagement;
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
         public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
+        public bool IsWorkspaceChromeVisible => IsWorkspaceViewsSection;
+        public bool ShowHolviStandalone => IsHolviSection;
 
         public bool IsWorkspaceVmStopped
         {
@@ -463,11 +489,11 @@ namespace RauskuClaw.GUI.ViewModels
         public bool IsWorkspaceStoppedOverlayVisible => IsWorkspaceViewsSection && IsWorkspaceVmStopped && SelectedWorkspaceTabIndex != WorkspaceSettingsTabIndex;
         public bool ShowWorkspaceSettingsWhileStopped => IsWorkspaceViewsSection && IsWorkspaceVmStopped && SelectedWorkspaceTabIndex == WorkspaceSettingsTabIndex;
 
-        public IEnumerable<Workspace> RecentWorkspaces => _workspaces
+        public IEnumerable<Workspace> RecentWorkspaces => VisibleWorkspaces
             .OrderByDescending(w => w.LastRun ?? w.CreatedAt)
             .Take(5);
 
-        public IEnumerable<Workspace> RunningWorkspaces => _workspaces
+        public IEnumerable<Workspace> RunningWorkspaces => VisibleWorkspaces
             .Where(w => w.IsRunning)
             .OrderBy(w => w.Name);
 
@@ -569,6 +595,9 @@ namespace RauskuClaw.GUI.ViewModels
 
                 _selectedWorkspaceTabIndex = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsHolviSection));
+                OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
+                OnPropertyChanged(nameof(ShowHolviStandalone));
                 OnPropertyChanged(nameof(ShowWorkspaceTabControl));
                 OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
                 OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
@@ -613,6 +642,7 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand DeleteWorkspaceCommand { get; }
         public ICommand ShowHomeCommand { get; }
         public ICommand ShowWorkspaceViewsCommand { get; }
+        public ICommand ShowHolviCommand { get; }
         public ICommand ShowTemplatesCommand { get; }
         public ICommand ShowGeneralSettingsCommand { get; }
         public ICommand ShowSecretsSettingsCommand { get; }
@@ -744,6 +774,11 @@ namespace RauskuClaw.GUI.ViewModels
 
             SelectedMainSection = MainContentSection.WorkspaceTabs;
             SelectedWorkspaceTabIndex = WorkspaceSettingsTabIndex;
+        }
+
+        private void OpenHolviTab()
+        {
+            SelectedMainSection = MainContentSection.Holvi;
         }
 
         private void OpenWorkspaceFromHome(Workspace? workspace)
@@ -941,6 +976,459 @@ namespace RauskuClaw.GUI.ViewModels
         {
             var success = _workspacePathManager.EnsureWorkspaceDiskPath(workspace, out var changed, out var error);
             return (success, changed, error);
+        }
+
+        private void EnsureInfraWorkspaceExists()
+        {
+            var existing = _workspaces.FirstOrDefault(w =>
+                w.IsSystemWorkspace
+                || string.Equals(w.Id, InfraWorkspaceId, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(w.Name, InfraWorkspaceName, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                existing.IsSystemWorkspace = true;
+                existing.AutoStart = false;
+                if (existing.Ports == null)
+                {
+                    existing.Ports = _portAllocator.AllocatePorts();
+                }
+                EnsureSystemWorkspacePorts(existing);
+                EnsureWorkspaceHostDirectory(existing);
+                EnsureWorkspaceSeedIsoPath(existing);
+                EnsureWorkspaceDiskPath(existing);
+                EnsureInfraWorkspaceKeysAndSeed(existing);
+                _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+                OnPropertyChanged(nameof(VisibleWorkspaces));
+                return;
+            }
+
+            var vmBasePath = _pathResolver.ResolveVmBasePath(_appSettings);
+            var workspaceRootPath = _pathResolver.ResolveWorkspaceRootPath(_appSettings);
+            var artifactDir = Path.Combine(vmBasePath, InfraWorkspaceId);
+            var keyDir = Path.Combine(vmBasePath, "keys", InfraWorkspaceId);
+            var privateKeyPath = Path.Combine(keyDir, "id_ed25519");
+            var keyResult = _sshKeyService.EnsureEd25519Keypair(privateKeyPath, overwrite: false, comment: InfraWorkspaceName);
+            var ports = _portAllocator.AllocatePorts();
+
+            var infra = new Workspace
+            {
+                Id = InfraWorkspaceId,
+                Name = InfraWorkspaceName,
+                Description = "System HOLVI/Infisical infra VM",
+                IsSystemWorkspace = true,
+                AutoStart = false,
+                Username = _appSettings.DefaultUsername,
+                Hostname = "rausku-infra",
+                SshPublicKey = keyResult.PublicKey,
+                SshPrivateKeyPath = keyResult.PrivateKeyPath,
+                RepoTargetDir = "/opt/rauskuclaw",
+                HostWorkspacePath = Path.Combine(workspaceRootPath, InfraWorkspaceId),
+                MemoryMb = Math.Max(2048, _appSettings.DefaultMemoryMb),
+                CpuCores = Math.Max(2, _appSettings.DefaultCpuCores),
+                DiskPath = Path.Combine(artifactDir, "arch.qcow2"),
+                SeedIsoPath = Path.Combine(artifactDir, "seed.iso"),
+                QemuExe = _appSettings.QemuPath,
+                Ports = ports,
+                HostWebPort = 18080,
+                TemplateId = "system-infra",
+                TemplateName = "System Infrastructure"
+            };
+
+            EnsureSystemWorkspacePorts(infra);
+            EnsureWorkspaceHostDirectory(infra);
+            EnsureWorkspaceSeedIsoPath(infra);
+            EnsureWorkspaceDiskPath(infra);
+            EnsureInfraWorkspaceKeysAndSeed(infra);
+
+            _workspaces.Add(infra);
+            _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+            OnPropertyChanged(nameof(VisibleWorkspaces));
+        }
+
+        private void EnsureInfraWorkspaceKeysAndSeed(Workspace workspace)
+        {
+            if (workspace == null || !workspace.IsSystemWorkspace)
+            {
+                return;
+            }
+
+            var keyPath = string.IsNullOrWhiteSpace(workspace.SshPrivateKeyPath)
+                ? Path.Combine(_pathResolver.ResolveVmBasePath(_appSettings), "keys", InfraWorkspaceId, "id_ed25519")
+                : workspace.SshPrivateKeyPath;
+
+            var key = _sshKeyService.EnsureEd25519Keypair(keyPath, overwrite: false, comment: InfraWorkspaceName);
+            workspace.SshPrivateKeyPath = key.PrivateKeyPath;
+            workspace.SshPublicKey = key.PublicKey;
+
+            var userData = _provisioningScriptBuilder.BuildUserData(new ProvisioningScriptRequest
+            {
+                Username = workspace.Username,
+                Hostname = workspace.Hostname,
+                SshPublicKey = workspace.SshPublicKey,
+                RepoUrl = InfraWorkspaceRepoUrl,
+                RepoBranch = InfraWorkspaceRepoBranch,
+                RepoTargetDir = workspace.RepoTargetDir,
+                BuildWebUi = false,
+                WebUiBuildCommand = "cd ui-v2 && npm ci && npm run build",
+                DeployWebUiStatic = false,
+                WebUiBuildOutputDir = "ui-v2/dist",
+                EnableHolvi = true,
+                HolviMode = HolviProvisioningMode.Enabled
+            });
+            var metaData = _provisioningScriptBuilder.BuildMetaData(workspace.Hostname);
+            _seedIsoService.CreateSeedIso(workspace.SeedIsoPath, userData, metaData);
+        }
+
+        private Task<Workspace?> ResolveInfraWorkspaceAsync(CancellationToken _)
+        {
+            EnsureInfraWorkspaceExists();
+            var workspace = _workspaces.FirstOrDefault(w => w.IsSystemWorkspace && string.Equals(w.Id, InfraWorkspaceId, StringComparison.OrdinalIgnoreCase));
+            return Task.FromResult(workspace);
+        }
+
+        private async Task<(bool Success, string Message)> EnsureInfraWorkspaceRunningAsync(Workspace workspace, CancellationToken ct)
+        {
+            if (workspace.IsRunning && workspace.Status is VmStatus.Running or VmStatus.WarmingUp or VmStatus.Starting)
+            {
+                return (true, "Infra VM already running.");
+            }
+
+            if (workspace.Ports == null)
+            {
+                workspace.Ports = _portAllocator.AllocatePorts();
+            }
+
+            // System infra VM is frequently reprovisioned during development.
+            // Always reset pinned host key for its SSH endpoint before start
+            // to avoid stale host key mismatches blocking HOLVI setup.
+            var infraSshPort = workspace.Ports?.Ssh ?? 2222;
+            _sshConnectionFactory.ForgetHost("127.0.0.1", infraSshPort);
+
+            EnsureSystemWorkspacePorts(workspace);
+            EnsureInfraWorkspaceKeysAndSeed(workspace);
+            EnsureWorkspaceHostDirectory(workspace);
+            EnsureWorkspaceSeedIsoPath(workspace);
+            var disk = EnsureWorkspaceDiskPath(workspace);
+            if (!disk.Success)
+            {
+                return (false, $"Infra VM disk prepare failed: {disk.Error}");
+            }
+
+            _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+
+            var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
+            try
+            {
+                var startResult = await _startupOrchestrator.StartWorkspaceAsync(workspace, progress: null, startToken, StartWorkspaceInternalAsync);
+                if (startResult.Success)
+                {
+                    return startResult;
+                }
+
+                return (false, BuildInfraStartFailureMessage(workspace, startResult.Message));
+            }
+            finally
+            {
+                CompleteWorkspaceStartCancellation(workspace.Id);
+            }
+        }
+
+        private string BuildInfraStartFailureMessage(Workspace workspace, string baseMessage)
+        {
+            var busy = _portManager.GetBusyStartPorts(workspace);
+            var busyText = busy.Count == 0
+                ? "none detected after failure"
+                : string.Join(", ", busy.Select(p => $"{p.Name}=127.0.0.1:{p.Port}"));
+
+            var mapping = _portManager.GetWorkspaceHostPorts(workspace);
+            var mappingText = string.Join(", ", mapping.Select(p => $"{p.Name}=127.0.0.1:{p.Port}"));
+            var serialPort = workspace.Ports?.Serial ?? 5555;
+            var serialTail = TryReadSerialTail(serialPort, TimeSpan.FromMilliseconds(900));
+            var serialText = string.IsNullOrWhiteSpace(serialTail)
+                ? "unavailable"
+                : serialTail;
+
+            return
+                $"{baseMessage} " +
+                $"Busy ports now: {busyText}. " +
+                $"Infra port mapping: {mappingText}. " +
+                $"Serial tail: {serialText}. " +
+                "Action: if busy ports are listed, free them or change start ports in Settings -> Ports. " +
+                "If none are busy, inspect QEMU path/WHPX prerequisites and VM logs.";
+        }
+
+        private static string TryReadProcessFailureOutput(Process process)
+        {
+            try
+            {
+                var stderr = process.StandardError.ReadToEnd();
+                if (string.IsNullOrWhiteSpace(stderr))
+                {
+                    return string.Empty;
+                }
+
+                var lines = stderr
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .TakeLast(4)
+                    .ToArray();
+                return string.Join(" | ", lines);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string BuildQemuFailureHint(Workspace workspace, string stderrTail, List<(string Name, int Port)> busyPorts)
+        {
+            var busyText = busyPorts.Count == 0
+                ? "No busy host ports detected for this workspace."
+                : $"Busy host ports: {string.Join(", ", busyPorts.Select(p => $"{p.Name}=127.0.0.1:{p.Port}"))}.";
+            var serialPort = workspace.Ports?.Serial ?? 5555;
+            var serialTail = TryReadSerialTail(serialPort, TimeSpan.FromMilliseconds(700));
+            var serialText = string.IsNullOrWhiteSpace(serialTail)
+                ? "unavailable"
+                : serialTail;
+
+            if (string.IsNullOrWhiteSpace(stderrTail))
+            {
+                return $"{busyText} Serial tail: {serialText}. Check QEMU executable path, virtualization backend (WHPX), and VM logs.";
+            }
+
+            return $"{busyText} QEMU stderr tail: {stderrTail} Serial tail: {serialText}.";
+        }
+
+        private static string TryReadSerialTail(int serialPort, TimeSpan timeout)
+        {
+            if (serialPort is <= 0 or > 65535)
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync("127.0.0.1", serialPort);
+                if (!connectTask.Wait(timeout) || !client.Connected)
+                {
+                    return string.Empty;
+                }
+
+                using var stream = client.GetStream();
+                stream.ReadTimeout = Math.Max(100, (int)timeout.TotalMilliseconds);
+                var deadline = DateTime.UtcNow + timeout;
+                var buffer = new byte[4096];
+                var chunks = new List<string>();
+
+                while (DateTime.UtcNow < deadline)
+                {
+                    if (!stream.DataAvailable)
+                    {
+                        Thread.Sleep(50);
+                        continue;
+                    }
+
+                    var read = stream.Read(buffer, 0, buffer.Length);
+                    if (read <= 0)
+                    {
+                        break;
+                    }
+
+                    chunks.Add(System.Text.Encoding.UTF8.GetString(buffer, 0, read));
+                    if (chunks.Count >= 8)
+                    {
+                        break;
+                    }
+                }
+
+                if (chunks.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                var text = string.Join(string.Empty, chunks);
+                var lines = text
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(l => l.Trim())
+                    .Where(l => !string.IsNullOrWhiteSpace(l))
+                    .TakeLast(3)
+                    .ToArray();
+                if (lines.Length == 0)
+                {
+                    return string.Empty;
+                }
+
+                return string.Join(" | ", lines);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private void EnsureSystemWorkspacePorts(Workspace workspace)
+        {
+            if (workspace == null || !workspace.IsSystemWorkspace)
+            {
+                return;
+            }
+
+            var changed = false;
+            if (workspace.Ports == null)
+            {
+                workspace.Ports = _portAllocator.AllocatePorts();
+                changed = true;
+            }
+
+            // System infra VM runs continuously on dev machines where 8080 is commonly occupied.
+            // Keep all forwarded ports on available values before start attempts.
+            var attempts = 0;
+            while (attempts < 4)
+            {
+                var busy = _portManager.GetBusyStartPorts(workspace);
+                if (busy.Count == 0)
+                {
+                    break;
+                }
+
+                attempts++;
+                workspace.Ports = _portAllocator.AllocatePorts();
+                changed = true;
+            }
+
+            var preferredWebPort = workspace.HostWebPort > 0 ? workspace.HostWebPort : 18080;
+            var resolvedWebPort = ResolveSystemWorkspaceWebPort(workspace, preferredWebPort);
+            if (workspace.HostWebPort != resolvedWebPort)
+            {
+                workspace.HostWebPort = resolvedWebPort;
+                changed = true;
+            }
+
+            // Keep infra VM on dedicated high ports to avoid collisions with host services.
+            changed |= EnsureSystemWorkspaceDedicatedPorts(workspace);
+
+            if (changed)
+            {
+                _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
+            }
+        }
+
+        private bool EnsureSystemWorkspaceDedicatedPorts(Workspace workspace)
+        {
+            if (workspace.Ports == null)
+            {
+                return false;
+            }
+
+            var changed = false;
+            var reserved = BuildSystemWorkspaceReservedPorts(workspace);
+
+            var preferredSsh = workspace.Ports.Ssh >= 6000 ? workspace.Ports.Ssh : 6222;
+            var newSsh = _portManager.FindNextAvailablePort(preferredSsh, reserved);
+            if (workspace.Ports.Ssh != newSsh)
+            {
+                workspace.Ports.Ssh = newSsh;
+                changed = true;
+            }
+            reserved.Add(newSsh);
+
+            var preferredApi = workspace.Ports.Api >= 10000 ? workspace.Ports.Api : 13011;
+            var newApi = _portManager.FindNextAvailablePort(preferredApi, reserved);
+            if (workspace.Ports.Api != newApi)
+            {
+                workspace.Ports.Api = newApi;
+                changed = true;
+            }
+            reserved.Add(newApi);
+            reserved.Add(newApi + VmProfile.HostHolviProxyOffsetFromApi);
+            reserved.Add(newApi + VmProfile.HostInfisicalUiOffsetFromApi);
+
+            var preferredQmp = workspace.Ports.Qmp >= 10000 ? workspace.Ports.Qmp : 14444;
+            var newQmp = _portManager.FindNextAvailablePort(preferredQmp, reserved);
+            if (workspace.Ports.Qmp != newQmp)
+            {
+                workspace.Ports.Qmp = newQmp;
+                changed = true;
+            }
+            reserved.Add(newQmp);
+
+            var preferredSerial = workspace.Ports.Serial >= 10000 ? workspace.Ports.Serial : 15555;
+            var newSerial = _portManager.FindNextAvailablePort(preferredSerial, reserved);
+            if (workspace.Ports.Serial != newSerial)
+            {
+                workspace.Ports.Serial = newSerial;
+                changed = true;
+            }
+
+            return changed;
+        }
+
+        private HashSet<int> BuildSystemWorkspaceReservedPorts(Workspace workspace)
+        {
+            var reserved = _portManager.SnapshotReservedStartPorts();
+            foreach (var other in _workspaces)
+            {
+                if (other == null || string.Equals(other.Id, workspace.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (var (_, port) in _portManager.GetWorkspaceHostPorts(other))
+                {
+                    if (port is > 0 and <= 65535)
+                    {
+                        reserved.Add(port);
+                    }
+                }
+            }
+
+            // Allow replacing these values while still reserving rest of workspace-specific ports.
+            if (workspace.Ports != null)
+            {
+                reserved.Remove(workspace.Ports.Ssh);
+                reserved.Remove(workspace.Ports.Api);
+                reserved.Remove(workspace.Ports.Api + VmProfile.HostHolviProxyOffsetFromApi);
+                reserved.Remove(workspace.Ports.Api + VmProfile.HostInfisicalUiOffsetFromApi);
+                reserved.Remove(workspace.Ports.Qmp);
+                reserved.Remove(workspace.Ports.Serial);
+            }
+
+            return reserved;
+        }
+
+        private int ResolveSystemWorkspaceWebPort(Workspace workspace, int preferredPort)
+        {
+            var reserved = _portManager.SnapshotReservedStartPorts();
+            foreach (var other in _workspaces)
+            {
+                if (other == null || string.Equals(other.Id, workspace.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (var (_, port) in _portManager.GetWorkspaceHostPorts(other))
+                {
+                    if (port is > 0 and <= 65535)
+                    {
+                        reserved.Add(port);
+                    }
+                }
+            }
+
+            if (workspace.Ports != null)
+            {
+                reserved.Add(workspace.Ports.Ssh);
+                reserved.Add(workspace.Ports.Api);
+                reserved.Add(workspace.Ports.UiV1);
+                reserved.Add(workspace.Ports.UiV2);
+                reserved.Add(workspace.Ports.Qmp);
+                reserved.Add(workspace.Ports.Serial);
+                reserved.Add(workspace.Ports.Api + VmProfile.HostHolviProxyOffsetFromApi);
+                reserved.Add(workspace.Ports.Api + VmProfile.HostInfisicalUiOffsetFromApi);
+            }
+
+            var start = preferredPort is > 0 and <= 65535 ? preferredPort : 18080;
+            return _portManager.FindNextAvailablePort(start, reserved);
         }
 
         private static bool PathsEqual(string? left, string? right)
@@ -1276,16 +1764,28 @@ namespace RauskuClaw.GUI.ViewModels
                 if (process.HasExited)
                 {
                     var firstExitCode = process.ExitCode;
+                    var firstErrorTail = TryReadProcessFailureOutput(process);
                     process.Dispose();
+
+                    if (workspace.IsSystemWorkspace)
+                    {
+                        var busy = _portManager.GetBusyStartPorts(workspace);
+                        var fail = $"QEMU exited immediately (exit {firstExitCode}). {BuildQemuFailureHint(workspace, firstErrorTail, busy)}";
+                        var reason = busy.Count > 0 ? "port_conflict" : "qemu_launch_failed";
+                        ReportStage(progress, "qemu", "failed", fail);
+                        workspace.Status = VmStatus.Error;
+                        workspace.IsRunning = false;
+                        return FailWithReason(reason, fail);
+                    }
 
                     var uiV2Retry = _portManager.TryReassignUiV2PortForRetry(workspace, progress, $"QEMU exited early with code {firstExitCode}");
                     if (!uiV2Retry.Success)
                     {
-                        var fail = $"QEMU exited immediately (exit {firstExitCode}). {uiV2Retry.Message}";
+                        var fail = $"QEMU exited immediately (exit {firstExitCode}). {uiV2Retry.Message} {BuildQemuFailureHint(workspace, firstErrorTail, _portManager.GetBusyStartPorts(workspace))}";
                         ReportStage(progress, "qemu", "failed", fail);
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
-                        return FailWithReason("ssh_unstable", fail);
+                        return FailWithReason("qemu_launch_failed", fail);
                     }
 
                     _portManager.ReleaseReservedStartPorts(reservedStartPorts);
@@ -1316,12 +1816,15 @@ namespace RauskuClaw.GUI.ViewModels
                     if (process.HasExited)
                     {
                         var secondExitCode = process.ExitCode;
+                        var secondErrorTail = TryReadProcessFailureOutput(process);
                         process.Dispose();
-                        var fail = $"QEMU exited immediately after retry (exit {secondExitCode}). Check host port conflicts and VM logs.";
+                        var busy = _portManager.GetBusyStartPorts(workspace);
+                        var fail = $"QEMU exited immediately after retry (exit {secondExitCode}). {BuildQemuFailureHint(workspace, secondErrorTail, busy)}";
+                        var reason = busy.Count > 0 ? "port_conflict" : "qemu_launch_failed";
                         ReportStage(progress, "qemu", "failed", fail);
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
-                        return FailWithReason("ssh_unstable", fail);
+                        return FailWithReason(reason, fail);
                     }
                 }
 
@@ -1368,6 +1871,18 @@ namespace RauskuClaw.GUI.ViewModels
                 ReportStage(progress, "ssh_stable", "in_progress", "Waiting for stable SSH command execution...");
                 var sshReady = await WaitForSshReadyAsync(workspace, ct);
                 var allowDegradedStartup = false;
+                if (!sshReady.Success)
+                {
+                    if (IsHostKeyMismatchIssue(sshReady.Message))
+                    {
+                        var recovery = await TryRecoverFromHostKeyMismatchAsync(workspace, sshReady.Message, progress, ct);
+                        if (recovery.Success)
+                        {
+                            sshReady = recovery;
+                        }
+                    }
+                }
+
                 if (!sshReady.Success)
                 {
                     ReportStage(progress, "ssh_stable", "failed", sshReady.Message);
@@ -2083,6 +2598,8 @@ namespace RauskuClaw.GUI.ViewModels
                 _resourceStatsCache.RefreshNow();
                 CommandManager.InvalidateRequerySuggested();
                 OnPropertyChanged(nameof(IsWorkspaceVmStopped));
+                OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
+                OnPropertyChanged(nameof(ShowHolviStandalone));
                 OnPropertyChanged(nameof(ShowWorkspaceTabControl));
                 OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
                 OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
@@ -2091,6 +2608,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void OnWorkspacesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            OnPropertyChanged(nameof(VisibleWorkspaces));
             OnPropertyChanged(nameof(RecentWorkspaces));
             OnPropertyChanged(nameof(RunningWorkspaces));
             _resourceStatsCache.RefreshNow();

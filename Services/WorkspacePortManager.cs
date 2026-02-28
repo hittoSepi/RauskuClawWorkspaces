@@ -197,6 +197,18 @@ namespace RauskuClaw.Services
             var holviProxyPort = apiPort + VmProfile.HostHolviProxyOffsetFromApi;
             var infisicalUiPort = apiPort + VmProfile.HostInfisicalUiOffsetFromApi;
 
+            if (workspace.IsSystemWorkspace)
+            {
+                return new List<(string Name, int Port)>
+                {
+                    ("SSH", workspace.Ports?.Ssh ?? 2222),
+                    ("HolviProxy", holviProxyPort),
+                    ("InfisicalUI", infisicalUiPort),
+                    ("QMP", workspace.Ports?.Qmp ?? 4444),
+                    ("Serial", workspace.Ports?.Serial ?? 5555)
+                };
+            }
+
             return new List<(string Name, int Port)>
             {
                 ("SSH", workspace.Ports?.Ssh ?? 2222),

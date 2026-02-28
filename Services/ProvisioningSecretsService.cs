@@ -18,6 +18,7 @@ namespace RauskuClaw.Services
         public ProvisioningSecretStatus Status { get; init; } = ProvisioningSecretStatus.FallbackToLocalTemplate;
         public string Message { get; init; } = "Using local .env template";
         public string ActionHint { get; init; } = string.Empty;
+        public bool CredentialsConfigured { get; init; }
     }
 
     public enum ProvisioningSecretSource
@@ -89,7 +90,8 @@ namespace RauskuClaw.Services
                 Source = ProvisioningSecretSource.LocalTemplate,
                 Status = ProvisioningSecretStatus.MissingCredentials,
                 Message = "Missing secret-manager credentials; using local .env template fallback.",
-                ActionHint = "Avaa Settings > Secrets ja lisää Holvi API Key + Project ID tai Infisical Client ID + Client Secret."
+                ActionHint = "Open Settings > Secrets and configure Holvi or Infisical credentials.",
+                CredentialsConfigured = false
             };
         }
 
@@ -104,14 +106,15 @@ namespace RauskuClaw.Services
             {
                 return BuildExceptionResult("Holvi", ex);
             }
-            catch (Exception)
+            catch
             {
                 return new ProvisioningSecretsResult
                 {
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.TimeoutOrAuthFailure,
                     Message = "Holvi fetch failed (timeout/auth); using local .env template fallback.",
-                    ActionHint = "Tarkista verkkoyhteys, secret-managerin URL sekä tunnisteet Settings > Secrets -näkymässä."
+                    ActionHint = "Verify network connectivity and Holvi credentials.",
+                    CredentialsConfigured = true
                 };
             }
         }
@@ -127,14 +130,15 @@ namespace RauskuClaw.Services
             {
                 return BuildExceptionResult("Infisical", ex);
             }
-            catch (Exception)
+            catch
             {
                 return new ProvisioningSecretsResult
                 {
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.TimeoutOrAuthFailure,
                     Message = "Infisical fetch failed (timeout/auth); using local .env template fallback.",
-                    ActionHint = "Tarkista verkkoyhteys, secret-managerin URL sekä tunnisteet Settings > Secrets -näkymässä."
+                    ActionHint = "Verify network connectivity and Infisical credentials.",
+                    CredentialsConfigured = true
                 };
             }
         }
@@ -150,7 +154,8 @@ namespace RauskuClaw.Services
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.TimeoutOrAuthFailure,
                     Message = $"{sourceName} returned no secrets; using local .env template fallback.",
-                    ActionHint = "Varmista, että API_KEY ja API_TOKEN löytyvät secret-managerista valitussa projektissa/environmentissa."
+                    ActionHint = "Ensure requested keys exist in secret manager.",
+                    CredentialsConfigured = true
                 };
             }
 
@@ -162,7 +167,8 @@ namespace RauskuClaw.Services
                     Status = ProvisioningSecretStatus.PartialSecretSet,
                     Secrets = secrets,
                     Message = $"{sourceName} returned partial secret set ({secrets.Count}/{requested}).",
-                    ActionHint = "Lisää puuttuvat secretit (API_KEY, API_TOKEN) secret-manageriin."
+                    ActionHint = "Add missing keys to secret manager.",
+                    CredentialsConfigured = true
                 };
             }
 
@@ -171,7 +177,8 @@ namespace RauskuClaw.Services
                 Source = source,
                 Status = ProvisioningSecretStatus.Success,
                 Secrets = secrets,
-                Message = $"Secrets loaded from {sourceName}."
+                Message = $"Secrets loaded from {sourceName}.",
+                CredentialsConfigured = true
             };
         }
 
@@ -184,28 +191,32 @@ namespace RauskuClaw.Services
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.MissingSecret,
                     Message = $"{sourceName} is missing required secret '{ex.SecretKey}'. Falling back to local .env template.",
-                    ActionHint = $"Luo secret '{ex.SecretKey}' secret-manageriin ja käynnistä workspace uudelleen."
+                    ActionHint = $"Create secret '{ex.SecretKey}' in secret manager and retry.",
+                    CredentialsConfigured = true
                 },
                 SecretResolutionErrorKind.ExpiredCredential => new ProvisioningSecretsResult
                 {
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.ExpiredSecret,
                     Message = $"{sourceName} credentials appear expired. Falling back to local .env template.",
-                    ActionHint = "Uusi secret-managerin tunniste (token/client-secret) Settings > Secrets -näkymässä."
+                    ActionHint = "Rotate credentials in Settings > Secrets.",
+                    CredentialsConfigured = true
                 },
                 SecretResolutionErrorKind.AccessDenied => new ProvisioningSecretsResult
                 {
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.AccessDenied,
                     Message = $"{sourceName} access denied when reading secrets. Falling back to local .env template.",
-                    ActionHint = "Myönnä tunnisteelle read-oikeus API_KEY/API_TOKEN-secreteihin ja yritä uudelleen."
+                    ActionHint = "Grant read access to required keys and retry.",
+                    CredentialsConfigured = true
                 },
                 _ => new ProvisioningSecretsResult
                 {
                     Source = ProvisioningSecretSource.LocalTemplate,
                     Status = ProvisioningSecretStatus.TimeoutOrAuthFailure,
                     Message = $"{sourceName} fetch failed (timeout/auth); using local .env template fallback.",
-                    ActionHint = "Tarkista secret-managerin endpoint, tunnisteet ja verkkoyhteys."
+                    ActionHint = "Verify endpoint, credentials and connectivity.",
+                    CredentialsConfigured = true
                 }
             };
         }

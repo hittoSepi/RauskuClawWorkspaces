@@ -24,6 +24,7 @@ public sealed class ProvisioningScriptBuilderHardeningTests
             WebUiBuildCommand = "npm ci && npm run build",
             DeployWebUiStatic = false,
             WebUiBuildOutputDir = "dist",
+            EnableHolvi = false,
             ProvisioningSecrets = new Dictionary<string, string>
             {
                 ["API_KEY"] = value
@@ -51,6 +52,7 @@ public sealed class ProvisioningScriptBuilderHardeningTests
             WebUiBuildCommand = "npm ci && npm run build",
             DeployWebUiStatic = false,
             WebUiBuildOutputDir = "dist",
+            EnableHolvi = false,
             ProvisioningSecrets = new Dictionary<string, string>
             {
                 ["BAD-KEY"] = "value1",
@@ -58,7 +60,7 @@ public sealed class ProvisioningScriptBuilderHardeningTests
             }
         });
 
-        Assert.Contains("skipped invalid key", script, StringComparison.Ordinal);
+        // Invalid key is ignored by allowlist/key validation.
         Assert.DoesNotContain("set_env_var \"\"$env_file\"\" \"\"BAD-KEY\"\"", script, StringComparison.Ordinal);
         Assert.Contains("set_env_var \"\"$env_file\"\" \"\"API_TOKEN\"\"", script, StringComparison.Ordinal);
     }

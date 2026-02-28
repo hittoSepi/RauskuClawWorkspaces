@@ -77,6 +77,8 @@ namespace RauskuClaw.Services
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(180);
             var attempt = 0;
             var lastMessage = "Docker stack is not ready yet.";
+            var lastLoggedMessage = string.Empty;
+            var suppressedRepeatCount = 0;
 
             while (DateTime.UtcNow < deadline)
             {
@@ -86,12 +88,31 @@ namespace RauskuClaw.Services
                 var check = await CheckDockerStackReadinessAsync(workspace, ct);
                 if (check.Success)
                 {
+                    if (suppressedRepeatCount > 0 && !string.IsNullOrWhiteSpace(lastLoggedMessage))
+                    {
+                        reportLog?.Invoke(progress, $"Docker warmup: still waiting state repeated {suppressedRepeatCount}x before success.");
+                    }
                     return check;
                 }
 
                 lastMessage = check.Message;
-                if (attempt == 1 || attempt % 3 == 0)
+                if (string.Equals(lastMessage, lastLoggedMessage, StringComparison.Ordinal))
                 {
+                    suppressedRepeatCount++;
+                    if (suppressedRepeatCount % 10 == 0)
+                    {
+                        reportLog?.Invoke(progress, $"Docker warmup: still waiting ({suppressedRepeatCount} repeated checks).");
+                    }
+                }
+                else
+                {
+                    if (suppressedRepeatCount > 0 && !string.IsNullOrWhiteSpace(lastLoggedMessage))
+                    {
+                        reportLog?.Invoke(progress, $"Docker warmup: state changed after {suppressedRepeatCount} repeated checks.");
+                    }
+
+                    suppressedRepeatCount = 0;
+                    lastLoggedMessage = lastMessage;
                     reportLog?.Invoke(progress, $"Docker warmup: {lastMessage}");
                 }
 
@@ -518,8 +539,10 @@ namespace RauskuClaw.Services
             var fixCommand =
                 $"ENV_FILE='{escapedEnvPath}'; " +
                 "if [ ! -f \"$ENV_FILE\" ]; then echo env-file-missing; exit 9; fi; " +
+                "RUNNER=''; " +
+                "if [ ! -w \"$ENV_FILE\" ]; then if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then RUNNER='sudo -n'; else echo permission-denied; exit 13; fi; fi; " +
                 "random_hex_32() { if command -v openssl >/dev/null 2>&1; then openssl rand -hex 32; return; fi; if command -v od >/dev/null 2>&1; then head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \\n'; return; fi; date +%s%N | sha256sum | awk '{print $1}'; }; " +
-                "set_env_var() { local key=\"$1\"; local value=\"$2\"; if grep -Eq \"^${key}=\" \"$ENV_FILE\"; then sed -i \"s|^${key}=.*|${key}=${value}|\" \"$ENV_FILE\"; else echo \"${key}=${value}\" >> \"$ENV_FILE\"; fi; }; " +
+                "set_env_var() { local key=\"$1\"; local value=\"$2\"; if grep -Eq \"^${key}=\" \"$ENV_FILE\"; then if [ -n \"$RUNNER\" ]; then $RUNNER sed -i \"s|^${key}=.*|${key}=${value}|\" \"$ENV_FILE\"; else sed -i \"s|^${key}=.*|${key}=${value}|\" \"$ENV_FILE\"; fi; else if [ -n \"$RUNNER\" ]; then $RUNNER sh -c \"printf '%s\\n' '${key}=${value}' >> '$ENV_FILE'\"; else echo \"${key}=${value}\" >> \"$ENV_FILE\"; fi; fi; }; " +
                 "normalize_value() { printf '%s' \"$1\" | tr -d '\\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^\"//' -e 's/\"$//'; }; " +
                 "is_placeholder() { case \"$1\" in \"\"|\"change-me-please\"|\"your_api_key_here\"|\"replace-me\"|\"placeholder\") return 0 ;; *) return 1 ;; esac; }; " +
                 "API_KEY_RAW=$(grep -E '^API_KEY=' \"$ENV_FILE\" 2>/dev/null | tail -n 1 | cut -d= -f2- || true); " +

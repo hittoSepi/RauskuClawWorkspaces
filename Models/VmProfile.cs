@@ -27,6 +27,7 @@ namespace RauskuClaw.Models
         public int HostApiPort { get; init; } = 3011;
         public int HostUiV2Port { get; init; } = 3013;
         public int HostUiV1Port { get; init; } = 3012;
+        public bool UseMinimalHolviPortSet { get; init; }
 
         public int HostHolviProxyPort => HostApiPort + HostHolviProxyOffsetFromApi;
         public int HostInfisicalUiPort => HostApiPort + HostInfisicalUiOffsetFromApi;
