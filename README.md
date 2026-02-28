@@ -50,6 +50,7 @@ Build: Success (`0 warnings`, `0 errors`).
 ### Recent changes (from latest commits)
 - Security hardening wave 1: path policy, SSH host key TOFU, secret resilience, and startup reason-code diagnostics.
 - SSH terminal auto-connect UI-thread fix: removed cross-thread command/property update path that could trigger "different thread owns it" connection errors.
+- App shutdown now shows VM shutdown progress dialog and performs tracked VM stop/kill cleanup before exit; crash recovery now sweeps orphaned tracked VM processes on next startup.
 - Wizard startup fallback refactor with clearer runtime decision flow.
 - Workspace Settings and Settings view polish for runtime-critical fields.
 - Holvi connectivity and startup UX flow refinements.

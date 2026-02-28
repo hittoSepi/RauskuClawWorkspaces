@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using RauskuClaw.GUI.ViewModels;
 using RauskuClaw.Services;
 
@@ -11,6 +12,7 @@ namespace RauskuClaw.GUI.Views
     public partial class MainWindow : Window
     {
         private MainViewModel? _mainViewModel;
+        private bool _shutdownRoutineActive;
 
         public MainWindow()
         {
@@ -24,8 +26,51 @@ namespace RauskuClaw.GUI.Views
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            _mainViewModel?.Shutdown();
-            base.OnClosing(e);
+            if (_shutdownRoutineActive || _mainViewModel == null)
+            {
+                base.OnClosing(e);
+                return;
+            }
+
+            if (!_mainViewModel.HasRunningVmProcesses())
+            {
+                _mainViewModel.Shutdown();
+                base.OnClosing(e);
+                return;
+            }
+
+            e.Cancel = true;
+            _shutdownRoutineActive = true;
+            _ = RunShutdownRoutineAsync();
+        }
+
+        private async System.Threading.Tasks.Task RunShutdownRoutineAsync()
+        {
+            var progressWindow = new VmActionProgressWindow("Closing Application", "Shutting down running VMs...")
+            {
+                Owner = this
+            };
+
+            progressWindow.Show();
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+            try
+            {
+                _mainViewModel?.ShutdownWithProgress(status =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        progressWindow.UpdateStatus(status);
+                    });
+                    Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
+                });
+            }
+            finally
+            {
+                progressWindow.AllowClose();
+                progressWindow.Close();
+                Close();
+            }
         }
 
         private void TitleBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

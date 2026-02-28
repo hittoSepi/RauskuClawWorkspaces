@@ -47,6 +47,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly AppPathResolver _pathResolver;
         private readonly WorkspacePathPolicy _workspacePathPolicy;
         private readonly ISshConnectionFactory _sshConnectionFactory;
+        private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
@@ -84,7 +85,8 @@ namespace RauskuClaw.GUI.ViewModels
             startupOrchestrator: null,
             warmupService: null,
             workspacePathPolicy: null,
-            sshConnectionFactory: null)
+            sshConnectionFactory: null,
+            vmProcessRegistry: null)
         {
         }
 
@@ -99,7 +101,8 @@ namespace RauskuClaw.GUI.ViewModels
             IWorkspaceStartupOrchestrator? startupOrchestrator = null,
             IWorkspaceWarmupService? warmupService = null,
             WorkspacePathPolicy? workspacePathPolicy = null,
-            ISshConnectionFactory? sshConnectionFactory = null)
+            ISshConnectionFactory? sshConnectionFactory = null,
+            VmProcessRegistry? vmProcessRegistry = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
             _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
@@ -113,6 +116,7 @@ namespace RauskuClaw.GUI.ViewModels
             _warmupService = warmupService ?? new WorkspaceWarmupService();
             _workspacePathPolicy = workspacePathPolicy ?? new WorkspacePathPolicy(_pathResolver);
             _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory(new KnownHostStore(_pathResolver));
+            _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
             EnsureWorkspaceHostDirectories();
@@ -1035,6 +1039,7 @@ namespace RauskuClaw.GUI.ViewModels
                 }
 
                 _workspaceProcesses[workspace.Id] = process;
+                _vmProcessRegistry.RegisterWorkspaceProcess(workspace.Id, workspace.Name, process);
                 workspace.IsRunning = true;
                 workspace.LastRun = DateTime.Now;
 
@@ -1579,8 +1584,29 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
-        public void Shutdown()
+        public bool HasRunningVmProcesses()
         {
+            foreach (var pair in _workspaceProcesses.ToList())
+            {
+                try
+                {
+                    if (!pair.Value.HasExited)
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Ignore inaccessible process handles.
+                }
+            }
+
+            return _workspaces.Any(w => w.IsRunning);
+        }
+
+        public void ShutdownWithProgress(Action<string>? reportStatus)
+        {
+            reportStatus?.Invoke("Closing connections...");
             _inlineNoticeCts?.Cancel();
             _inlineNoticeCts?.Dispose();
             _inlineNoticeCts = null;
@@ -1590,8 +1616,16 @@ namespace RauskuClaw.GUI.ViewModels
                 CancelWarmupRetry(workspace.Id);
             }
 
-            foreach (var pair in _workspaceProcesses.ToList())
+            var tracked = _workspaceProcesses.ToList();
+            var total = tracked.Count;
+            var index = 0;
+            foreach (var pair in tracked)
             {
+                index++;
+                var workspace = _workspaces.FirstOrDefault(w => string.Equals(w.Id, pair.Key, StringComparison.OrdinalIgnoreCase));
+                var workspaceLabel = workspace?.Name ?? pair.Key;
+                reportStatus?.Invoke($"Stopping VM '{workspaceLabel}' ({index}/{total})...");
+
                 try
                 {
                     var process = pair.Value;
@@ -1601,17 +1635,24 @@ namespace RauskuClaw.GUI.ViewModels
                     }
 
                     process.Dispose();
+                    _workspaceProcesses.Remove(pair.Key);
+                    _vmProcessRegistry.UnregisterWorkspace(pair.Key);
                 }
                 catch
                 {
-                    // Best-effort shutdown path.
+                    // Keep registry record for startup crash sweep if process kill fails.
                 }
             }
 
-            _workspaceProcesses.Clear();
             _serialConsole?.Disconnect();
             _sshTerminal?.Disconnect();
             _sftpFiles?.Disconnect();
+            reportStatus?.Invoke("VM shutdown completed.");
+        }
+
+        public void Shutdown()
+        {
+            ShutdownWithProgress(reportStatus: null);
         }
 
         private void TryDeleteFile(string? path)
@@ -1783,6 +1824,7 @@ namespace RauskuClaw.GUI.ViewModels
                 return;
             }
 
+            var stopped = false;
             try
             {
                 if (!process.HasExited)
@@ -1800,6 +1842,8 @@ namespace RauskuClaw.GUI.ViewModels
                         }
                     }
                 }
+
+                stopped = process.HasExited;
             }
             catch (Exception ex)
             {
@@ -1809,6 +1853,11 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 _workspaceProcesses.Remove(workspace.Id);
                 process.Dispose();
+
+                if (stopped)
+                {
+                    _vmProcessRegistry.UnregisterWorkspace(workspace.Id);
+                }
             }
         }
 

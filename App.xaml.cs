@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using RauskuClaw.Services;
 
 namespace RauskuClaw
@@ -10,10 +12,76 @@ namespace RauskuClaw
     /// </summary>
     public partial class App : Application
     {
+        private VmProcessRegistry? _vmProcessRegistry;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            RegisterGlobalCleanupHandlers();
+            SweepOrphanedVmProcessesOnStartup();
             ValidateConfiguredPathsOnStartup();
+        }
+
+        private void RegisterGlobalCleanupHandlers()
+        {
+            _vmProcessRegistry = new VmProcessRegistry(new AppPathResolver());
+
+            DispatcherUnhandledException += (_, _) =>
+            {
+                TryCleanupRegisteredVmProcesses();
+            };
+
+            AppDomain.CurrentDomain.UnhandledException += (_, _) =>
+            {
+                TryCleanupRegisteredVmProcesses();
+            };
+
+            TaskScheduler.UnobservedTaskException += (_, args) =>
+            {
+                TryCleanupRegisteredVmProcesses();
+                args.SetObserved();
+            };
+
+            Exit += (_, _) =>
+            {
+                TryCleanupRegisteredVmProcesses();
+            };
+        }
+
+        private void SweepOrphanedVmProcessesOnStartup()
+        {
+            try
+            {
+                _vmProcessRegistry ??= new VmProcessRegistry(new AppPathResolver());
+                var result = _vmProcessRegistry.SweepOrphanedProcesses();
+                if (result.Killed <= 0)
+                {
+                    return;
+                }
+
+                MessageBox.Show(
+                    $"Recovered and stopped {result.Killed} orphaned VM process(es) from a previous run.",
+                    "RauskuClaw VM cleanup",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch
+            {
+                // Best-effort startup cleanup.
+            }
+        }
+
+        private void TryCleanupRegisteredVmProcesses()
+        {
+            try
+            {
+                _vmProcessRegistry ??= new VmProcessRegistry(new AppPathResolver());
+                _vmProcessRegistry.CleanupRegisteredProcesses();
+            }
+            catch
+            {
+                // Best-effort crash/exit cleanup.
+            }
         }
 
         private static void ValidateConfiguredPathsOnStartup()
