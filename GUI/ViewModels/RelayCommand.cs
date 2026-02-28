@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Windows;
 using System.Windows.Input;
 
 public sealed class RelayCommand : ICommand
@@ -33,6 +34,17 @@ public sealed class RelayCommand : ICommand
 
     public void RaiseCanExecuteChanged()
     {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            _ = dispatcher.InvokeAsync(() =>
+            {
+                _canExecuteChanged?.Invoke(this, EventArgs.Empty);
+                CommandManager.InvalidateRequerySuggested();
+            });
+            return;
+        }
+
         _canExecuteChanged?.Invoke(this, EventArgs.Empty);
         CommandManager.InvalidateRequerySuggested();
     }

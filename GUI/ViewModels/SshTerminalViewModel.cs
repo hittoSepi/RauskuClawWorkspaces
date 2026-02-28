@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using RauskuClaw.Models;
@@ -368,6 +369,13 @@ namespace RauskuClaw.GUI.ViewModels
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                _ = dispatcher.InvokeAsync(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)));
+                return;
+            }
+
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 

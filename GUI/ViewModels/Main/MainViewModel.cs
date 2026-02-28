@@ -1355,7 +1355,16 @@ namespace RauskuClaw.GUI.ViewModels
                     try
                     {
                         await Task.Delay(5000);
-                        await _sshTerminal.ConnectAsync(workspace);
+                        var dispatcher = Application.Current?.Dispatcher;
+                        if (dispatcher != null && !dispatcher.CheckAccess())
+                        {
+                            var connectTask = await dispatcher.InvokeAsync(() => _sshTerminal.ConnectAsync(workspace));
+                            await connectTask;
+                        }
+                        else
+                        {
+                            await _sshTerminal.ConnectAsync(workspace);
+                        }
                     }
                     catch (Exception ex)
                     {
