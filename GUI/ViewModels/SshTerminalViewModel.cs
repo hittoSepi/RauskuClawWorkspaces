@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Win32;
 using RauskuClaw.Models;
+using RauskuClaw.Services;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 
@@ -25,10 +26,12 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _isVmRunning;
         private Workspace? _workspace;
         private SshClient? _sshClient;
+        private readonly ISshConnectionFactory _sshConnectionFactory;
         private readonly object _sshLock = new();
 
-        public SshTerminalViewModel()
+        public SshTerminalViewModel(ISshConnectionFactory? sshConnectionFactory = null)
         {
+            _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory();
             DisconnectCommand = new RelayCommand(Disconnect, () => IsConnected);
             ExecuteCommandCommand = new RelayCommand(async () => await ExecuteCommandAsync(), () => IsConnected);
             CopyOutputCommand = new RelayCommand(CopyOutput);
@@ -116,9 +119,7 @@ namespace RauskuClaw.GUI.ViewModels
                 var sshPort = workspace.Ports?.Ssh ?? 2222;
                 await Task.Run(() =>
                 {
-                    var keyFile = new PrivateKeyFile(workspace.SshPrivateKeyPath);
-                    var client = new SshClient("127.0.0.1", sshPort, workspace.Username, keyFile);
-                    client.Connect();
+                    var client = _sshConnectionFactory.ConnectSshClient("127.0.0.1", sshPort, workspace.Username, workspace.SshPrivateKeyPath);
                     lock (_sshLock)
                     {
                         _sshClient = client;

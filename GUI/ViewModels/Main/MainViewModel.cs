@@ -45,6 +45,8 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly QcowImageService _qcowImageService;
         private readonly SettingsService _settingsService;
         private readonly AppPathResolver _pathResolver;
+        private readonly WorkspacePathPolicy _workspacePathPolicy;
+        private readonly ISshConnectionFactory _sshConnectionFactory;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
@@ -80,7 +82,9 @@ namespace RauskuClaw.GUI.ViewModels
             portAllocator: null,
             qcowImageService: null,
             startupOrchestrator: null,
-            warmupService: null)
+            warmupService: null,
+            workspacePathPolicy: null,
+            sshConnectionFactory: null)
         {
         }
 
@@ -93,7 +97,9 @@ namespace RauskuClaw.GUI.ViewModels
             IPortAllocatorService? portAllocator = null,
             QcowImageService? qcowImageService = null,
             IWorkspaceStartupOrchestrator? startupOrchestrator = null,
-            IWorkspaceWarmupService? warmupService = null)
+            IWorkspaceWarmupService? warmupService = null,
+            WorkspacePathPolicy? workspacePathPolicy = null,
+            ISshConnectionFactory? sshConnectionFactory = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
             _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
@@ -105,6 +111,8 @@ namespace RauskuClaw.GUI.ViewModels
             _qcowImageService = qcowImageService ?? new QcowImageService();
             _startupOrchestrator = startupOrchestrator ?? new WorkspaceStartupOrchestrator();
             _warmupService = warmupService ?? new WorkspaceWarmupService();
+            _workspacePathPolicy = workspacePathPolicy ?? new WorkspacePathPolicy(_pathResolver);
+            _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory(new KnownHostStore(_pathResolver));
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
             EnsureWorkspaceHostDirectories();
@@ -124,12 +132,12 @@ namespace RauskuClaw.GUI.ViewModels
             Settings = new SettingsViewModel(_settingsService, _pathResolver);
             WebUi = new WebUiViewModel();
             SerialConsole = new SerialConsoleViewModel();
-            DockerContainers = new DockerContainersViewModel();
-            SshTerminal = new SshTerminalViewModel();
-            SftpFiles = new SftpFilesViewModel();
+            DockerContainers = new DockerContainersViewModel(new DockerService(_sshConnectionFactory));
+            SshTerminal = new SshTerminalViewModel(_sshConnectionFactory);
+            SftpFiles = new SftpFilesViewModel(new SftpService(_sshConnectionFactory));
             Holvi = new HolviViewModel(Settings);
             TemplateManagement = new TemplateManagementViewModel();
-            WorkspaceSettings = new WorkspaceSettingsViewModel(_settingsService, _pathResolver);
+            WorkspaceSettings = new WorkspaceSettingsViewModel(_settingsService, _pathResolver, _sshConnectionFactory);
         }
 
         public ObservableCollection<Workspace> Workspaces => _workspaces;
@@ -410,7 +418,7 @@ namespace RauskuClaw.GUI.ViewModels
                     }
                     catch (Exception ex)
                     {
-                        return (false, ex.Message);
+                        return (false, WithStartupReason("ssh_unstable", ex.Message));
                     }
                 };
 
@@ -503,13 +511,15 @@ namespace RauskuClaw.GUI.ViewModels
             if (!string.IsNullOrWhiteSpace(current))
             {
                 var resolvedExisting = ResolveConfiguredPath(current, "Workspaces");
-                Directory.CreateDirectory(resolvedExisting);
-                workspace.HostWorkspacePath = resolvedExisting;
-                return !string.Equals(current, resolvedExisting, StringComparison.Ordinal);
-            }
+                if (_workspacePathPolicy.TryResolveManagedPath(resolvedExisting, _appSettings, out var managedPath, out _))
+                {
+                    Directory.CreateDirectory(managedPath);
+                    workspace.HostWorkspacePath = managedPath;
+                    return !string.Equals(current, managedPath, StringComparison.Ordinal);
+                }
 
-            var root = _pathResolver.ResolveWorkspaceRootPath(_appSettings);
-            Directory.CreateDirectory(root);
+                AppendLog($"Host workspace path for '{workspace.Name}' was outside managed roots and was migrated: {resolvedExisting}");
+            }
 
             var shortId = BuildWorkspaceShortId(workspace.Id);
             var safeName = SanitizePathSegment(workspace.Name);
@@ -519,7 +529,7 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             var folderName = $"{safeName}-{shortId}";
-            var hostDir = Path.Combine(root, folderName);
+            var hostDir = _workspacePathPolicy.ResolveWorkspaceOwnedHostPath(_appSettings, folderName);
             Directory.CreateDirectory(hostDir);
 
             workspace.HostWorkspacePath = hostDir;
@@ -535,25 +545,32 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             var resolvedCurrent = ResolveConfiguredPath(current, "VM");
-            var currentDir = Path.GetDirectoryName(resolvedCurrent) ?? ResolveConfiguredPath("VM", "VM");
-            Directory.CreateDirectory(currentDir);
-
-            if (!IsLegacySharedSeedPath(resolvedCurrent))
+            var safeCurrent = string.Empty;
+            if (_workspacePathPolicy.TryResolveManagedPath(resolvedCurrent, _appSettings, out var managedSeedPath, out _))
             {
-                workspace.SeedIsoPath = resolvedCurrent;
-                return !string.Equals(current, resolvedCurrent, StringComparison.Ordinal);
+                safeCurrent = managedSeedPath;
+            }
+            else
+            {
+                AppendLog($"Seed path for '{workspace.Name}' was outside managed roots and was migrated: {resolvedCurrent}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(safeCurrent) && !IsLegacySharedSeedPath(safeCurrent))
+            {
+                workspace.SeedIsoPath = safeCurrent;
+                return !string.Equals(current, safeCurrent, StringComparison.Ordinal);
             }
 
             var artifactDirName = BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id);
-            var workspaceArtifactDir = Path.Combine(currentDir, artifactDirName);
+            var uniqueSeedPath = _workspacePathPolicy.ResolveWorkspaceOwnedVmPath(_appSettings, artifactDirName, "seed.iso");
+            var workspaceArtifactDir = Path.GetDirectoryName(uniqueSeedPath) ?? _pathResolver.ResolveVmBasePath(_appSettings);
             Directory.CreateDirectory(workspaceArtifactDir);
-            var uniqueSeedPath = Path.Combine(workspaceArtifactDir, "seed.iso");
 
-            if (File.Exists(resolvedCurrent) && !File.Exists(uniqueSeedPath))
+            if (!string.IsNullOrWhiteSpace(safeCurrent) && File.Exists(safeCurrent) && !File.Exists(uniqueSeedPath))
             {
                 try
                 {
-                    File.Copy(resolvedCurrent, uniqueSeedPath);
+                    File.Copy(safeCurrent, uniqueSeedPath);
                 }
                 catch
                 {
@@ -599,6 +616,17 @@ namespace RauskuClaw.GUI.ViewModels
             var currentResolved = string.IsNullOrWhiteSpace(current)
                 ? baseDisk
                 : ResolveConfiguredPath(current, Path.Combine("VM", "arch.qcow2"));
+            var currentUnsafe = false;
+            if (!_workspacePathPolicy.TryResolveManagedPath(currentResolved, _appSettings, out var managedCurrentDisk, out _))
+            {
+                currentUnsafe = true;
+                currentResolved = baseDisk;
+                AppendLog($"Disk path for '{workspace.Name}' was outside managed roots and was migrated: {workspace.DiskPath}");
+            }
+            else
+            {
+                currentResolved = managedCurrentDisk;
+            }
 
             var sharedByOthers = _workspaces.Any(w =>
                 !string.Equals(w.Id, workspace.Id, StringComparison.OrdinalIgnoreCase)
@@ -607,7 +635,8 @@ namespace RauskuClaw.GUI.ViewModels
             var requiresOverlay =
                 string.IsNullOrWhiteSpace(current)
                 || PathsEqual(currentResolved, baseDisk)
-                || sharedByOthers;
+                || sharedByOthers
+                || currentUnsafe;
 
             if (!requiresOverlay)
             {
@@ -615,8 +644,10 @@ namespace RauskuClaw.GUI.ViewModels
                 return (true, !string.Equals(current, currentResolved, StringComparison.Ordinal), string.Empty);
             }
 
-            var overlayDir = Path.Combine(Path.GetDirectoryName(baseDisk) ?? _pathResolver.ResolveVmBasePath(_appSettings), BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id));
-            var overlayDisk = Path.Combine(overlayDir, "arch.qcow2");
+            var overlayDisk = _workspacePathPolicy.ResolveWorkspaceOwnedVmPath(
+                _appSettings,
+                BuildWorkspaceArtifactDirectoryName(workspace.Name, workspace.Id),
+                "arch.qcow2");
             var qemuSystem = !string.IsNullOrWhiteSpace(workspace.QemuExe) ? workspace.QemuExe : _appSettings.QemuPath;
 
             if (!_qcowImageService.EnsureOverlayDisk(qemuSystem, baseDisk, overlayDisk, out var error))
@@ -883,6 +914,20 @@ namespace RauskuClaw.GUI.ViewModels
             _workspaceBootSignals[workspace.Id] = false;
             workspace.Status = VmStatus.Starting;
             ReportStage(progress, "qemu", "in_progress", $"Starting VM: {workspace.Name}...");
+
+            (bool Success, string Message) FailWithReason(string fallbackReason, string message)
+            {
+                var decorated = WithStartupReason(fallbackReason, message);
+                ReportStage(progress, "done", "failed", decorated);
+                return (false, decorated);
+            }
+
+            (bool Success, string Message) Succeed(string message)
+            {
+                ReportStage(progress, "done", "success", message);
+                return (true, message);
+            }
+
             lock (_startPortReservationLock)
             {
                 _activeWorkspaceStarts.Add(workspace.Id);
@@ -896,7 +941,7 @@ namespace RauskuClaw.GUI.ViewModels
                     ReportStage(progress, "qemu", "failed", portPreflight.Message);
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
-                    return (false, portPreflight.Message);
+                    return FailWithReason("port_conflict", portPreflight.Message);
                 }
 
                 var diskCheck = EnsureWorkspaceDiskPath(workspace);
@@ -906,7 +951,7 @@ namespace RauskuClaw.GUI.ViewModels
                     ReportStage(progress, "qemu", "failed", fail);
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
-                    return (false, fail);
+                    return FailWithReason("storage_ro", fail);
                 }
 
                 if (diskCheck.Changed)
@@ -920,7 +965,7 @@ namespace RauskuClaw.GUI.ViewModels
                     ReportStage(progress, "qemu", "failed", fail);
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
-                    return (false, fail);
+                    return FailWithReason("storage_ro", fail);
                 }
 
                 if (!TryReserveStartPorts(workspace, out reservedStartPorts, out var reserveError))
@@ -928,7 +973,7 @@ namespace RauskuClaw.GUI.ViewModels
                     ReportStage(progress, "qemu", "failed", reserveError);
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
-                    return (false, reserveError);
+                    return FailWithReason("port_conflict", reserveError);
                 }
 
                 var profile = BuildVmProfile(workspace);
@@ -949,7 +994,7 @@ namespace RauskuClaw.GUI.ViewModels
                         ReportStage(progress, "qemu", "failed", fail);
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
-                        return (false, fail);
+                        return FailWithReason("ssh_unstable", fail);
                     }
 
                     ReleaseReservedStartPorts(reservedStartPorts);
@@ -961,7 +1006,7 @@ namespace RauskuClaw.GUI.ViewModels
                         ReportStage(progress, "qemu", "failed", retryPreflight.Message);
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
-                        return (false, retryPreflight.Message);
+                        return FailWithReason("port_conflict", retryPreflight.Message);
                     }
 
                     if (!TryReserveStartPorts(workspace, out reservedStartPorts, out reserveError))
@@ -969,7 +1014,7 @@ namespace RauskuClaw.GUI.ViewModels
                         ReportStage(progress, "qemu", "failed", reserveError);
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
-                        return (false, reserveError);
+                        return FailWithReason("port_conflict", reserveError);
                     }
 
                     profile = BuildVmProfile(workspace);
@@ -985,7 +1030,7 @@ namespace RauskuClaw.GUI.ViewModels
                         ReportStage(progress, "qemu", "failed", fail);
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
-                        return (false, fail);
+                        return FailWithReason("ssh_unstable", fail);
                     }
                 }
 
@@ -1043,7 +1088,7 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         TryKillTrackedProcess(workspace, force: true);
-                        return (false, sshReady.Message);
+                        return FailWithReason("ssh_unstable", sshReady.Message);
                     }
                 }
                 else
@@ -1081,7 +1126,7 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         TryKillTrackedProcess(workspace, force: true);
-                        return (false, updateCheck.Message);
+                        return FailWithReason("env_missing", updateCheck.Message);
                     }
                 }
                 else
@@ -1109,7 +1154,7 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         TryKillTrackedProcess(workspace, force: true);
-                        return (false, fail);
+                        return FailWithReason("storage_ro", fail);
                     }
                 }
 
@@ -1128,7 +1173,7 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         TryKillTrackedProcess(workspace, force: true);
-                        return (false, fail);
+                        return FailWithReason("env_missing", fail);
                     }
                     else
                     {
@@ -1175,7 +1220,7 @@ namespace RauskuClaw.GUI.ViewModels
                     workspace.Status = VmStatus.Error;
                     workspace.IsRunning = false;
                     TryKillTrackedProcess(workspace, force: true);
-                    return (false, webPortReady.Message);
+                    return FailWithReason("ssh_unstable", webPortReady.Message);
                 }
                 ReportStage(progress, "webui", "success", webPortReady.Message);
                 TriggerWebUiRefreshSequence(workspace);
@@ -1195,7 +1240,7 @@ namespace RauskuClaw.GUI.ViewModels
                         workspace.Status = VmStatus.Error;
                         workspace.IsRunning = false;
                         TryKillTrackedProcess(workspace, force: true);
-                        return (false, connectionCheck.Message);
+                        return FailWithReason("ssh_unstable", connectionCheck.Message);
                     }
                     ReportStage(progress, "connection", "success", "Connection test passed.");
                 }
@@ -1218,7 +1263,7 @@ namespace RauskuClaw.GUI.ViewModels
                     TriggerWebUiRefreshSequence(workspace);
                     TriggerDockerRefreshSequence(workspace);
                     StartWarmupRetry(workspace);
-                    return (true, "Workspace is running. SSH is still warming up; try SSH/Docker tabs again in a moment.");
+                    return Succeed("Workspace is running. SSH is still warming up; try SSH/Docker tabs again in a moment.");
                 }
 
                 workspace.Status = VmStatus.Running;
@@ -1227,14 +1272,14 @@ namespace RauskuClaw.GUI.ViewModels
                 TriggerDockerRefreshSequence(workspace);
                 if (startupWarnings.Count > 0)
                 {
-                    return (true, $"Workspace started with warnings: {string.Join(", ", startupWarnings)}. See wizard stages/VM logs.");
+                    return Succeed($"Workspace started with warnings: {string.Join(", ", startupWarnings)}. See wizard stages/VM logs.");
                 }
                 if (repoPending)
                 {
-                    return (true, "Workspace started, but repository setup is still pending. See VM Logs / Serial Console.");
+                    return Succeed("Workspace started, but repository setup is still pending. See VM Logs / Serial Console.");
                 }
 
-                return (true, "Workspace is ready.");
+                return Succeed("Workspace is ready.");
             }
             catch (OperationCanceledException)
             {
@@ -1242,7 +1287,7 @@ namespace RauskuClaw.GUI.ViewModels
                 workspace.Status = VmStatus.Stopped;
                 workspace.IsRunning = false;
                 TryKillTrackedProcess(workspace, force: true);
-                return (false, "Start cancelled.");
+                return FailWithReason("ssh_unstable", "Start cancelled.");
             }
             catch (Exception ex)
             {
@@ -1250,8 +1295,7 @@ namespace RauskuClaw.GUI.ViewModels
                 workspace.Status = VmStatus.Error;
                 workspace.IsRunning = false;
                 TryKillTrackedProcess(workspace, force: true);
-                ReportStage(progress, "done", "failed", $"ERROR: {ex.Message}");
-                return (false, ex.Message);
+                return FailWithReason("ssh_unstable", ex.Message);
             }
             finally
             {
@@ -1561,14 +1605,20 @@ namespace RauskuClaw.GUI.ViewModels
             _sftpFiles?.Disconnect();
         }
 
-        private void TryDeleteFile(string path)
+        private void TryDeleteFile(string? path)
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                if (!_workspacePathPolicy.CanDeleteFile(path, _appSettings, out var resolvedPath, out var reason))
                 {
-                    File.Delete(path);
-                    AppendLog($"Deleted file: {path}");
+                    AppendLog($"Skipped file delete for '{path}': {reason}");
+                    return;
+                }
+
+                if (File.Exists(resolvedPath))
+                {
+                    File.Delete(resolvedPath);
+                    AppendLog($"Deleted file: {resolvedPath}");
                 }
             }
             catch (Exception ex)
@@ -1577,14 +1627,20 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
-        private void TryDeleteDirectory(string path)
+        private void TryDeleteDirectory(string? path)
         {
             try
             {
-                if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+                if (!_workspacePathPolicy.CanDeleteDirectory(path, _appSettings, out var resolvedPath, out var reason))
                 {
-                    Directory.Delete(path, recursive: true);
-                    AppendLog($"Deleted directory: {path}");
+                    AppendLog($"Skipped directory delete for '{path}': {reason}");
+                    return;
+                }
+
+                if (Directory.Exists(resolvedPath))
+                {
+                    Directory.Delete(resolvedPath, recursive: true);
+                    AppendLog($"Deleted directory: {resolvedPath}");
                 }
             }
             catch (Exception ex)

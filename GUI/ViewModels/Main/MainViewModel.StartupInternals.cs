@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RauskuClaw.Models;
+using RauskuClaw.Services;
 using RauskuClaw.Utils;
 using Renci.SshNet;
 using Renci.SshNet.Common;
@@ -315,6 +316,44 @@ namespace RauskuClaw.GUI.ViewModels
             AppendLog(message);
         }
 
+        private static string WithStartupReason(string fallbackReason, string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return $"reason={fallbackReason}; startup failed.";
+            }
+
+            if (message.StartsWith("reason=", StringComparison.OrdinalIgnoreCase))
+            {
+                return message;
+            }
+
+            var normalized = message.ToLowerInvariant();
+            var reason = fallbackReason;
+            if (normalized.Contains("hostkey_mismatch") || normalized.Contains("host key mismatch"))
+            {
+                reason = "hostkey_mismatch";
+            }
+            else if (normalized.Contains("host port") || normalized.Contains("already in use") || normalized.Contains("port reservation conflict"))
+            {
+                reason = "port_conflict";
+            }
+            else if (normalized.Contains("runtime .env") || normalized.Contains("missing-secret") || normalized.Contains("missing-file"))
+            {
+                reason = "env_missing";
+            }
+            else if (normalized.Contains("read-only file system") || normalized.Contains("no space left on device") || normalized.Contains("filesystem issue"))
+            {
+                reason = "storage_ro";
+            }
+            else if (normalized.Contains("ssh transient error") || normalized.Contains("ssh became reachable but command channel did not stabilize"))
+            {
+                reason = "ssh_unstable";
+            }
+
+            return $"reason={reason}; {message}";
+        }
+
         private async Task<(bool Success, string Message)> RunSshCommandAsync(Workspace workspace, string command, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(workspace.SshPrivateKeyPath) || !File.Exists(workspace.SshPrivateKeyPath))
@@ -334,9 +373,11 @@ namespace RauskuClaw.GUI.ViewModels
 
                         try
                         {
-                            using var keyFile = new PrivateKeyFile(workspace.SshPrivateKeyPath);
-                            using var ssh = new SshClient("127.0.0.1", workspace.Ports?.Ssh ?? 2222, workspace.Username, keyFile);
-                            ssh.Connect();
+                            using var ssh = _sshConnectionFactory.ConnectSshClient(
+                                "127.0.0.1",
+                                workspace.Ports?.Ssh ?? 2222,
+                                workspace.Username,
+                                workspace.SshPrivateKeyPath);
                             var result = ssh.RunCommand(command);
                             ssh.Disconnect();
 
@@ -356,6 +397,10 @@ namespace RauskuClaw.GUI.ViewModels
                             }
 
                             return (false, $"SSH command failed with exit {result.ExitStatus}");
+                        }
+                        catch (SshHostKeyMismatchException ex)
+                        {
+                            return (false, ex.Message);
                         }
                         catch (Exception ex) when (ex is SocketException
                             || ex is SshConnectionException

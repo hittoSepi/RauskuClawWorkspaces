@@ -12,21 +12,25 @@ namespace RauskuClaw.Services
 {
     public sealed class SftpService : IDisposable
     {
+        private readonly ISshConnectionFactory _sshConnectionFactory;
         private SftpClient? _client;
         private readonly SemaphoreSlim _gate = new(1, 1);
 
         public bool IsConnected => _client?.IsConnected == true;
+
+        public SftpService(ISshConnectionFactory? sshConnectionFactory = null)
+        {
+            _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory();
+        }
 
         public async Task ConnectAsync(string host, int port, string username, string privateKeyPath)
         {
             await ExecuteAsync(() =>
             {
                 Disconnect();
-                var keyFile = new PrivateKeyFile(privateKeyPath);
-                var client = new SftpClient(host, port, username, keyFile);
+                var client = _sshConnectionFactory.ConnectSftpClient(host, port, username, privateKeyPath);
                 try
                 {
-                    client.Connect();
                     _client = client;
                 }
                 catch

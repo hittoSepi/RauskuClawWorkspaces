@@ -18,7 +18,7 @@ namespace RauskuClaw.GUI.ViewModels
 {
     public sealed class SftpFilesViewModel : INotifyPropertyChanged
     {
-        private readonly SftpService _sftpService = new();
+        private readonly SftpService _sftpService;
         private readonly ObservableCollection<SftpEntryItemViewModel> _entries = new();
         private Workspace? _workspace;
         private bool _isConnected;
@@ -35,8 +35,9 @@ namespace RauskuClaw.GUI.ViewModels
         private int _pathSuggestionVersion;
         private const int MaxEditorBytes = 2 * 1024 * 1024;
 
-        public SftpFilesViewModel()
+        public SftpFilesViewModel(SftpService? sftpService = null)
         {
+            _sftpService = sftpService ?? new SftpService();
             RefreshCommand = new RelayCommand(async () => await RefreshAsync(), CanRunActions);
             UpCommand = new RelayCommand(async () => await NavigateUpAsync(), CanRunActions);
             OpenCommand = new RelayCommand(async () => await OpenSelectedAsync(), CanOpenSelected);

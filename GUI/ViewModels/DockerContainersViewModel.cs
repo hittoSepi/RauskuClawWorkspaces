@@ -37,9 +37,9 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _showLogs;
         private Workspace? _workspace;
 
-        public DockerContainersViewModel()
+        public DockerContainersViewModel(DockerService? dockerService = null)
         {
-            _dockerService = new DockerService();
+            _dockerService = dockerService ?? new DockerService();
             _containers = new ObservableCollection<ContainerItemViewModel>();
             RefreshCommand = new RelayCommand(async () => await RefreshAsync());
             CloseLogsCommand = new RelayCommand(CloseLogs);

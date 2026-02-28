@@ -7,12 +7,23 @@ using System.Text.Json;
 
 namespace RauskuClaw.Services
 {
+    public enum SecretStoreReadStatus
+    {
+        Success,
+        MissingKey,
+        NotFound,
+        CorruptStore,
+        CorruptEntry,
+        Unavailable
+    }
+
     /// <summary>
     /// Stores secrets encrypted with DPAPI in a local file.
     /// </summary>
     public class SecretStorageService
     {
         private readonly string _storagePath;
+        private bool _corruptBackupCreated;
 
         public SecretStorageService(AppPathResolver? pathResolver = null)
         {
@@ -32,7 +43,7 @@ namespace RauskuClaw.Services
             var normalizedValue = value ?? string.Empty;
             var plainBytes = Encoding.UTF8.GetBytes(normalizedValue);
             var cipherBytes = ProtectedData.Protect(plainBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-            var store = LoadStore();
+            var store = LoadStore(out _);
             store[key] = Convert.ToBase64String(cipherBytes);
             SaveStore(store);
             return key;
@@ -40,20 +51,39 @@ namespace RauskuClaw.Services
 
         public string? GetSecret(string? key)
         {
+            return TryGetSecret(key, out var value, out _) ? value : null;
+        }
+
+        public bool TryGetSecret(string? key, out string? value, out SecretStoreReadStatus status)
+        {
+            value = null;
             if (string.IsNullOrWhiteSpace(key))
             {
-                return null;
+                status = SecretStoreReadStatus.MissingKey;
+                return false;
             }
 
-            var store = LoadStore();
+            var store = LoadStore(out var corruptStoreDetected);
             if (!store.TryGetValue(key, out var protectedValue) || string.IsNullOrWhiteSpace(protectedValue))
             {
-                return null;
+                status = corruptStoreDetected ? SecretStoreReadStatus.CorruptStore : SecretStoreReadStatus.NotFound;
+                return false;
             }
 
-            var cipherBytes = Convert.FromBase64String(protectedValue);
-            var plainBytes = ProtectedData.Unprotect(cipherBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(plainBytes);
+            try
+            {
+                var cipherBytes = Convert.FromBase64String(protectedValue);
+                var plainBytes = ProtectedData.Unprotect(cipherBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
+                value = Encoding.UTF8.GetString(plainBytes);
+                status = SecretStoreReadStatus.Success;
+                return true;
+            }
+            catch
+            {
+                BackupCorruptStoreIfNeeded();
+                status = SecretStoreReadStatus.CorruptEntry;
+                return false;
+            }
         }
 
         public void DeleteSecret(string? key)
@@ -63,15 +93,16 @@ namespace RauskuClaw.Services
                 return;
             }
 
-            var store = LoadStore();
+            var store = LoadStore(out _);
             if (store.Remove(key))
             {
                 SaveStore(store);
             }
         }
 
-        private Dictionary<string, string> LoadStore()
+        private Dictionary<string, string> LoadStore(out bool corruptStoreDetected)
         {
+            corruptStoreDetected = false;
             if (!File.Exists(_storagePath))
             {
                 return new Dictionary<string, string>(StringComparer.Ordinal);
@@ -85,6 +116,8 @@ namespace RauskuClaw.Services
             }
             catch
             {
+                corruptStoreDetected = true;
+                BackupCorruptStoreIfNeeded();
                 return new Dictionary<string, string>(StringComparer.Ordinal);
             }
         }
@@ -93,6 +126,29 @@ namespace RauskuClaw.Services
         {
             var json = JsonSerializer.Serialize(store, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_storagePath, json);
+        }
+
+        private void BackupCorruptStoreIfNeeded()
+        {
+            if (_corruptBackupCreated || !File.Exists(_storagePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
+                var backupPath = _storagePath + $".corrupt.{timestamp}.bak";
+                File.Copy(_storagePath, backupPath, overwrite: false);
+            }
+            catch
+            {
+                // Best-effort backup.
+            }
+            finally
+            {
+                _corruptBackupCreated = true;
+            }
         }
     }
 }

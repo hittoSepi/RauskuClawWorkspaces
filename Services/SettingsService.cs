@@ -110,6 +110,11 @@ namespace RauskuClaw.Services
             return _secretStorageService.GetSecret(secretRef);
         }
 
+        public bool TryLoadSecret(string? secretRef, out string? value, out SecretStoreReadStatus status)
+        {
+            return _secretStorageService.TryGetSecret(secretRef, out value, out status);
+        }
+
         public string StoreSecret(string secretKey, string? value)
         {
             return _secretStorageService.StoreSecret(secretKey, value);

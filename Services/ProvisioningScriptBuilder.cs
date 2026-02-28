@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace RauskuClaw.Services
 {
@@ -12,6 +13,8 @@ namespace RauskuClaw.Services
 
     public sealed class ProvisioningScriptBuilder : IProvisioningScriptBuilder
     {
+        private static readonly Regex ProvisioningSecretKeyRegex = new("^[A-Z0-9_]+$", RegexOptions.Compiled);
+
         public string BuildMetaData(string hostname)
         {
             var Hostname = hostname;
@@ -396,9 +399,17 @@ namespace RauskuClaw.Services
                     continue;
                 }
 
-                var key = pair.Key.Trim().Replace("\"", "");
-                var value = pair.Value.Trim().Replace("\"", "\\\"");
-                sb.Append("              set_env_var \"\"$env_file\"\" \"\"").Append(key).Append("\"\" \"\"").Append(value).Append("\"\"\n");
+                var key = pair.Key.Trim();
+                if (!ProvisioningSecretKeyRegex.IsMatch(key))
+                {
+                    sb.Append("              echo \"\"Secrets source: skipped invalid key\"\"\n");
+                    continue;
+                }
+
+                var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(pair.Value));
+                sb.Append("              __rc_secret_b64='").Append(encoded).Append("'\n");
+                sb.Append("              __rc_secret_val=\"\"$(printf '%s' \"\"$__rc_secret_b64\"\" | base64 --decode 2>/dev/null || printf '%s' \"\"$__rc_secret_b64\"\" | base64 -d 2>/dev/null || true)\"\"\n");
+                sb.Append("              if [ -z \"\"$__rc_secret_val\"\" ] && [ -n \"\"$__rc_secret_b64\"\" ]; then echo \"\"Secrets source: decode failed for ").Append(key).Append(", skipping\"\"; else set_env_var \"\"$env_file\"\" \"\"").Append(key).Append("\"\" \"\"$__rc_secret_val\"\"; fi\n");
             }
 
             if (sb.Length == 0)

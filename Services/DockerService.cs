@@ -13,10 +13,16 @@ namespace RauskuClaw.Services
     /// </summary>
     public class DockerService
     {
+        private readonly ISshConnectionFactory _sshConnectionFactory;
         private SshClient? _ssh;
         private string _dockerCommand = "docker";
         private const string DockerPsCommand = "docker ps --format '{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}'";
         public bool IsConnected => _ssh?.IsConnected == true;
+
+        public DockerService(ISshConnectionFactory? sshConnectionFactory = null)
+        {
+            _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory();
+        }
 
         public class ContainerInfo
         {
@@ -38,13 +44,23 @@ namespace RauskuClaw.Services
                 var client = default(SshClient);
                 try
                 {
-                    var keyFile = new PrivateKeyFile(keyFilePath);
-                    var key = new[] { keyFile };
-                    client = new SshClient(host, port, username, key);
-                    client.Connect();
+                    client = _sshConnectionFactory.ConnectSshClient(host, port, username, keyFilePath);
                     _ssh = client;
 
                     _dockerCommand = await DetectDockerCommandAsync();
+                }
+                catch (SshHostKeyMismatchException)
+                {
+                    try
+                    {
+                        client?.Dispose();
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup.
+                    }
+                    Disconnect();
+                    throw;
                 }
                 catch (Exception ex) when (ex is SocketException
                     || ex is SshConnectionException

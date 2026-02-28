@@ -31,6 +31,7 @@ namespace RauskuClaw.GUI.ViewModels
         private string? _holviProjectId;
         private string? _infisicalClientId;
         private string? _infisicalClientSecret;
+        private string? _secretStoreWarningMessage;
 
         public SettingsViewModel(SettingsService? settingsService = null, AppPathResolver? pathResolver = null)
         {
@@ -58,6 +59,13 @@ namespace RauskuClaw.GUI.ViewModels
             else if (loadResult.MigrationPerformed)
             {
                 StatusMessage = loadResult.MigrationMessage ?? "Secrets migrated to secure storage.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(_secretStoreWarningMessage))
+            {
+                StatusMessage = string.Equals(StatusMessage, "Ready", StringComparison.OrdinalIgnoreCase)
+                    ? _secretStoreWarningMessage
+                    : $"{StatusMessage} {_secretStoreWarningMessage}";
             }
 
             SaveCommand = new RelayCommand(SaveSettings);
@@ -423,10 +431,31 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void LoadSecretsFromSecureStore()
         {
-            _holviApiKey = _settingsService.LoadSecret(_settings.HolviApiKeySecretRef);
-            _holviProjectId = _settingsService.LoadSecret(_settings.HolviProjectIdSecretRef);
-            _infisicalClientId = _settingsService.LoadSecret(_settings.InfisicalClientIdSecretRef);
-            _infisicalClientSecret = _settingsService.LoadSecret(_settings.InfisicalClientSecretSecretRef);
+            var warnings = new List<string>();
+
+            _holviApiKey = ReadSecret("Holvi API key", _settings.HolviApiKeySecretRef, warnings);
+            _holviProjectId = ReadSecret("Holvi project ID", _settings.HolviProjectIdSecretRef, warnings);
+            _infisicalClientId = ReadSecret("Infisical client ID", _settings.InfisicalClientIdSecretRef, warnings);
+            _infisicalClientSecret = ReadSecret("Infisical client secret", _settings.InfisicalClientSecretSecretRef, warnings);
+
+            _secretStoreWarningMessage = warnings.Count > 0
+                ? "Warning: secure secret store had unreadable entries; backup was created and unreadable secrets were skipped."
+                : null;
+        }
+
+        private string? ReadSecret(string label, string? secretRef, List<string> warnings)
+        {
+            if (_settingsService.TryLoadSecret(secretRef, out var value, out var status))
+            {
+                return value;
+            }
+
+            if (status is SecretStoreReadStatus.CorruptEntry or SecretStoreReadStatus.CorruptStore or SecretStoreReadStatus.Unavailable)
+            {
+                warnings.Add($"{label}:{status}");
+            }
+
+            return null;
         }
 
         private void BuildCpuCoreOptions()
