@@ -52,6 +52,7 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly ISshConnectionFactory _sshConnectionFactory;
         private readonly IWorkspaceSshCommandService _workspaceSshCommandService;
         private readonly IVmStartupReadinessService _vmStartupReadinessService;
+        private readonly ISerialDiagnosticsService _serialDiagnosticsService;
         private readonly VmProcessRegistry _vmProcessRegistry;
         private readonly IWorkspacePortManager _portManager;
         private readonly RauskuClaw.Models.Settings _appSettings;
@@ -98,6 +99,7 @@ namespace RauskuClaw.GUI.ViewModels
             sshConnectionFactory: null,
             workspaceSshCommandService: null,
             vmStartupReadinessService: null,
+            serialDiagnosticsService: null,
             vmProcessRegistry: null,
             resourceStatsCache: null,
             portManager: null)
@@ -118,6 +120,7 @@ namespace RauskuClaw.GUI.ViewModels
             ISshConnectionFactory? sshConnectionFactory = null,
             IWorkspaceSshCommandService? workspaceSshCommandService = null,
             IVmStartupReadinessService? vmStartupReadinessService = null,
+            ISerialDiagnosticsService? serialDiagnosticsService = null,
             VmProcessRegistry? vmProcessRegistry = null,
             VmResourceStatsCache? resourceStatsCache = null,
             IWorkspacePortManager? portManager = null)
@@ -136,6 +139,7 @@ namespace RauskuClaw.GUI.ViewModels
             _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory(new KnownHostStore(_pathResolver));
             _workspaceSshCommandService = workspaceSshCommandService ?? new WorkspaceSshCommandService(_sshConnectionFactory);
             _vmStartupReadinessService = vmStartupReadinessService ?? new VmStartupReadinessService(_workspaceSshCommandService);
+            _serialDiagnosticsService = serialDiagnosticsService ?? new SerialDiagnosticsService(ReportLog, ReportStage);
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
             _portManager = portManager ?? new WorkspacePortManager();
