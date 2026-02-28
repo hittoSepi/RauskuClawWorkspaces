@@ -16,7 +16,7 @@
     "SeedIsoPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\rausku-ai-0d911dee\\seed.iso",
     "QemuExe": "qemu-system-x86_64.exe",
     "CreatedAt": "2026-02-28T09:21:49.2456314+02:00",
-    "LastRun": "2026-02-28T10:49:33.2526115+02:00",
+    "LastRun": "2026-02-28T11:45:20.1817737+02:00",
     "Ports": {
       "Ssh": 2222,
       "Api": 3011,

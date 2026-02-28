@@ -177,6 +177,11 @@ namespace RauskuClaw.GUI.Views
             }
         }
 
+        private void BootLogTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
+        {
+            BootLogTextBox.ScrollToEnd();
+        }
+
         private void AnimateSidebar(bool collapse)
         {
             double to = collapse ? SidebarCollapsedWidth : SidebarExpandedWidth;

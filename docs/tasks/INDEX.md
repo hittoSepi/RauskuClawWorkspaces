@@ -1,4 +1,4 @@
-# Task Index (001-053)
+# Task Index (001-054)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -55,3 +55,4 @@
 | 051 | Completed | Sidebar logo collapsed-mode horizontal alignment tuned to match the 40px button column | [051-sidebar-logo-column-alignment.md](051-sidebar-logo-column-alignment.md) |
 | 052 | Completed | Sidebar logo header container now uses fixed 16px left offset for matching button-column alignment in both expanded and collapsed states | [052-sidebar-logo-fixed-left-offset.md](052-sidebar-logo-fixed-left-offset.md) |
 | 053 | Completed | Workspace status indicator moved to workspace icon corner (larger + visible in collapsed sidebar) | [053-workspace-status-indicator-on-icon-corner.md](053-workspace-status-indicator-on-icon-corner.md) |
+| 054 | Completed | Restart now cancels+drains in-flight startup before stop/start, cloud-init wait retries transient SSH loss, and auto-start token cleanup is guaranteed | [054-startup-restart-drain-and-cloudinit-retry.md](054-startup-restart-drain-and-cloudinit-retry.md) |

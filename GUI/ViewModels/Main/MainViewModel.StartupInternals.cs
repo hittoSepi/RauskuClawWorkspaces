@@ -16,6 +16,8 @@ namespace RauskuClaw.GUI.ViewModels
 {
     public partial class MainViewModel
     {
+        internal Func<Workspace, string, CancellationToken, Task<(bool Success, string Message)>>? SshCommandRunnerOverride { get; set; }
+
         private static VmProfile BuildVmProfile(Workspace workspace)
         {
             return new VmProfile
@@ -32,200 +34,6 @@ namespace RauskuClaw.GUI.ViewModels
                 HostApiPort = workspace.Ports?.Api ?? 3011,
                 HostUiV1Port = workspace.Ports?.UiV1 ?? 3012,
                 HostUiV2Port = workspace.Ports?.UiV2 ?? 3013
-            };
-        }
-
-        private bool TryReserveStartPorts(Workspace workspace, out HashSet<int> reservedPorts, out string error)
-        {
-            reservedPorts = new HashSet<int>();
-            var ports = GetWorkspaceHostPorts(workspace)
-                .Select(p => p.Port)
-                .Where(p => p is > 0 and <= 65535)
-                .Distinct()
-                .ToList();
-
-            lock (_startPortReservationLock)
-            {
-                if (_activeWorkspaceStarts.Count == 0 && _activeStartPortReservations.Count > 0)
-                {
-                    // Self-heal stale in-memory reservations after aborted/finished starts.
-                    _activeStartPortReservations.Clear();
-                    _workspaceStartPortReservations.Clear();
-                }
-
-                // Purge stale reservations for workspace starts that are no longer active.
-                var staleWorkspaceIds = _workspaceStartPortReservations.Keys
-                    .Where(id => !_activeWorkspaceStarts.Contains(id))
-                    .ToList();
-                foreach (var staleId in staleWorkspaceIds)
-                {
-                    foreach (var stalePort in _workspaceStartPortReservations[staleId])
-                    {
-                        _activeStartPortReservations.Remove(stalePort);
-                    }
-                    _workspaceStartPortReservations.Remove(staleId);
-                }
-
-                var conflicts = ports.Where(port => _activeStartPortReservations.Contains(port)).Distinct().ToList();
-                if (conflicts.Count > 0)
-                {
-                    error = $"Host port reservation conflict: {string.Join(", ", conflicts.Select(p => $"127.0.0.1:{p}"))}.";
-                    return false;
-                }
-
-                foreach (var port in ports)
-                {
-                    _activeStartPortReservations.Add(port);
-                    reservedPorts.Add(port);
-                }
-
-                _workspaceStartPortReservations[workspace.Id] = new HashSet<int>(reservedPorts);
-            }
-
-            var busy = ports.Where(port => !IsPortAvailable(port)).Distinct().ToList();
-            if (busy.Count > 0)
-            {
-                ReleaseReservedStartPorts(reservedPorts);
-                error = $"Host port(s) in use: {string.Join(", ", busy.Select(p => $"127.0.0.1:{p}"))}.";
-                return false;
-            }
-
-            error = string.Empty;
-            return true;
-        }
-
-        private void ReleaseReservedStartPorts(HashSet<int>? reservedPorts)
-        {
-            if (reservedPorts == null || reservedPorts.Count == 0)
-            {
-                return;
-            }
-
-            lock (_startPortReservationLock)
-            {
-                foreach (var port in reservedPorts)
-                {
-                    _activeStartPortReservations.Remove(port);
-                }
-
-                foreach (var workspaceId in _workspaceStartPortReservations.Keys.ToList())
-                {
-                    var mapped = _workspaceStartPortReservations[workspaceId];
-                    if (mapped.SetEquals(reservedPorts))
-                    {
-                        _workspaceStartPortReservations.Remove(workspaceId);
-                        break;
-                    }
-                }
-            }
-        }
-
-        private HashSet<int> SnapshotReservedStartPorts()
-        {
-            lock (_startPortReservationLock)
-            {
-                return new HashSet<int>(_activeStartPortReservations);
-            }
-        }
-
-        private (bool Success, string Message) EnsureStartPortsReady(Workspace workspace, IProgress<string>? progress)
-        {
-            var conflicts = GetBusyStartPorts(workspace);
-            if (conflicts.Count == 0)
-            {
-                return (true, string.Empty);
-            }
-
-            if (conflicts.Any(c => string.Equals(c.Name, "UIv2", StringComparison.OrdinalIgnoreCase)))
-            {
-                var reassigned = TryReassignUiV2Port(workspace, progress, "UI-v2 port was already in use before start");
-                if (reassigned.Success)
-                {
-                    conflicts = GetBusyStartPorts(workspace);
-                    if (conflicts.Count == 0)
-                    {
-                        return (true, reassigned.Message);
-                    }
-                }
-            }
-
-            var conflictText = string.Join(", ", conflicts.Select(c => $"{c.Name}=127.0.0.1:{c.Port}"));
-            return (false, $"Host port(s) in use: {conflictText}. Use Auto Assign Ports or free the conflicting ports.");
-        }
-
-        private (bool Success, string Message) TryReassignUiV2PortForRetry(Workspace workspace, IProgress<string>? progress, string reason)
-        {
-            var reassigned = TryReassignUiV2Port(workspace, progress, reason);
-            if (reassigned.Success)
-            {
-                return reassigned;
-            }
-
-            return (false, "Unable to auto-remap UI-v2 port for retry.");
-        }
-
-        private (bool Success, string Message) TryReassignUiV2Port(Workspace workspace, IProgress<string>? progress, string reason)
-        {
-            if (workspace.Ports == null)
-            {
-                return (false, "Workspace ports are not initialized.");
-            }
-
-            var currentUiV2 = workspace.Ports.UiV2;
-            var reserved = new HashSet<int>(
-                GetWorkspaceHostPorts(workspace)
-                    .Where(p => !string.Equals(p.Name, "UIv2", StringComparison.OrdinalIgnoreCase))
-                    .Select(p => p.Port));
-            reserved.UnionWith(SnapshotReservedStartPorts());
-            reserved.Remove(currentUiV2);
-
-            int nextUiV2;
-            try
-            {
-                nextUiV2 = FindNextAvailablePort(Math.Max(1024, currentUiV2 + 1), reserved);
-            }
-            catch (Exception ex)
-            {
-                return (false, $"UI-v2 auto-remap failed: {ex.Message}");
-            }
-
-            workspace.Ports.UiV2 = nextUiV2;
-            var info = $"{reason}. UI-v2 remapped 127.0.0.1:{currentUiV2} -> 127.0.0.1:{nextUiV2}.";
-            ReportStage(progress, "qemu", "in_progress", info);
-            return (true, info);
-        }
-
-        private static List<(string Name, int Port)> GetBusyStartPorts(Workspace workspace)
-        {
-            var busy = new List<(string Name, int Port)>();
-            foreach (var item in GetWorkspaceHostPorts(workspace))
-            {
-                if (!IsPortAvailable(item.Port))
-                {
-                    busy.Add(item);
-                }
-            }
-
-            return busy;
-        }
-
-        private static List<(string Name, int Port)> GetWorkspaceHostPorts(Workspace workspace)
-        {
-            var apiPort = workspace.Ports?.Api ?? 3011;
-            var holviProxyPort = apiPort + VmProfile.HostHolviProxyOffsetFromApi;
-            var infisicalUiPort = apiPort + VmProfile.HostInfisicalUiOffsetFromApi;
-
-            return new List<(string Name, int Port)>
-            {
-                ("SSH", workspace.Ports?.Ssh ?? 2222),
-                ("Web", workspace.HostWebPort > 0 ? workspace.HostWebPort : 8080),
-                ("API", apiPort),
-                ("UIv1", workspace.Ports?.UiV1 ?? 3012),
-                ("UIv2", workspace.Ports?.UiV2 ?? 3013),
-                ("HolviProxy", holviProxyPort),
-                ("InfisicalUI", infisicalUiPort),
-                ("QMP", workspace.Ports?.Qmp ?? 4444),
-                ("Serial", workspace.Ports?.Serial ?? 5555)
             };
         }
 
@@ -283,53 +91,6 @@ namespace RauskuClaw.GUI.ViewModels
             return false;
         }
 
-        private static int FindNextAvailablePort(int startPort, HashSet<int> reserved)
-        {
-            var start = Math.Clamp(startPort, 1024, 65535);
-            for (var port = start; port <= 65535; port++)
-            {
-                if (reserved.Contains(port))
-                {
-                    continue;
-                }
-
-                if (IsPortAvailable(port))
-                {
-                    return port;
-                }
-            }
-
-            for (var port = 1024; port < start; port++)
-            {
-                if (reserved.Contains(port))
-                {
-                    continue;
-                }
-
-                if (IsPortAvailable(port))
-                {
-                    return port;
-                }
-            }
-
-            throw new InvalidOperationException("No free local host port available for UI-v2 fallback.");
-        }
-
-        private static bool IsPortAvailable(int port)
-        {
-            try
-            {
-                var listener = new TcpListener(System.Net.IPAddress.Loopback, port);
-                listener.Start();
-                listener.Stop();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private void ReportStage(IProgress<string>? progress, string stage, string state, string message)
         {
             progress?.Report($"@stage|{stage}|{state}|{message}");
@@ -382,6 +143,11 @@ namespace RauskuClaw.GUI.ViewModels
 
         private async Task<(bool Success, string Message)> RunSshCommandAsync(Workspace workspace, string command, CancellationToken ct)
         {
+            if (SshCommandRunnerOverride != null)
+            {
+                return await SshCommandRunnerOverride(workspace, command, ct);
+            }
+
             if (string.IsNullOrWhiteSpace(workspace.SshPrivateKeyPath) || !File.Exists(workspace.SshPrivateKeyPath))
             {
                 return (false, $"SSH key file not found: {workspace.SshPrivateKeyPath}");
@@ -878,32 +644,92 @@ namespace RauskuClaw.GUI.ViewModels
             return (true, string.Join(" | ", detailParts));
         }
 
-        private async Task<(bool Success, string Message)> WaitForCloudInitFinalizationAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
+        internal async Task<(bool Success, string Message)> WaitForCloudInitFinalizationAsync(
+            Workspace workspace,
+            IProgress<string>? progress,
+            CancellationToken ct,
+            TimeSpan? timeoutOverride = null,
+            TimeSpan? retryDelayOverride = null)
         {
-            var probe = await RunSshCommandAsync(
-                workspace,
-                "set -e; OUT=$(cloud-init status --wait --long 2>/dev/null || cloud-init status --wait 2>/dev/null || cloud-init status --long 2>/dev/null || true); echo \"$OUT\"",
-                ct);
-
-            if (!probe.Success)
+            var timeout = timeoutOverride.GetValueOrDefault(TimeSpan.FromSeconds(180));
+            if (timeout <= TimeSpan.Zero)
             {
-                return (false, $"cloud-init status probe failed: {probe.Message}");
+                timeout = TimeSpan.FromSeconds(180);
             }
 
-            var text = probe.Message ?? string.Empty;
-            if (text.Contains("status: done", StringComparison.OrdinalIgnoreCase))
+            var retryDelay = retryDelayOverride.GetValueOrDefault(TimeSpan.FromSeconds(3));
+            if (retryDelay <= TimeSpan.Zero)
             {
-                return (true, "cloud-init final stage completed.");
+                retryDelay = TimeSpan.FromSeconds(1);
             }
 
-            if (text.Contains("running", StringComparison.OrdinalIgnoreCase)
-                || text.Contains("not run", StringComparison.OrdinalIgnoreCase))
+            var deadline = DateTime.UtcNow + timeout;
+            var attempt = 0;
+            var lastStatus = "unknown";
+            string? lastTransient = null;
+
+            while (DateTime.UtcNow < deadline)
             {
-                ReportLog(progress, $"cloud-init status: {text.Replace('\r', ' ').Replace('\n', ' ').Trim()}");
-                return (false, "cloud-init is not fully done yet.");
+                ct.ThrowIfCancellationRequested();
+                attempt++;
+
+                var probe = await RunSshCommandAsync(
+                    workspace,
+                    "cloud-init status --long 2>/dev/null || cloud-init status 2>/dev/null || true",
+                    ct);
+
+                if (!probe.Success)
+                {
+                    var probeMessage = probe.Message ?? string.Empty;
+                    if (IsTransientConnectionIssue(probeMessage))
+                    {
+                        lastTransient = probeMessage;
+                        if (attempt == 1 || attempt % 3 == 0)
+                        {
+                            ReportLog(progress, "cloud-init wait transient SSH loss, retrying...");
+                        }
+
+                        await Task.Delay(retryDelay, ct);
+                        continue;
+                    }
+
+                    return (false, $"cloud-init status probe failed: {probe.Message}");
+                }
+
+                var text = (probe.Message ?? string.Empty).Trim();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    lastStatus = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
+                }
+
+                if (text.Contains("status: done", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, "cloud-init final stage completed.");
+                }
+
+                if (text.Contains("running", StringComparison.OrdinalIgnoreCase)
+                    || text.Contains("not run", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (attempt == 1 || attempt % 4 == 0)
+                    {
+                        ReportLog(progress, $"cloud-init status: {lastStatus}");
+                    }
+
+                    await Task.Delay(retryDelay, ct);
+                    continue;
+                }
+
+                return (true, "cloud-init status probe completed.");
             }
 
-            return (true, "cloud-init status probe completed.");
+            var timeoutMessage = $"cloud-init wait timed out after {(int)timeout.TotalSeconds}s";
+            ReportLog(progress, timeoutMessage);
+            if (!string.IsNullOrWhiteSpace(lastTransient))
+            {
+                return (false, $"{timeoutMessage}. Last transient SSH error: {lastTransient}");
+            }
+
+            return (false, $"{timeoutMessage}. Last status: {lastStatus}");
         }
 
         private async Task<(bool Success, string Message)> WaitForSshReadyAsync(Workspace workspace, CancellationToken ct)

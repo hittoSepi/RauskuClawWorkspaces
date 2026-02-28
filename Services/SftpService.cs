@@ -16,6 +16,12 @@ namespace RauskuClaw.Services
         private SftpClient? _client;
         private readonly SemaphoreSlim _gate = new(1, 1);
 
+        // Stored connection info for auto-reconnect
+        private string? _host;
+        private int _port;
+        private string? _username;
+        private string? _privateKeyPath;
+
         public bool IsConnected => _client?.IsConnected == true;
 
         public SftpService(ISshConnectionFactory? sshConnectionFactory = null)
@@ -32,6 +38,11 @@ namespace RauskuClaw.Services
                 try
                 {
                     _client = client;
+                    // Store connection info for auto-reconnect
+                    _host = host;
+                    _port = port;
+                    _username = username;
+                    _privateKeyPath = privateKeyPath;
                 }
                 catch
                 {
@@ -241,10 +252,27 @@ namespace RauskuClaw.Services
 
         private void EnsureConnected()
         {
-            if (_client == null || !_client.IsConnected)
+            if (_client != null && _client.IsConnected)
             {
-                throw new InvalidOperationException("SFTP is not connected.");
+                return;
             }
+
+            // Try auto-reconnect if we have stored connection info
+            if (!string.IsNullOrEmpty(_host) && !string.IsNullOrEmpty(_username) && !string.IsNullOrEmpty(_privateKeyPath))
+            {
+                try
+                {
+                    _client?.Dispose();
+                    _client = _sshConnectionFactory.ConnectSftpClient(_host, _port, _username, _privateKeyPath);
+                    return;
+                }
+                catch
+                {
+                    // Auto-reconnect failed, fall through to throw
+                }
+            }
+
+            throw new InvalidOperationException("SFTP is not connected.");
         }
 
         private async Task ExecuteAsync(Action action)

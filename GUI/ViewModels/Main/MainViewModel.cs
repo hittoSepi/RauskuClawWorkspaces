@@ -51,13 +51,10 @@ namespace RauskuClaw.GUI.ViewModels
         private readonly WorkspacePathPolicy _workspacePathPolicy;
         private readonly ISshConnectionFactory _sshConnectionFactory;
         private readonly VmProcessRegistry _vmProcessRegistry;
+        private readonly IWorkspacePortManager _portManager;
         private readonly RauskuClaw.Models.Settings _appSettings;
         private readonly Dictionary<string, Process> _workspaceProcesses = new();
         private readonly Dictionary<string, bool> _workspaceBootSignals = new();
-        private readonly object _startPortReservationLock = new();
-        private readonly HashSet<int> _activeStartPortReservations = new();
-        private readonly HashSet<string> _activeWorkspaceStarts = new();
-        private readonly Dictionary<string, HashSet<int>> _workspaceStartPortReservations = new();
         private readonly Dictionary<string, CancellationTokenSource> _workspaceStartCancellationSources = new();
         private readonly VmResourceStatsCache _resourceStatsCache;
         private bool _isVmStopping;
@@ -98,7 +95,8 @@ namespace RauskuClaw.GUI.ViewModels
             workspacePathPolicy: null,
             sshConnectionFactory: null,
             vmProcessRegistry: null,
-            resourceStatsCache: null)
+            resourceStatsCache: null,
+            portManager: null)
         {
         }
 
@@ -115,7 +113,8 @@ namespace RauskuClaw.GUI.ViewModels
             WorkspacePathPolicy? workspacePathPolicy = null,
             ISshConnectionFactory? sshConnectionFactory = null,
             VmProcessRegistry? vmProcessRegistry = null,
-            VmResourceStatsCache? resourceStatsCache = null)
+            VmResourceStatsCache? resourceStatsCache = null,
+            IWorkspacePortManager? portManager = null)
         {
             _pathResolver = pathResolver ?? new AppPathResolver();
             _settingsService = settingsService ?? new SettingsService(pathResolver: _pathResolver);
@@ -131,6 +130,7 @@ namespace RauskuClaw.GUI.ViewModels
             _sshConnectionFactory = sshConnectionFactory ?? new SshConnectionFactory(new KnownHostStore(_pathResolver));
             _vmProcessRegistry = vmProcessRegistry ?? new VmProcessRegistry(_pathResolver);
             _resourceStatsCache = resourceStatsCache ?? new VmResourceStatsCache(TimeSpan.FromSeconds(1));
+            _portManager = portManager ?? new WorkspacePortManager();
 
             _workspaces = new ObservableCollection<Workspace>(_workspaceService.LoadWorkspaces());
             _workspaces.CollectionChanged += OnWorkspacesCollectionChanged;
@@ -600,15 +600,12 @@ namespace RauskuClaw.GUI.ViewModels
                 return false;
             }
 
-            lock (_startPortReservationLock)
-            {
-                return !_activeWorkspaceStarts.Contains(workspace.Id);
-            }
+            return !_portManager.IsWorkspaceStartInProgress(workspace.Id);
         }
 
         private CancellationToken RegisterWorkspaceStartCancellation(string workspaceId)
         {
-            lock (_startPortReservationLock)
+            lock (_workspaceStartCancellationSources)
             {
                 if (_workspaceStartCancellationSources.TryGetValue(workspaceId, out var existing))
                 {
@@ -623,7 +620,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void CancelWorkspaceStartCancellation(string workspaceId)
         {
-            lock (_startPortReservationLock)
+            lock (_workspaceStartCancellationSources)
             {
                 if (_workspaceStartCancellationSources.TryGetValue(workspaceId, out var cts))
                 {
@@ -641,7 +638,7 @@ namespace RauskuClaw.GUI.ViewModels
 
         private void CompleteWorkspaceStartCancellation(string workspaceId)
         {
-            lock (_startPortReservationLock)
+            lock (_workspaceStartCancellationSources)
             {
                 if (_workspaceStartCancellationSources.TryGetValue(workspaceId, out var cts))
                 {
@@ -649,6 +646,45 @@ namespace RauskuClaw.GUI.ViewModels
                     cts.Dispose();
                 }
             }
+        }
+
+        internal async Task<bool> CancelAndDrainWorkspaceStartAsync(string workspaceId, TimeSpan timeout)
+        {
+            CancelWorkspaceStartCancellation(workspaceId);
+            AppendLog("Startup cancellation requested before restart");
+            return await WaitForWorkspaceStartToDrainAsync(workspaceId, timeout);
+        }
+
+        internal async Task<bool> WaitForWorkspaceStartToDrainAsync(string workspaceId, TimeSpan timeout, TimeSpan? pollInterval = null)
+        {
+            if (!_portManager.IsWorkspaceStartInProgress(workspaceId))
+            {
+                return true;
+            }
+
+            var effectiveTimeout = timeout > TimeSpan.Zero ? timeout : TimeSpan.FromMilliseconds(1);
+            var interval = pollInterval.GetValueOrDefault(TimeSpan.FromMilliseconds(250));
+            if (interval <= TimeSpan.Zero)
+            {
+                interval = TimeSpan.FromMilliseconds(100);
+            }
+
+            var timeoutSeconds = Math.Max(1, (int)Math.Ceiling(effectiveTimeout.TotalSeconds));
+            AppendLog($"Workspace start is still in progress for '{workspaceId}'. Waiting up to {timeoutSeconds}s before restart.");
+
+            var deadline = DateTime.UtcNow + effectiveTimeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(interval);
+                if (!_portManager.IsWorkspaceStartInProgress(workspaceId))
+                {
+                    AppendLog($"Previous startup flow drained for workspace '{workspaceId}'.");
+                    return true;
+                }
+            }
+
+            AppendLog($"Startup drain wait timed out after {timeoutSeconds}s for workspace '{workspaceId}'.");
+            return false;
         }
 
 
@@ -1176,7 +1212,7 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Delay(300);
                 progressWindow.AllowClose();
                 progressWindow.Close();
-                ReleaseWorkspaceStartPortReservations(workspace.Id);
+                _portManager.ReleaseWorkspaceStartPortReservations(workspace.Id);
                 _isVmStopping = false;
                 CommandManager.InvalidateRequerySuggested();
 
@@ -1206,6 +1242,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             try
             {
+                await CancelAndDrainWorkspaceStartAsync(workspace.Id, TimeSpan.FromSeconds(20));
                 var stopped = await StopWorkspaceInternalAsync(workspace, progressWindow, showStopFailedDialog: false);
                 if (!stopped)
                 {
@@ -1348,11 +1385,18 @@ namespace RauskuClaw.GUI.ViewModels
                 {
                     var progress = new Progress<string>(message => AppendLog(message));
                     var startToken = RegisterWorkspaceStartCancellation(workspace.Id);
-                    await _startupOrchestrator.StartWorkspaceAsync(
-                        workspace,
-                        progress,
-                        startToken,
-                        StartWorkspaceInternalAsync);
+                    try
+                    {
+                        await _startupOrchestrator.StartWorkspaceAsync(
+                            workspace,
+                            progress,
+                            startToken,
+                            StartWorkspaceInternalAsync);
+                    }
+                    finally
+                    {
+                        CompleteWorkspaceStartCancellation(workspace.Id);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1387,14 +1431,11 @@ namespace RauskuClaw.GUI.ViewModels
                 return (true, message);
             }
 
-            lock (_startPortReservationLock)
-            {
-                _activeWorkspaceStarts.Add(workspace.Id);
-            }
+            _portManager.RegisterActiveWorkspaceStart(workspace.Id);
 
             try
             {
-                var portPreflight = EnsureStartPortsReady(workspace, progress);
+                var portPreflight = _portManager.EnsureStartPortsReady(workspace, progress);
                 if (!portPreflight.Success)
                 {
                     ReportStage(progress, "qemu", "failed", portPreflight.Message);
@@ -1427,7 +1468,7 @@ namespace RauskuClaw.GUI.ViewModels
                     return FailWithReason("storage_ro", fail);
                 }
 
-                if (!TryReserveStartPorts(workspace, out reservedStartPorts, out var reserveError))
+                if (!_portManager.TryReserveStartPorts(workspace, out reservedStartPorts, out var reserveError))
                 {
                     ReportStage(progress, "qemu", "failed", reserveError);
                     workspace.Status = VmStatus.Error;
@@ -1446,7 +1487,7 @@ namespace RauskuClaw.GUI.ViewModels
                     var firstExitCode = process.ExitCode;
                     process.Dispose();
 
-                    var uiV2Retry = TryReassignUiV2PortForRetry(workspace, progress, $"QEMU exited early with code {firstExitCode}");
+                    var uiV2Retry = _portManager.TryReassignUiV2PortForRetry(workspace, progress, $"QEMU exited early with code {firstExitCode}");
                     if (!uiV2Retry.Success)
                     {
                         var fail = $"QEMU exited immediately (exit {firstExitCode}). {uiV2Retry.Message}";
@@ -1456,10 +1497,10 @@ namespace RauskuClaw.GUI.ViewModels
                         return FailWithReason("ssh_unstable", fail);
                     }
 
-                    ReleaseReservedStartPorts(reservedStartPorts);
+                    _portManager.ReleaseReservedStartPorts(reservedStartPorts);
                     reservedStartPorts = null;
 
-                    var retryPreflight = EnsureStartPortsReady(workspace, progress);
+                    var retryPreflight = _portManager.EnsureStartPortsReady(workspace, progress);
                     if (!retryPreflight.Success)
                     {
                         ReportStage(progress, "qemu", "failed", retryPreflight.Message);
@@ -1468,7 +1509,7 @@ namespace RauskuClaw.GUI.ViewModels
                         return FailWithReason("port_conflict", retryPreflight.Message);
                     }
 
-                    if (!TryReserveStartPorts(workspace, out reservedStartPorts, out reserveError))
+                    if (!_portManager.TryReserveStartPorts(workspace, out reservedStartPorts, out reserveError))
                     {
                         ReportStage(progress, "qemu", "failed", reserveError);
                         workspace.Status = VmStatus.Error;
@@ -1766,16 +1807,8 @@ namespace RauskuClaw.GUI.ViewModels
                     serialDiagCts.Dispose();
                 }
 
-                ReleaseReservedStartPorts(reservedStartPorts);
-                lock (_startPortReservationLock)
-                {
-                    _activeWorkspaceStarts.Remove(workspace.Id);
-                    if (_activeWorkspaceStarts.Count == 0 && _activeStartPortReservations.Count > 0)
-                    {
-                        _activeStartPortReservations.Clear();
-                        _workspaceStartPortReservations.Clear();
-                    }
-                }
+                _portManager.ReleaseReservedStartPorts(reservedStartPorts);
+                _portManager.CompleteActiveWorkspaceStart(workspace.Id);
                 _workspaceBootSignals[workspace.Id] = bootSignalSeen;
             }
         }
@@ -1993,7 +2026,7 @@ namespace RauskuClaw.GUI.ViewModels
                 workspace.Status = VmStatus.Stopped;
                 AppendLog("VM stopped");
                 progressWindow?.UpdateStatus("VM stopped.");
-                ReleaseWorkspaceStartPortReservations(workspace.Id);
+                _portManager.ReleaseWorkspaceStartPortReservations(workspace.Id);
 
                 _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
                 _serialConsole?.Disconnect();
@@ -2014,7 +2047,7 @@ namespace RauskuClaw.GUI.ViewModels
                     workspace.Status = VmStatus.Stopped;
                     AppendLog("VM force-stopped via tracked process kill.");
                     progressWindow?.UpdateStatus("VM force-stopped.");
-                    ReleaseWorkspaceStartPortReservations(workspace.Id);
+                    _portManager.ReleaseWorkspaceStartPortReservations(workspace.Id);
                     _workspaceService.SaveWorkspaces(new System.Collections.Generic.List<Workspace>(_workspaces));
                     _serialConsole?.Disconnect();
                     _sshTerminal?.Disconnect();
@@ -2070,7 +2103,7 @@ namespace RauskuClaw.GUI.ViewModels
             _inlineNoticeCts?.Cancel();
             _inlineNoticeCts?.Dispose();
             _inlineNoticeCts = null;
-            lock (_startPortReservationLock)
+            lock (_workspaceStartCancellationSources)
             {
                 foreach (var cts in _workspaceStartCancellationSources.Values)
                 {
@@ -2382,7 +2415,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 if (!workspace.IsRunning
                     && IsWorkspaceProcessConfirmedStopped(workspace)
-                    && !HasAnyOpenWorkspacePort(workspace))
+                    && !_portManager.HasAnyOpenWorkspacePort(workspace))
                 {
                     return true;
                 }
@@ -2392,7 +2425,7 @@ namespace RauskuClaw.GUI.ViewModels
 
             return !workspace.IsRunning
                 && IsWorkspaceProcessConfirmedStopped(workspace)
-                && !HasAnyOpenWorkspacePort(workspace);
+                && !_portManager.HasAnyOpenWorkspacePort(workspace);
         }
 
         private async Task ContinueStopVerificationAsync(Workspace workspace, TimeSpan timeout)
@@ -2431,66 +2464,6 @@ namespace RauskuClaw.GUI.ViewModels
             catch
             {
                 return true;
-            }
-        }
-
-        private void ReleaseWorkspaceStartPortReservations(string workspaceId)
-        {
-            if (string.IsNullOrWhiteSpace(workspaceId))
-            {
-                return;
-            }
-
-            lock (_startPortReservationLock)
-            {
-                if (!_workspaceStartPortReservations.TryGetValue(workspaceId, out var reserved))
-                {
-                    return;
-                }
-
-                foreach (var port in reserved)
-                {
-                    _activeStartPortReservations.Remove(port);
-                }
-
-                _workspaceStartPortReservations.Remove(workspaceId);
-            }
-        }
-
-        private static bool HasAnyOpenWorkspacePort(Workspace workspace)
-        {
-            var listeners = GetActiveTcpListenerPorts();
-            foreach (var (_, port) in GetWorkspaceHostPorts(workspace))
-            {
-                if (port <= 0 || port > 65535)
-                {
-                    continue;
-                }
-
-                // Port is still considered in use if the OS reports a listener,
-                // or if a quick bind-probe fails.
-                if (listeners.Contains(port) || !IsPortAvailable(port))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static HashSet<int> GetActiveTcpListenerPorts()
-        {
-            try
-            {
-                var props = IPGlobalProperties.GetIPGlobalProperties();
-                return props.GetActiveTcpListeners()
-                    .Select(ep => ep.Port)
-                    .Where(port => port is > 0 and <= 65535)
-                    .ToHashSet();
-            }
-            catch
-            {
-                return new HashSet<int>();
             }
         }
 

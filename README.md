@@ -49,6 +49,9 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- VM restart path now explicitly cancels any in-flight workspace startup and waits for startup-drain (up to 20s) before executing stop/start, preventing overlapping startup/restart race flows.
+- Cloud-init finalization wait now retries transient SSH losses instead of failing on first `ConnectionRefused`, and logs clear timeout diagnostics (`cloud-init wait timed out after ...`).
+- Auto-start startup-token lifecycle was hardened with guaranteed cleanup (`try/finally`) to avoid stale per-workspace start cancellation sources.
 - Workspace list status indicator was moved onto the workspace icon corner (slightly larger), so VM status remains visible also in collapsed sidebar mode.
 - Sidebar logo column alignment was finalized by locking the header logo container to a fixed left offset (`16px`) that matches sidebar button column alignment in both expanded and collapsed states.
 - Sidebar logo alignment was further refined in collapsed mode using image-level margin trigger so the logo lines up with the sidebar 40px button column.
