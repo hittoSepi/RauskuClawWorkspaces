@@ -232,6 +232,7 @@
                             <Setter Property="Background" Value="Transparent"/>
                             <Setter Property="BorderBrush" Value="Transparent"/>
                             <Setter Property="Padding" Value="0"/>
+                            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="WorkspaceListItem_OnPreviewMouseLeftButtonUp"/>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter Property="Background" Value="#2A3240"/>
@@ -436,7 +437,7 @@
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             HorizontalContentAlignment="Stretch"
-                            Visibility="{Binding IsWorkspaceViewsSection, Converter={StaticResource BoolToVisibilityConverter}}">
+                            Visibility="{Binding ShowWorkspaceTabControl, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TabItem Style="{StaticResource WorkspaceTabItemStyle}">
                         <TabItem.Header>
                             <Grid HorizontalAlignment="Center">
@@ -592,6 +593,45 @@
                                  VerticalScrollBarVisibility="Auto"/>
                     </TabItem>
                 </TabControl>
+
+                <ContentControl Content="{Binding WorkspaceSettings}"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                Visibility="{Binding ShowWorkspaceSettingsWhileStopped, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <views:WorkspaceSettings/>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+
+                <Border Background="#05070C"
+                        Visibility="{Binding IsWorkspaceStoppedOverlayVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid>
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="WORKSPACE IS STOPPED"
+                                       Foreground="#D6D9DF"
+                                       FontSize="56"
+                                       FontWeight="Light"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,28"/>
+                            <Button Command="{Binding StartVmCommand}"
+                                    Style="{StaticResource GreenIconButton}"
+                                    Tag="Play"
+                                    Content="Start"
+                                    Padding="28,16"
+                                    FontSize="28"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,0,0,16"/>
+                            <Button Command="{Binding OpenWorkspaceSettingsTabCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Content="Open Workspace Settings"
+                                    HorizontalAlignment="Center"
+                                    Padding="14,6"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
                 <ContentControl Content="{Binding Settings}"
                                 HorizontalAlignment="Stretch"

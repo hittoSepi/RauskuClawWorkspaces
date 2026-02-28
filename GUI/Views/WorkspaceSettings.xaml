@@ -143,8 +143,7 @@
                                           ItemsSource="{Binding DefaultMemoryOptions}"
                                           SelectedItem="{Binding DefaultMemoryMb, UpdateSourceTrigger=PropertyChanged}"
                                           IsEditable="True"
-                                          Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
-                                          Padding="8,4" VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                             </Grid>
 
                             <Grid Margin="0,0,0,12">
@@ -157,8 +156,7 @@
                                 <ComboBox Grid.Column="1"
                                           ItemsSource="{Binding DefaultCpuCoreOptions}"
                                           SelectedItem="{Binding DefaultCpuCores, UpdateSourceTrigger=PropertyChanged}"
-                                          Background="#0A0C0E" Foreground="#E6EAF2" BorderBrush="#2A3240"
-                                          Padding="8,4" VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                             </Grid>
 
                             <Grid Margin="0,0,0,12">

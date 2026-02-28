@@ -1,4 +1,4 @@
-# Task Index (001-040)
+# Task Index (001-045)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -42,3 +42,8 @@
 | 038 | Completed | Workspace single resource usage moved to header text line; duplicate panel removed | [038-workspace-resource-usage-header-line.md](038-workspace-resource-usage-header-line.md) |
 | 039 | Completed | Workspace header metrics moved to name/status right side to reduce header height | [039-workspace-header-metrics-right-align.md](039-workspace-header-metrics-right-align.md) |
 | 040 | Completed | Sidebar workspace click now opens Workspace Views automatically | [040-sidebar-workspace-click-opens-views.md](040-sidebar-workspace-click-opens-views.md) |
+| 041 | Completed | Web UI tab stopped-state now shows centered CTA view with direct Start action | [041-webui-stopped-state-cta.md](041-webui-stopped-state-cta.md) |
+| 042 | Completed | Global VM-stopped overlay hides workspace tab headers, with Settings link and no overlay in Workspace Settings tab | [042-global-stopped-overlay-and-settings-link.md](042-global-stopped-overlay-and-settings-link.md) |
+| 043 | Completed | ComboBox/dropdown visuals unified to one global style; per-view ComboBox style overrides removed | [043-global-combobox-style-unification.md](043-global-combobox-style-unification.md) |
+| 044 | Completed | Global ComboBox template now matches text-input dark theme for closed, editable, and dropdown states | [044-combobox-readability-theme-parity.md](044-combobox-readability-theme-parity.md) |
+| 045 | Completed | Sidebar workspace card click now always opens Workspace Views even when same workspace is already selected | [045-sidebar-click-always-opens-workspace-views.md](045-sidebar-click-always-opens-workspace-views.md) |

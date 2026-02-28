@@ -49,6 +49,11 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Sidebar workspace card click now always opens `Workspace Views` even when the clicked workspace was already selected (not only on selection-change).
+- Global ComboBox template was upgraded for readability parity with text inputs: closed field, editable field, and dropdown items now use the same dark theme and contrast profile.
+- ComboBox/dropdown styling was unified to a single global app style: removed per-view inline ComboBox visual overrides and dropped an unused view-specific ComboBox style.
+- VM-stopped empty state is now shown globally in Workspace Views: tab headers/content are hidden while VM is down, a centered `Start` CTA is shown, and a direct link opens `Workspace Settings` (shown without overlay).
+- Web UI tab now shows a centered `WORKSPACE IS STOPPED` empty-state view with a direct `Start` action when VM is not running.
 - Sidebar workspace selection now auto-navigates to `Workspace Views` when a workspace is clicked from the left list.
 - Workspace header resource metrics (CPU/RAM/Disk) were moved to the right side of workspace name/status area to reduce header vertical height.
 - Workspace Views single-VM resource usage card was removed; CPU/RAM/Disk usage is now shown as a compact text line in the workspace header/status area.

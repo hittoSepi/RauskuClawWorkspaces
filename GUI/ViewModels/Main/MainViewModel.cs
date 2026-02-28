@@ -160,6 +160,7 @@ namespace RauskuClaw.GUI.ViewModels
             ShowTemplatesCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.TemplateManagement);
             ShowGeneralSettingsCommand = new RelayCommand(() => SelectedMainSection = MainContentSection.Settings);
             ShowSecretsSettingsCommand = new RelayCommand(NavigateToSecretsSettings);
+            OpenWorkspaceSettingsTabCommand = new RelayCommand(OpenWorkspaceSettingsTab, () => SelectedWorkspace != null);
             OpenWorkspaceFromHomeCommand = new RelayCommand<Workspace>(OpenWorkspaceFromHome, ws => ws != null);
             OpenRecentWorkspaceCommand = new RelayCommand(OpenRecentWorkspace, () => RecentWorkspaces.Any());
             StartWorkspaceFromHomeCommand = new RelayCommand<Workspace>(StartWorkspaceFromHome, ws => CanStartWorkspace(ws));
@@ -211,6 +212,10 @@ namespace RauskuClaw.GUI.ViewModels
                 if (_holviViewModel != null) _holviViewModel.Workspace = value;
                 if (_workspaceSettingsViewModel != null) _workspaceSettingsViewModel.SetSelectedWorkspace(value);
                 CommandManager.InvalidateRequerySuggested();
+                OnPropertyChanged(nameof(IsWorkspaceVmStopped));
+                OnPropertyChanged(nameof(ShowWorkspaceTabControl));
+                OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
+                OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
             }
         }
 
@@ -383,6 +388,9 @@ namespace RauskuClaw.GUI.ViewModels
                 OnPropertyChanged(nameof(IsTemplateSection));
                 OnPropertyChanged(nameof(IsSettingsSection));
                 OnPropertyChanged(nameof(IsWorkspaceSettingsSection));
+                OnPropertyChanged(nameof(ShowWorkspaceTabControl));
+                OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
+                OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
             }
         }
 
@@ -391,6 +399,10 @@ namespace RauskuClaw.GUI.ViewModels
         public bool IsTemplateSection => SelectedMainSection == MainContentSection.TemplateManagement;
         public bool IsSettingsSection => SelectedMainSection == MainContentSection.Settings;
         public bool IsWorkspaceSettingsSection => SelectedMainSection == MainContentSection.WorkspaceSettings;
+        public bool IsWorkspaceVmStopped => SelectedWorkspace != null && !SelectedWorkspace.IsRunning;
+        public bool ShowWorkspaceTabControl => IsWorkspaceViewsSection && !IsWorkspaceVmStopped;
+        public bool IsWorkspaceStoppedOverlayVisible => IsWorkspaceViewsSection && IsWorkspaceVmStopped && SelectedWorkspaceTabIndex != WorkspaceSettingsTabIndex;
+        public bool ShowWorkspaceSettingsWhileStopped => IsWorkspaceViewsSection && IsWorkspaceVmStopped && SelectedWorkspaceTabIndex == WorkspaceSettingsTabIndex;
 
         public IEnumerable<Workspace> RecentWorkspaces => _workspaces
             .OrderByDescending(w => w.LastRun ?? w.CreatedAt)
@@ -498,6 +510,9 @@ namespace RauskuClaw.GUI.ViewModels
 
                 _selectedWorkspaceTabIndex = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowWorkspaceTabControl));
+                OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
+                OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
             }
         }
 
@@ -527,6 +542,7 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand ShowTemplatesCommand { get; }
         public ICommand ShowGeneralSettingsCommand { get; }
         public ICommand ShowSecretsSettingsCommand { get; }
+        public ICommand OpenWorkspaceSettingsTabCommand { get; }
         public ICommand OpenWorkspaceFromHomeCommand { get; }
         public ICommand OpenRecentWorkspaceCommand { get; }
         public ICommand StartWorkspaceFromHomeCommand { get; }
@@ -606,6 +622,17 @@ namespace RauskuClaw.GUI.ViewModels
                 await Task.Delay(300);
                 Application.Current?.Dispatcher.Invoke(() => FocusSecretsSection = false);
             });
+        }
+
+        private void OpenWorkspaceSettingsTab()
+        {
+            if (SelectedWorkspace == null)
+            {
+                return;
+            }
+
+            SelectedMainSection = MainContentSection.WorkspaceTabs;
+            SelectedWorkspaceTabIndex = WorkspaceSettingsTabIndex;
         }
 
         private void OpenWorkspaceFromHome(Workspace? workspace)
@@ -2193,6 +2220,10 @@ namespace RauskuClaw.GUI.ViewModels
                 }
                 _resourceStatsCache.RefreshNow();
                 CommandManager.InvalidateRequerySuggested();
+                OnPropertyChanged(nameof(IsWorkspaceVmStopped));
+                OnPropertyChanged(nameof(ShowWorkspaceTabControl));
+                OnPropertyChanged(nameof(IsWorkspaceStoppedOverlayVisible));
+                OnPropertyChanged(nameof(ShowWorkspaceSettingsWhileStopped));
             }
         }
 

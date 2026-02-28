@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using RauskuClaw.Models;
 using RauskuClaw.GUI.ViewModels;
 using RauskuClaw.Services;
 
@@ -126,6 +127,26 @@ namespace RauskuClaw.GUI.Views
             {
                 _mainViewModel.SelectedMainSection = MainViewModel.MainContentSection.WorkspaceTabs;
             }
+        }
+
+        private void WorkspaceListItem_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_mainViewModel == null)
+            {
+                return;
+            }
+
+            if (sender is not ListBoxItem item || item.DataContext is not Workspace workspace)
+            {
+                return;
+            }
+
+            if (!ReferenceEquals(_mainViewModel.SelectedWorkspace, workspace))
+            {
+                _mainViewModel.SelectedWorkspace = workspace;
+            }
+
+            _mainViewModel.SelectedMainSection = MainViewModel.MainContentSection.WorkspaceTabs;
         }
     }
 }
