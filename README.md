@@ -48,6 +48,7 @@ Build: Success (`0 warnings`, `0 errors`).
 - Startup orchestration now uses explicit reason codes for failure paths, improving diagnostics and retry decisions.
 
 ### Recent changes (from latest commits)
+- Home welcome page redesigned to a denser VS Code-inspired centered layout with quick actions and integrated `rausku-avatar.png` hero card.
 - Added startup Home page with recent workspace cards (Open via title + Start/Stop/Restart actions) and a persisted startup visibility toggle.
 - Main window minimum size updated to `1920x1080` to improve default layout usability on larger screens.
 - Security hardening wave 1: path policy, SSH host key TOFU, secret resilience, and startup reason-code diagnostics.

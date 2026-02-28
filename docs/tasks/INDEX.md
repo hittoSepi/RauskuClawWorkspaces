@@ -1,4 +1,4 @@
-# Task Index (001-026)
+# Task Index (001-027)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -28,3 +28,4 @@
 | 024 | Completed | Refaktoripohja ja arkkitehtuurin pilkkominen koottu | [024-arkkitehtuuri-ja-refaktoripohja.md](024-arkkitehtuuri-ja-refaktoripohja.md) |
 | 025 | Completed | Uusimmat hardening + docs round-up | [025-uusimmat-kovennukset-ja-dokumentointikierros.md](025-uusimmat-kovennukset-ja-dokumentointikierros.md) |
 | 026 | Completed | Home-aloitussivu, startup-asetus ja workspace-korttien quick actions koottu | [026-home-start-page-and-workspace-cards.md](026-home-start-page-and-workspace-cards.md) |
+| 027 | Completed | Home welcome redesign VS Code -henkisesti + avatar hero -integraatio | [027-home-welcome-redesign-and-avatar.md](027-home-welcome-redesign-and-avatar.md) |
