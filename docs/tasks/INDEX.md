@@ -1,4 +1,4 @@
-# Task Index (001-031)
+# Task Index (001-033)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -33,3 +33,5 @@
 | 029 | Completed | VM resource usage UserControl (aggregate + selected scope, CPU/RAM/disk metrics) | [029-vm-resource-usage-usercontrol.md](029-vm-resource-usage-usercontrol.md) |
 | 030 | Completed | VM resource stats centralized 1s cache for shared multi-panel usage | [030-vm-resource-stats-central-cache.md](030-vm-resource-stats-central-cache.md) |
 | 031 | Completed | Stop/start/restart polkujen async hardening + Docker SSH abort -käsittely | [031-stop-path-ssh-abort-hardening.md](031-stop-path-ssh-abort-hardening.md) |
+| 032 | Completed | SSH/SFTP connect retry + backoff fast stop/start transient connection refused -tiloihin | [032-ssh-connect-retry-on-fast-restart.md](032-ssh-connect-retry-on-fast-restart.md) |
+| 033 | Completed | Workspace start disabled while stop verification is pending | [033-stop-verification-and-start-disable-guard.md](033-stop-verification-and-start-disable-guard.md) |

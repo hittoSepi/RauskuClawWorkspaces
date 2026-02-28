@@ -989,22 +989,34 @@ namespace RauskuClaw.GUI.ViewModels
             if (SelectedWorkspace == null || SelectedWorkspace.Ports == null) return;
             if (_isVmStopping) return;
 
+            var workspace = SelectedWorkspace;
             _isVmStopping = true;
+            workspace.IsStopVerificationPending = true;
             CommandManager.InvalidateRequerySuggested();
 
-            var progressWindow = new VmActionProgressWindow("Stopping Workspace", $"Stopping '{SelectedWorkspace.Name}'...");
+            var progressWindow = new VmActionProgressWindow("Stopping Workspace", $"Stopping '{workspace.Name}'...");
             progressWindow.Owner = Application.Current?.MainWindow;
             progressWindow.Show();
 
             try
             {
-                await StopWorkspaceInternalAsync(SelectedWorkspace, progressWindow, showStopFailedDialog: true);
+                var stopped = await StopWorkspaceInternalAsync(workspace, progressWindow, showStopFailedDialog: true);
+                if (stopped)
+                {
+                    progressWindow.UpdateStatus("Verifying shutdown...");
+                    var verified = await VerifyWorkspaceShutdownAsync(workspace, timeout: TimeSpan.FromSeconds(8));
+                    if (!verified)
+                    {
+                        AppendLog($"Shutdown verification timed out for '{workspace.Name}'. Some ports may still be closing.");
+                    }
+                }
             }
             finally
             {
                 await Task.Delay(300);
                 progressWindow.AllowClose();
                 progressWindow.Close();
+                workspace.IsStopVerificationPending = false;
                 _isVmStopping = false;
                 CommandManager.InvalidateRequerySuggested();
             }
@@ -2049,7 +2061,9 @@ namespace RauskuClaw.GUI.ViewModels
                 AppendLog($"Workspace auto-start {(workspace.AutoStart ? "enabled" : "disabled")} for '{workspace.Name}'.");
             }
 
-            if (e.PropertyName == nameof(Workspace.IsRunning) || e.PropertyName == nameof(Workspace.Status))
+            if (e.PropertyName == nameof(Workspace.IsRunning)
+                || e.PropertyName == nameof(Workspace.Status)
+                || e.PropertyName == nameof(Workspace.IsStopVerificationPending))
             {
                 if (SelectedWorkspace != null)
                 {
@@ -2124,6 +2138,59 @@ namespace RauskuClaw.GUI.ViewModels
             try
             {
                 return !process.HasExited;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> VerifyWorkspaceShutdownAsync(Workspace workspace, TimeSpan timeout)
+        {
+            if (workspace.Ports == null)
+            {
+                return true;
+            }
+
+            var deadlineUtc = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadlineUtc)
+            {
+                if (!workspace.IsRunning && !HasAnyOpenWorkspacePort(workspace))
+                {
+                    return true;
+                }
+
+                await Task.Delay(220);
+            }
+
+            return !workspace.IsRunning && !HasAnyOpenWorkspacePort(workspace);
+        }
+
+        private static bool HasAnyOpenWorkspacePort(Workspace workspace)
+        {
+            foreach (var (_, port) in GetWorkspaceHostPorts(workspace))
+            {
+                if (port <= 0 || port > 65535)
+                {
+                    continue;
+                }
+
+                if (IsTcpPortOpen("127.0.0.1", port))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTcpPortOpen(string host, int port)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync(host, port);
+                return connectTask.Wait(TimeSpan.FromMilliseconds(120)) && client.Connected;
             }
             catch
             {

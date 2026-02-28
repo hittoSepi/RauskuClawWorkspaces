@@ -18,6 +18,7 @@ namespace RauskuClaw.Models
         private int _dockerContainerCount = -1;
         private bool _dockerAvailable;
         private bool _autoStart;
+        private bool _isStopVerificationPending;
         private double _runtimeCpuUsagePercent;
         private int _runtimeMemoryUsageMb;
         private double _runtimeDiskUsageMb;
@@ -82,6 +83,8 @@ namespace RauskuClaw.Models
                 }
 
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStart));
+                OnPropertyChanged(nameof(CanStop));
                 OnPropertyChanged(nameof(ApiUrl));
                 OnPropertyChanged(nameof(WebUiUrl));
                 OnPropertyChanged(nameof(SshUrl));
@@ -127,6 +130,22 @@ namespace RauskuClaw.Models
                 if (_autoStart == value) return;
                 _autoStart = value;
                 OnPropertyChanged();
+            }
+        }
+
+        public bool IsStopVerificationPending
+        {
+            get => _isStopVerificationPending;
+            set
+            {
+                if (_isStopVerificationPending == value)
+                {
+                    return;
+                }
+
+                _isStopVerificationPending = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStart));
             }
         }
 
@@ -261,7 +280,7 @@ namespace RauskuClaw.Models
             }
         }
 
-        public bool CanStart => !IsRunning;
+        public bool CanStart => !IsRunning && !IsStopVerificationPending;
         public bool CanStop => IsRunning;
 
         public event PropertyChangedEventHandler? PropertyChanged;

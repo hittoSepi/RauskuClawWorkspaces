@@ -1,4 +1,7 @@
 using System;
+using System.IO;
+using System.Net.Sockets;
+using System.Threading;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 
@@ -60,29 +63,105 @@ namespace RauskuClaw.Services
         private TClient ConnectClient<TClient>(TClient client, HostKeyValidationState validation)
             where TClient : BaseClient
         {
-            try
+            const int maxAttempts = 6;
+            var attempt = 0;
+            Exception? lastError = null;
+
+            while (attempt < maxAttempts)
             {
-                client.Connect();
-                return client;
-            }
-            catch (Exception ex)
-            {
+                attempt++;
                 try
                 {
-                    client.Dispose();
+                    client.Connect();
+                    return client;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Best-effort cleanup on connection failure.
-                }
+                    if (!string.IsNullOrWhiteSpace(validation.MismatchMessage))
+                    {
+                        try
+                        {
+                            client.Dispose();
+                        }
+                        catch
+                        {
+                            // Best-effort cleanup on connection failure.
+                        }
 
-                if (!string.IsNullOrWhiteSpace(validation.MismatchMessage))
-                {
-                    throw new SshHostKeyMismatchException(validation.MismatchMessage, ex);
-                }
+                        throw new SshHostKeyMismatchException(validation.MismatchMessage, ex);
+                    }
 
-                throw;
+                    if (attempt >= maxAttempts || !IsTransientConnectionFailure(ex))
+                    {
+                        try
+                        {
+                            client.Dispose();
+                        }
+                        catch
+                        {
+                            // Best-effort cleanup on connection failure.
+                        }
+
+                        throw;
+                    }
+
+                    lastError = ex;
+                    Thread.Sleep(GetRetryDelayMs(attempt));
+                }
             }
+
+            try
+            {
+                client.Dispose();
+            }
+            catch
+            {
+                // Best-effort cleanup on connection failure.
+            }
+
+            throw lastError ?? new InvalidOperationException($"SSH connect failed for {validation.Endpoint}.");
+        }
+
+        private static bool IsTransientConnectionFailure(Exception ex)
+        {
+            if (ex is SocketException socketEx)
+            {
+                return socketEx.SocketErrorCode is SocketError.ConnectionRefused
+                    or SocketError.ConnectionReset
+                    or SocketError.TimedOut
+                    or SocketError.HostDown
+                    or SocketError.HostUnreachable
+                    or SocketError.NetworkDown
+                    or SocketError.NetworkUnreachable;
+            }
+
+            if (ex is SshConnectionException)
+            {
+                return true;
+            }
+
+            if (ex is SshOperationTimeoutException
+                || ex is SshException
+                || ex is IOException
+                || ex is ObjectDisposedException)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static int GetRetryDelayMs(int attempt)
+        {
+            return attempt switch
+            {
+                1 => 120,
+                2 => 220,
+                3 => 360,
+                4 => 560,
+                5 => 820,
+                _ => 1100
+            };
         }
 
         private HostKeyValidationState AttachHostKeyValidation(BaseClient client, string host, int port)
