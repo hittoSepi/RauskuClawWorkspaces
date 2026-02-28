@@ -1,4 +1,4 @@
-# Task Index (001-016)
+# Task Index (001-025)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -18,3 +18,12 @@
 | 014 | Completed | None | [014-sftp-ux-and-hostpath.md](014-sftp-ux-and-hostpath.md) |
 | 015 | Completed | Hardening and regression verification tracked in 016 | [015-holvi-webview-tab-proposal.md](015-holvi-webview-tab-proposal.md) |
 | 016 | Completed | Hardening regression baseline verified with warning-free build gate | [016-hardening-and-regression-baseline.md](016-hardening-and-regression-baseline.md) |
+| 017 | Completed | Remaining backlog captured in task body | [017-task-status-reconciliation.md](017-task-status-reconciliation.md) |
+| 018 | Completed | None | [018-doc-and-governance-update.md](018-doc-and-governance-update.md) |
+| 019 | Completed | Wizard startup retry/recovery polut koottu | [019-vm-start-wizard-vakaus-ja-retry-polut.md](019-vm-start-wizard-vakaus-ja-retry-polut.md) |
+| 020 | Completed | Secrets + port allocator source-of-truth kuvattu | [020-secrets-asetukset-ja-porttiallokaatio.md](020-secrets-asetukset-ja-porttiallokaatio.md) |
+| 021 | Completed | Template CRUD/import/export/validointi koottu | [021-template-hallinta-ja-validointi.md](021-template-hallinta-ja-validointi.md) |
+| 022 | Completed | UI/UX ja navigaatiomuutokset koottu | [022-ui-ux-ja-navigaatio.md](022-ui-ux-ja-navigaatio.md) |
+| 023 | Completed | Testi/build-gate + docs baseline koottu | [023-testit-build-gate-ja-dokumentaation-baseline.md](023-testit-build-gate-ja-dokumentaation-baseline.md) |
+| 024 | Completed | Refaktoripohja ja arkkitehtuurin pilkkominen koottu | [024-arkkitehtuuri-ja-refaktoripohja.md](024-arkkitehtuuri-ja-refaktoripohja.md) |
+| 025 | Completed | Uusimmat hardening + docs round-up | [025-uusimmat-kovennukset-ja-dokumentointikierros.md](025-uusimmat-kovennukset-ja-dokumentointikierros.md) |
