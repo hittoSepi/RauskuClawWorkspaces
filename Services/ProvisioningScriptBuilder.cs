@@ -233,6 +233,11 @@ runcmd:
       local env_file=""$1""
       local key=""$2""
       local value=""$3""
+      echo ""DEBUG: set_env_var key=$key in $env_file""
+      if [ ! -f ""$env_file"" ]; then
+        echo ""ERROR: env file does not exist: $env_file"" >&2
+        return 1
+      fi
       if grep -Eq ""^${{key}}="" ""$env_file""; then
         sed -i ""s|^${{key}}=.*|${{key}}=${{value}}|"" ""$env_file""
       else
@@ -249,7 +254,9 @@ runcmd:
         return
       fi
 
-      grep -E ""^${{key}}="" ""$env_file"" 2>/dev/null | tail -n 1 | cut -d= -f2- | xargs
+      local result
+      result=""$(grep -E ""^${{key}}="" ""$env_file"" 2>/dev/null | tail -n 1 | cut -d= -f2- || true)""
+      echo ""$result""
     }}
 
     is_placeholder_value() {{
@@ -331,9 +338,12 @@ runcmd:
       local env_file=""$HOLVI_DIR/.env""
       local key=""$1""
       local strategy=""$2""
+      echo ""DEBUG: ensure_holvi_required_env key=$key strategy=$strategy""
       local current
       current=""$(read_env_var ""$env_file"" ""$key"")""
+      echo ""DEBUG: current value for $key: '$current'""
       if ! is_placeholder_value ""$current""; then
+        echo ""DEBUG: $key has non-placeholder value, skipping""
         return
       fi
 
