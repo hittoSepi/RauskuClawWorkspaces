@@ -681,7 +681,7 @@ namespace RauskuClaw.Services
                 // Check service state
                 var probe = await _workspaceSshCommandService.RunSshCommandAsync(
                     workspace,
-                    $"systemctl is-active '{serviceName}' 2>/dev/null || echo inactive",
+                    $"systemctl is-active '{serviceName}' 2>/dev/null || true",
                     ct);
 
                 var state = (probe.Message ?? string.Empty).Trim();
