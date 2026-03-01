@@ -63,69 +63,46 @@ namespace RauskuClaw.Services
         private TClient ConnectClient<TClient>(TClient client, HostKeyValidationState validation)
             where TClient : BaseClient
         {
-            const int maxAttempts = 6;
-            var attempt = 0;
-            Exception? lastError = null;
-
-            while (attempt < maxAttempts)
-            {
-                attempt++;
-                try
-                {
-                    client.Connect();
-                    return client;
-                }
-                catch (Exception ex)
-                {
-                    if (!string.IsNullOrWhiteSpace(validation.MismatchMessage))
-                    {
-                        try
-                        {
-                            client.Dispose();
-                        }
-                        catch
-                        {
-                            // Best-effort cleanup on connection failure.
-                        }
-
-                        throw new SshHostKeyMismatchException(validation.MismatchMessage, ex);
-                    }
-
-                    var transient = IsTransientConnectionFailure(ex);
-                    if (attempt >= maxAttempts || !transient)
-                    {
-                        try
-                        {
-                            client.Dispose();
-                        }
-                        catch
-                        {
-                            // Best-effort cleanup on connection failure.
-                        }
-
-                        if (transient)
-                        {
-                            throw BuildTransientConnectException(validation.Endpoint, attempt, ex);
-                        }
-
-                        throw;
-                    }
-
-                    lastError = ex;
-                    Thread.Sleep(GetRetryDelayMs(attempt));
-                }
-            }
-
+            // Single attempt - let caller handle backoff/retry to avoid PerSourcePenalties
+            // Previously had 6 attempts with 120-1100ms delays which caused SSH retry storms
             try
             {
-                client.Dispose();
+                client.Connect();
+                return client;
             }
-            catch
+            catch (Exception ex)
             {
-                // Best-effort cleanup on connection failure.
-            }
+                if (!string.IsNullOrWhiteSpace(validation.MismatchMessage))
+                {
+                    try
+                    {
+                        client.Dispose();
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup on connection failure.
+                    }
 
-            throw BuildTransientConnectException(validation.Endpoint, attempt, lastError);
+                    throw new SshHostKeyMismatchException(validation.MismatchMessage, ex);
+                }
+
+                var transient = IsTransientConnectionFailure(ex);
+                try
+                {
+                    client.Dispose();
+                }
+                catch
+                {
+                    // Best-effort cleanup on connection failure.
+                }
+
+                if (transient)
+                {
+                    throw BuildTransientConnectException(validation.Endpoint, 1, ex);
+                }
+
+                throw;
+            }
         }
 
         private static InvalidOperationException BuildTransientConnectException(string endpoint, int attempts, Exception? ex)
@@ -163,19 +140,6 @@ namespace RauskuClaw.Services
             }
 
             return false;
-        }
-
-        private static int GetRetryDelayMs(int attempt)
-        {
-            return attempt switch
-            {
-                1 => 120,
-                2 => 220,
-                3 => 360,
-                4 => 560,
-                5 => 820,
-                _ => 1100
-            };
         }
 
         private HostKeyValidationState AttachHostKeyValidation(BaseClient client, string host, int port)

@@ -1,13 +1,21 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(dotnet build:*)",
-      "Bash(ls *.sln *.csproj)"
-    ]
-  },
   "env": {
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.7",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(ls *.sln *.csproj)",
+      "Bash(Get-Process -Name qemu* -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Id, ProcessName, StartTime)",
+      "Bash(Format-Table)",
+      "Bash(qemu-img info \"d:/RauskuClaw/GUI/RauskuClaw/VM/arch-fix-overlay.qcow2\")",
+      "Bash(ssh -i \"d:/RauskuClaw/GUI/RauskuClaw/VM/keys/system-holvi-infra/id_ed25519\" -p 6222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null rausku@127.0.0.1 \"cd /opt/rauskuclaw/infra/holvi && ls -la && cat .env 2>/dev/null | head -20 || echo ''No .env yet''\")",
+      "Bash(ssh -i \"d:/RauskuClaw/GUI/RauskuClaw/VM/keys/system-holvi-infra/id_ed25519\" -p 6222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null rausku@127.0.0.1 \"cd /opt/rauskuclaw/infra/holvi && docker network create holvi_holvi_net 2>/dev/null || true && COMPOSE_PROFILES=local-infisical docker compose up -d --build 2>&1\")",
+      "Bash(ssh -i \"d:/RauskuClaw/GUI/RauskuClaw/VM/keys/system-holvi-infra/id_ed25519\" -p 6222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null rausku@127.0.0.1 \"cd /opt/rauskuclaw/infra/holvi && sudo COMPOSE_PROFILES=local-infisical docker compose up -d 2>&1 && sleep 3 && sudo docker ps\")",
+      "Bash(ssh -i \"d:/RauskuClaw/GUI/RauskuClaw/VM/keys/system-holvi-infra/id_ed25519\" -p 6222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null rausku@127.0.0.1 \"sudo docker logs holvi-infisical-1 2>&1 | tail -20\")"
+    ]
   }
 }

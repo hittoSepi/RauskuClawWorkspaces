@@ -48,6 +48,36 @@ namespace RauskuClaw.Services
 
             var probeCommand = BuildSetupProbeCommand(workspace.RepoTargetDir);
             var (success, message) = await _workspaceSshCommandService.RunSshCommandAsync(workspace, probeCommand, cancellationToken);
+
+            // If SSH fails with the strange "Not allowed at this time" error, try HTTP check instead
+            if (!success && IsNotAllowedAtThisTimeError(message))
+            {
+                // Try a few quick HTTP checks before giving up
+                for (var attempt = 1; attempt <= 3; attempt++)
+                {
+                    var httpCheck = await TryHttpCheckAsync(cancellationToken);
+                    if (httpCheck.Success)
+                    {
+                        return new HolviHostSetupResult
+                        {
+                            State = HolviHostSetupState.Ready,
+                            Message = httpCheck.Message
+                        };
+                    }
+
+                    if (attempt < 3)
+                    {
+                        await Task.Delay(3000, cancellationToken);
+                    }
+                }
+
+                return new HolviHostSetupResult
+                {
+                    State = HolviHostSetupState.NeedsSetup,
+                    Message = "SSH port issue detected. HOLVI services may still be starting. Click Run Setup to wait for services."
+                };
+            }
+
             if (success && !string.IsNullOrWhiteSpace(message) && message.Contains(SetupCheckReadyToken, StringComparison.Ordinal))
             {
                 return new HolviHostSetupResult
@@ -109,6 +139,45 @@ namespace RauskuClaw.Services
             progressCallback?.Invoke("Running HOLVI setup inside infra VM...");
             var setupCommand = BuildSetupRunCommand(workspace.RepoTargetDir);
             var (setupOk, setupMessage) = await _workspaceSshCommandService.RunSshCommandAsync(workspace, setupCommand, cancellationToken);
+
+            // Check for the strange "Not allowed at this time" error which indicates
+            // SSH port confusion (possibly serial port data on SSH port or early boot issue)
+            if (!setupOk && IsNotAllowedAtThisTimeError(setupMessage))
+            {
+                progressCallback?.Invoke("SSH connection issue detected. VM containers should be starting via cloud-init. Polling HTTP endpoints...");
+
+                // Poll HTTP endpoints for up to 60 seconds (12 attempts * 5 seconds)
+                const int maxAttempts = 12;
+                for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    progressCallback?.Invoke($"Checking HOLVI services... (attempt {attempt}/{maxAttempts})");
+                    var httpCheck = await TryHttpCheckAsync(cancellationToken);
+                    if (httpCheck.Success)
+                    {
+                        progressCallback?.Invoke("HOLVI services are responding!");
+                        return new HolviHostSetupResult
+                        {
+                            State = HolviHostSetupState.Ready,
+                            Message = httpCheck.Message
+                        };
+                    }
+
+                    if (attempt < maxAttempts)
+                    {
+                        progressCallback?.Invoke($"Services not ready yet, waiting... ({httpCheck.Message})");
+                        await Task.Delay(5000, cancellationToken);
+                    }
+                }
+
+                return new HolviHostSetupResult
+                {
+                    State = HolviHostSetupState.NeedsSetup,
+                    Message = "SSH connection issue detected and HTTP endpoints not responding after 60s. HOLVI containers may still be starting. Wait a moment and try Recheck."
+                };
+            }
+
             if (!setupOk)
             {
                 return new HolviHostSetupResult
@@ -122,6 +191,50 @@ namespace RauskuClaw.Services
 
             progressCallback?.Invoke("Verifying HOLVI setup...");
             return await CheckStatusAsync(cancellationToken);
+        }
+
+        private static bool IsNotAllowedAtThisTimeError(string? message)
+        {
+            return !string.IsNullOrEmpty(message) &&
+                   (message.Contains("Not allowed at this time", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("does not contain an SSH identification", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static async Task<(bool Success, string Message)> TryHttpCheckAsync(CancellationToken cancellationToken)
+        {
+            // Try to connect to Infisical UI on port 18088
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
+                var response = await client.GetAsync("http://127.0.0.1:18088/", cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    return (true, "HOLVI Infisical UI is responding. Setup appears complete.");
+                }
+            }
+            catch
+            {
+                // Ignore HTTP errors
+            }
+
+            // Try HOLVI proxy on port 18099
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
+                var response = await client.GetAsync("http://127.0.0.1:18099/health", cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    return (true, "HOLVI proxy health check passed. Setup appears complete.");
+                }
+            }
+            catch
+            {
+                // Ignore HTTP errors
+            }
+
+            return (false, "HOLVI services not responding yet.");
         }
 
         private static string BuildSetupProbeCommand(string? repoTargetDir)

@@ -40,3 +40,10 @@ seed.iso
 **/seed.iso
 Settings/secrets.dpapi.json
 Settings/known-hosts.json
+infra.zip
+.claude/settings.local.json
+Workspaces/workspaces.json
+Settings/vm-process-registry.json
+Settings/settings.json
+Settings/secrets.dpapi.json
+Settings/known-hosts.json

@@ -1,1 +1,9 @@
-{}
+{
+  "system-holvi-infra": {
+    "WorkspaceId": "system-holvi-infra",
+    "WorkspaceName": "holvi-infra",
+    "ProcessId": 128060,
+    "ProcessName": "qemu-system-x86_64",
+    "StartedUtc": "2026-03-01T20:34:29.1251269+00:00"
+  }
+}

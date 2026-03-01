@@ -1,14 +1,32 @@
 {
+  "127.0.0.1:2522": {
+    "Algorithm": "ssh-ed25519",
+    "FingerprintHex": "a20359c3952202fbaeb7456b95dc7461",
+    "FirstSeenUtc": "2026-03-01T17:47:38.1465846+00:00",
+    "LastSeenUtc": "2026-03-01T17:47:38.1465846+00:00"
+  },
+  "127.0.0.1:2322": {
+    "Algorithm": "ssh-ed25519",
+    "FingerprintHex": "039264852fc234972e0081c60fb5e9db",
+    "FirstSeenUtc": "2026-03-01T18:26:43.4213783+00:00",
+    "LastSeenUtc": "2026-03-01T18:26:43.4213783+00:00"
+  },
+  "127.0.0.1:6223": {
+    "Algorithm": "ssh-ed25519",
+    "FingerprintHex": "e8f6d77d5dfa55fe99f34ee5fd2ca6c6",
+    "FirstSeenUtc": "2026-03-01T19:51:16.2330421+00:00",
+    "LastSeenUtc": "2026-03-01T19:51:16.2330421+00:00"
+  },
   "127.0.0.1:2222": {
     "Algorithm": "ssh-ed25519",
-    "FingerprintHex": "b5f5ba70739b1e80d2ae55b731bb759f",
-    "FirstSeenUtc": "2026-02-28T21:10:51.9853596+00:00",
-    "LastSeenUtc": "2026-02-28T21:10:51.9853596+00:00"
+    "FingerprintHex": "f352815425fd0462aa445f33a467e935",
+    "FirstSeenUtc": "2026-03-01T19:52:25.2111817+00:00",
+    "LastSeenUtc": "2026-03-01T19:52:25.2111817+00:00"
   },
   "127.0.0.1:6222": {
     "Algorithm": "ssh-ed25519",
-    "FingerprintHex": "4d56b11fe19916ac7385437b0299b8cf",
-    "FirstSeenUtc": "2026-02-28T23:57:33.0674419+00:00",
-    "LastSeenUtc": "2026-02-28T23:57:33.0674419+00:00"
+    "FingerprintHex": "d18c86622ac458a48ef08054d70511ae",
+    "FirstSeenUtc": "2026-03-01T20:34:44.9514832+00:00",
+    "LastSeenUtc": "2026-03-01T20:34:44.9514832+00:00"
   }
 }

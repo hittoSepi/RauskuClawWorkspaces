@@ -20,7 +20,7 @@
   "HolviProjectIdSecretRef": "settings/holvi-project-id",
   "InfisicalClientIdSecretRef": "settings/infisical-client-id",
   "InfisicalClientSecretSecretRef": "settings/infisical-client-secret",
-  "HolviBaseUrl": "http://127.0.0.1:8099",
+  "HolviBaseUrl": "http://127.0.0.1:18099",
   "HolviApiKey": null,
   "HolviProjectId": null,
   "InfisicalClientId": null,

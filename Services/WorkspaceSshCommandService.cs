@@ -34,69 +34,55 @@ namespace RauskuClaw.Services
             {
                 return await Task.Run(() =>
                 {
-                    Exception? lastTransientError = null;
-                    const int maxAttempts = 3;
-                    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                    try
                     {
-                        ct.ThrowIfCancellationRequested();
+                        using var ssh = _sshConnectionFactory.ConnectSshClient(
+                            "127.0.0.1",
+                            workspace.Ports?.Ssh ?? 2222,
+                            workspace.Username,
+                            workspace.SshPrivateKeyPath);
+                        var result = ssh.RunCommand(command);
+                        ssh.Disconnect();
 
-                        try
+                        if (result.ExitStatus == 0)
                         {
-                            using var ssh = _sshConnectionFactory.ConnectSshClient(
-                                "127.0.0.1",
-                                workspace.Ports?.Ssh ?? 2222,
-                                workspace.Username,
-                                workspace.SshPrivateKeyPath);
-                            var result = ssh.RunCommand(command);
-                            ssh.Disconnect();
-
-                            if (result.ExitStatus == 0)
-                            {
-                                return (true, result.Result?.Trim() ?? string.Empty);
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(result.Error))
-                            {
-                                return (false, result.Error.Trim());
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(result.Result))
-                            {
-                                return (false, result.Result.Trim());
-                            }
-
-                            return (false, $"SSH command failed with exit {result.ExitStatus}");
+                            return (true, result.Result?.Trim() ?? string.Empty);
                         }
-                        catch (SshHostKeyMismatchException ex)
+
+                        if (!string.IsNullOrWhiteSpace(result.Error))
                         {
-                            return (false, ex.Message);
+                            return (false, result.Error.Trim());
                         }
-                        catch (Exception ex) when (ex is SocketException
-                            || ex is SshConnectionException
-                            || ex is SshOperationTimeoutException
-                            || ex is SshException
-                            || ex is IOException
-                            || ex is ObjectDisposedException
-                            || (ex is InvalidOperationException ioEx
-                                && ioEx.Message.Contains("SSH endpoint", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            if (ct.IsCancellationRequested)
-                            {
-                                return (false, "SSH command cancelled.");
-                            }
 
-                            lastTransientError = ex;
-                            if (attempt < maxAttempts)
-                            {
-                                var delayMs = 400 * attempt;
-                                ct.WaitHandle.WaitOne(delayMs);
-                                continue;
-                            }
+                        if (!string.IsNullOrWhiteSpace(result.Result))
+                        {
+                            return (false, result.Result.Trim());
                         }
+
+                        return (false, $"SSH command failed with exit {result.ExitStatus}");
                     }
+                    catch (SshHostKeyMismatchException ex)
+                    {
+                        return (false, ex.Message);
+                    }
+                    catch (Exception ex) when (ex is SocketException
+                        || ex is SshConnectionException
+                        || ex is SshOperationTimeoutException
+                        || ex is SshException
+                        || ex is IOException
+                        || ex is ObjectDisposedException
+                        || (ex is InvalidOperationException ioEx
+                            && ioEx.Message.Contains("SSH endpoint", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (ct.IsCancellationRequested)
+                        {
+                            return (false, "SSH command cancelled.");
+                        }
 
-                    var message = lastTransientError?.Message ?? "SSH command failed after retries.";
-                    return (false, $"SSH transient error: {message}");
+                        // Return immediately without internal retry - let caller handle backoff
+                        // This prevents retry storms that trigger OpenSSH PerSourcePenalties
+                        return (false, $"SSH transient error: {ex.Message}");
+                    }
                 }, ct);
             }
             catch (OperationCanceledException)
