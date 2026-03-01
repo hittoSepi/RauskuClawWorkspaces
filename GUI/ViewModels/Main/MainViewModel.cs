@@ -1086,10 +1086,11 @@ namespace RauskuClaw.GUI.ViewModels
             return Task.FromResult(workspace);
         }
 
-        private async Task<(bool Success, string Message)> EnsureInfraWorkspaceRunningAsync(Workspace workspace, CancellationToken ct)
+        private async Task<(bool Success, string Message)> EnsureInfraWorkspaceRunningAsync(Workspace workspace, IProgress<string>? progress, CancellationToken ct)
         {
             if (workspace.IsRunning && workspace.Status is VmStatus.Running or VmStatus.WarmingUp or VmStatus.Starting)
             {
+                progress?.Report("Infra VM already running.");
                 return (true, "Infra VM already running.");
             }
 
@@ -1123,13 +1124,17 @@ namespace RauskuClaw.GUI.ViewModels
                 // Use Dispatcher to ensure UI updates happen on the UI thread
                 var infraProgress = new Progress<string>(msg =>
                 {
-                    Application.Current?.Dispatcher.InvokeAsync(() => AppendLog(msg));
+                    Application.Current?.Dispatcher.InvokeAsync(() =>
+                    {
+                        AppendLog(msg);
+                        progress?.Report(msg);
+                    });
                 });
-                AppendLog($"[infra] Starting infra VM (serial port {workspace.Ports?.Serial ?? 0})...");
+                progress?.Report($"Starting infra VM (serial port {workspace.Ports?.Serial ?? 0})...");
                 var startResult = await _startupOrchestrator.StartWorkspaceAsync(workspace, infraProgress, startToken, StartWorkspaceInternalAsync);
                 if (startResult.Success)
                 {
-                    AppendLog("[infra] Infra VM started successfully.");
+                    progress?.Report("Infra VM started successfully.");
                     return startResult;
                 }
 

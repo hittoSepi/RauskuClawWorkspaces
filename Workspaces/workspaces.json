@@ -15,8 +15,8 @@
     "DiskPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\system-holvi-infra\\arch.qcow2",
     "SeedIsoPath": "D:\\RauskuClaw\\GUI\\RauskuClaw\\VM\\system-holvi-infra\\seed.iso",
     "QemuExe": "qemu-system-x86_64.exe",
-    "CreatedAt": "2026-02-28T23:13:21.5284117+02:00",
-    "LastRun": "2026-02-28T23:15:03.6201137+02:00",
+    "CreatedAt": "2026-03-01T01:52:56.5652339+02:00",
+    "LastRun": "2026-03-01T01:57:09.5090543+02:00",
     "Ports": {
       "Ssh": 6222,
       "Api": 13011,

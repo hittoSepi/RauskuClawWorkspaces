@@ -198,6 +198,26 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
+        /// <summary>
+        /// Appends a line to SetupStatusText for progress logging during setup.
+        /// </summary>
+        public void AppendSetupLog(string message)
+        {
+            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            var line = $"[{timestamp}] {message}";
+            SetupStatusText = string.IsNullOrEmpty(_setupStatusText)
+                ? line
+                : $"{_setupStatusText}\n{line}";
+        }
+
+        /// <summary>
+        /// Clears and sets the setup status text.
+        /// </summary>
+        public void SetSetupStatus(string message)
+        {
+            SetupStatusText = message;
+        }
+
         public bool CanRunSetup => IsConfigured && !IsSetupRunning && !IsSetupChecking;
         public bool CanRecheckSetup => IsConfigured && !IsSetupRunning && !IsSetupChecking;
 
@@ -367,7 +387,7 @@ namespace RauskuClaw.GUI.ViewModels
             HolviHostSetupResult result;
             try
             {
-                result = await _hostSetupService.RunSetupAsync(CancellationToken.None);
+                result = await _hostSetupService.RunSetupAsync(msg => AppendSetupLog(msg), CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -384,23 +404,17 @@ namespace RauskuClaw.GUI.ViewModels
                 case HolviHostSetupState.Ready:
                     IsSetupRequired = false;
                     IsSetupFailed = false;
-                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
-                        ? "HOLVI host setup completed."
-                        : result.Message;
+                    AppendSetupLog(result.Message ?? "HOLVI host setup completed.");
                     break;
                 case HolviHostSetupState.NeedsSetup:
                     IsSetupRequired = true;
                     IsSetupFailed = false;
-                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
-                        ? "HOLVI host setup still requires action."
-                        : result.Message;
+                    AppendSetupLog(result.Message ?? "HOLVI host setup still requires action.");
                     break;
                 default:
                     IsSetupRequired = true;
                     IsSetupFailed = true;
-                    SetupStatusText = string.IsNullOrWhiteSpace(result.Message)
-                        ? "HOLVI host setup failed."
-                        : result.Message;
+                    AppendSetupLog(result.Message ?? "HOLVI host setup failed.");
                     break;
             }
         }

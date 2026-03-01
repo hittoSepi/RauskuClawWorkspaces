@@ -12,12 +12,12 @@ namespace RauskuClaw.Services
     {
         private const string SetupCheckReadyToken = "HOLVI_SETUP_READY";
         private readonly Func<CancellationToken, Task<Workspace?>> _resolveInfraWorkspaceAsync;
-        private readonly Func<Workspace, CancellationToken, Task<(bool Success, string Message)>> _ensureInfraRunningAsync;
+        private readonly Func<Workspace, IProgress<string>?, CancellationToken, Task<(bool Success, string Message)>> _ensureInfraRunningAsync;
         private readonly IWorkspaceSshCommandService _workspaceSshCommandService;
 
         public HolviInfraVmSetupService(
             Func<CancellationToken, Task<Workspace?>> resolveInfraWorkspaceAsync,
-            Func<Workspace, CancellationToken, Task<(bool Success, string Message)>> ensureInfraRunningAsync,
+            Func<Workspace, IProgress<string>?, CancellationToken, Task<(bool Success, string Message)>> ensureInfraRunningAsync,
             IWorkspaceSshCommandService workspaceSshCommandService)
         {
             _resolveInfraWorkspaceAsync = resolveInfraWorkspaceAsync ?? throw new ArgumentNullException(nameof(resolveInfraWorkspaceAsync));
@@ -79,6 +79,11 @@ namespace RauskuClaw.Services
 
         public async Task<HolviHostSetupResult> RunSetupAsync(CancellationToken cancellationToken)
         {
+            return await RunSetupAsync(null, cancellationToken);
+        }
+
+        public async Task<HolviHostSetupResult> RunSetupAsync(Action<string>? progressCallback, CancellationToken cancellationToken)
+        {
             var workspace = await _resolveInfraWorkspaceAsync(cancellationToken);
             if (workspace == null)
             {
@@ -89,7 +94,9 @@ namespace RauskuClaw.Services
                 };
             }
 
-            var running = await _ensureInfraRunningAsync(workspace, cancellationToken);
+            progressCallback?.Invoke("Starting infra VM...");
+            var progress = progressCallback != null ? new Progress<string>(progressCallback) : null;
+            var running = await _ensureInfraRunningAsync(workspace, progress, cancellationToken);
             if (!running.Success)
             {
                 return new HolviHostSetupResult
@@ -99,6 +106,7 @@ namespace RauskuClaw.Services
                 };
             }
 
+            progressCallback?.Invoke("Running HOLVI setup inside infra VM...");
             var setupCommand = BuildSetupRunCommand(workspace.RepoTargetDir);
             var (setupOk, setupMessage) = await _workspaceSshCommandService.RunSshCommandAsync(workspace, setupCommand, cancellationToken);
             if (!setupOk)
@@ -112,6 +120,7 @@ namespace RauskuClaw.Services
                 };
             }
 
+            progressCallback?.Invoke("Verifying HOLVI setup...");
             return await CheckStatusAsync(cancellationToken);
         }
 

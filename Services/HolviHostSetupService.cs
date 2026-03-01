@@ -27,6 +27,7 @@ namespace RauskuClaw.Services
     {
         Task<HolviHostSetupResult> CheckStatusAsync(CancellationToken cancellationToken);
         Task<HolviHostSetupResult> RunSetupAsync(CancellationToken cancellationToken);
+        Task<HolviHostSetupResult> RunSetupAsync(Action<string>? progressCallback, CancellationToken cancellationToken);
     }
 
     public sealed class HolviHostSetupService : IHolviHostSetupService
@@ -90,6 +91,11 @@ namespace RauskuClaw.Services
 
         public async Task<HolviHostSetupResult> RunSetupAsync(CancellationToken cancellationToken)
         {
+            return await RunSetupAsync(null, cancellationToken);
+        }
+
+        public async Task<HolviHostSetupResult> RunSetupAsync(Action<string>? progressCallback, CancellationToken cancellationToken)
+        {
             var holviDir = GetHolviDir();
             if (!Directory.Exists(holviDir))
             {
@@ -126,11 +132,13 @@ namespace RauskuClaw.Services
                 File.Copy(envExample, envFile, overwrite: false);
             }
 
+            progressCallback?.Invoke("Running docker compose up...");
             var composeRun = TryRunCompose(holviDir, composeFile, envFile, "up -d --build");
             if (!composeRun.Success)
             {
                 if (IsDockerEngineUnavailable(composeRun.Message))
                 {
+                    progressCallback?.Invoke("Docker engine unavailable, attempting recovery...");
                     var recovery = TryRecoverDockerDesktopLinuxEngine();
                     if (recovery.Recovered)
                     {
