@@ -38,10 +38,16 @@ Fixed flow:
    - Polls `systemctl is-active <service>` until service is active
    - Reports progress while waiting
    - Returns success/failure with message
+   - Manually triggers service after 3 failed attempts (if systemd didn't auto-start)
 
 2. **Updated** `WaitForRuntimeEnvReadyAsync`:
    - Now waits for `rauskuclaw-docker.service` (120s timeout) before checking `.env`
    - Returns clear error if service doesn't become active
+
+3. **Fixed** shell command bug (commit `b62974d`):
+   - Changed `systemctl is-active || echo inactive` to `systemctl is-active || true`
+   - The old command produced duplicate output (`"inactive\ninactive"`) when service was inactive
+   - This caused the manual trigger condition to never match
 
 ## Verification
 
