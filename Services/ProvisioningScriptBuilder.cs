@@ -600,6 +600,8 @@ runcmd:
       if [ -f ""$env_file"" ]; then
         local configured
         configured=""$(grep -E ""^OLLAMA_EMBED_MODEL="" ""$env_file"" 2>/dev/null || true | tail -n 1 | cut -d= -f2- | xargs)""
+        # Strip malformed prefix if present (e.g., ""OLLAMA_EMBED_MODEL=embeddinggemma:300m-qat-q8_0"")
+        configured=""${{configured#OLLAMA_EMBED_MODEL=}}""
         if [ -n ""$configured"" ]; then
           model=""$configured""
         fi
