@@ -671,24 +671,57 @@ namespace RauskuClaw.Services
             var deadline = DateTime.UtcNow + timeout;
             var attempt = 0;
             var lastState = "unknown";
+            var manualStartAttempted = false;
 
             while (DateTime.UtcNow < deadline)
             {
                 ct.ThrowIfCancellationRequested();
                 attempt++;
 
+                // Check service state
                 var probe = await _workspaceSshCommandService.RunSshCommandAsync(
                     workspace,
                     $"systemctl is-active '{serviceName}' 2>/dev/null || echo inactive",
                     ct);
 
                 var state = (probe.Message ?? string.Empty).Trim();
+
+                // For oneshot services, "active" means completed successfully
                 if (state.Equals("active", StringComparison.OrdinalIgnoreCase))
                 {
                     return (true, $"Service {serviceName} is active.");
                 }
 
+                // Check if service failed
+                if (state.Equals("failed", StringComparison.OrdinalIgnoreCase))
+                {
+                    var logs = await _workspaceSshCommandService.RunSshCommandAsync(
+                        workspace,
+                        $"journalctl -u {serviceName} --no-pager -n 20 2>/dev/null || true",
+                        ct);
+                    return (false, $"Service {serviceName} failed. Logs:\n{logs.Message}");
+                }
+
                 lastState = state;
+
+                // If service is still inactive after a few attempts, try to start it manually
+                // (systemd may not have triggered it yet via WantedBy)
+                if (!manualStartAttempted && attempt >= 3 && state.Equals("inactive", StringComparison.OrdinalIgnoreCase))
+                {
+                    reportLog?.Invoke(progress, $"Service {serviceName} not auto-started, triggering manually...");
+                    var startResult = await _workspaceSshCommandService.RunSshCommandAsync(
+                        workspace,
+                        $"sudo systemctl start {serviceName} 2>&1 || systemctl start {serviceName} 2>&1 || echo start-failed",
+                        ct);
+                    manualStartAttempted = true;
+
+                    if (!startResult.Success && !startResult.Message.Contains("start-failed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Give it a moment to start
+                        await Task.Delay(TimeSpan.FromSeconds(2), ct);
+                    }
+                }
+
                 if (attempt == 1 || attempt % 4 == 0)
                 {
                     reportLog?.Invoke(progress, $"Waiting for {serviceName} (state={state})...");
