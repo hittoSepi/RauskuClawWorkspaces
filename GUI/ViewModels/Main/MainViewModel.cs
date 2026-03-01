@@ -234,8 +234,9 @@ namespace RauskuClaw.GUI.ViewModels
                 ? MainContentSection.Home
                 : MainContentSection.WorkspaceTabs;
 
-            // Auto-start workspaces if enabled
-            if (_appSettings.AutoStartVMs)
+            // Auto-start: always start system workspaces with AutoStart=true, plus user workspaces if setting enabled
+            var hasAutoStartWorkspaces = _workspaces.Any(w => w.AutoStart && w.CanStart);
+            if (_appSettings.AutoStartVMs || hasAutoStartWorkspaces)
             {
                 _ = RunAutoStartAsync();
             }
