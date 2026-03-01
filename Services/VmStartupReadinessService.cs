@@ -129,10 +129,11 @@ namespace RauskuClaw.Services
             Action<IProgress<string>?, string>? reportLog)
         {
             // First wait for rauskuclaw-docker.service to complete - it creates the .env file
+            // Note: Service can take 5-10 minutes on first run (docker pull, etc.)
             var serviceReady = await WaitForSystemdServiceAsync(
                 workspace,
                 "rauskuclaw-docker.service",
-                TimeSpan.FromSeconds(120),
+                TimeSpan.FromSeconds(600),
                 progress,
                 reportLog,
                 ct);
