@@ -715,11 +715,24 @@ namespace RauskuClaw.Services
                         ct);
                     manualStartAttempted = true;
 
-                    if (!startResult.Success && !startResult.Message.Contains("start-failed", StringComparison.OrdinalIgnoreCase))
+                    // Log the start result for debugging
+                    if (!string.IsNullOrWhiteSpace(startResult.Message))
                     {
-                        // Give it a moment to start
-                        await Task.Delay(TimeSpan.FromSeconds(2), ct);
+                        reportLog?.Invoke(progress, $"Start result: {startResult.Message.Trim()}");
                     }
+
+                    // Check journalctl for errors if start might have failed
+                    var journalCheck = await _workspaceSshCommandService.RunSshCommandAsync(
+                        workspace,
+                        $"journalctl -u {serviceName} --no-pager -n 5 2>/dev/null || true",
+                        ct);
+                    if (!string.IsNullOrWhiteSpace(journalCheck.Message))
+                    {
+                        reportLog?.Invoke(progress, $"Service logs: {journalCheck.Message.Trim()}");
+                    }
+
+                    // Give it a moment to start
+                    await Task.Delay(TimeSpan.FromSeconds(2), ct);
                 }
 
                 if (attempt == 1 || attempt % 4 == 0)
