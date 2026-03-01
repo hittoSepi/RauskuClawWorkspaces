@@ -33,7 +33,6 @@ namespace RauskuClaw.GUI.ViewModels
                 DeployWebUiStatic = DeployWebUiStatic,
                 WebUiBuildOutputDir = WebUiBuildOutputDir,
                 EnableHolvi = enableHolvi,
-                HolviMode = enableHolvi ? HolviProvisioningMode.Enabled : HolviProvisioningMode.Disabled,
                 ProvisioningSecrets = provisioningSecrets.Secrets
             });
         }

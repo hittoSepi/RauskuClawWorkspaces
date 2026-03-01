@@ -1,4 +1,4 @@
-# Task Index (001-058)
+# Task Index (001-060)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -60,3 +60,5 @@
 | 056 | Completed | HOLVI tab now checks VM-side docker readiness and provides in-app `Run Setup` / `Recheck` actions when stack setup is missing | [056-holvi-tab-setup-automation.md](056-holvi-tab-setup-automation.md) |
 | 057 | Completed | HOLVI setup orchestration moved to Windows host-mode using Docker Desktop (`infra/holvi`) with host-side health checks and in-tab setup actions | [057-holvi-host-mode-docker-desktop.md](057-holvi-host-mode-docker-desktop.md) |
 | 058 | Completed | HOLVI setup moved to hidden background infra VM (`system-holvi-infra`), with system-workspace filtering in sidebar and SSH-driven setup orchestration | [058-holvi-background-infra-vm.md](058-holvi-background-infra-vm.md) |
+| 059 | Completed | Dedicated base image (`infra.qcow2`) for HOLVI infra VM with correct SSH key; code updated to use dedicated disk path | [059-holvi-infra-base-image.md](059-holvi-infra-base-image.md) |
+| 060 | Completed | Workspace wizard now always uses shared Infisical mode connecting to central HOLVI infra VM at `host.docker.internal:18088` | [060-workspace-always-shared-infisical.md](060-workspace-always-shared-infisical.md) |

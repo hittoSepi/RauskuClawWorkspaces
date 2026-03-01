@@ -1025,7 +1025,7 @@ namespace RauskuClaw.GUI.ViewModels
                 HostWorkspacePath = Path.Combine(workspaceRootPath, InfraWorkspaceId),
                 MemoryMb = Math.Max(2048, _appSettings.DefaultMemoryMb),
                 CpuCores = Math.Max(2, _appSettings.DefaultCpuCores),
-                DiskPath = Path.Combine(artifactDir, "arch.qcow2"),
+                DiskPath = Path.Combine(artifactDir, "infra.qcow2"),
                 SeedIsoPath = Path.Combine(artifactDir, "seed.iso"),
                 QemuExe = _appSettings.QemuPath,
                 Ports = ports,
@@ -1060,6 +1060,18 @@ namespace RauskuClaw.GUI.ViewModels
             workspace.SshPrivateKeyPath = key.PrivateKeyPath;
             workspace.SshPublicKey = key.PublicKey;
 
+            // DEBUG: Log the SSH key being used for seed.iso
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Infra SSH key path: {key.PrivateKeyPath}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Infra SSH public key: {key.PublicKey}");
+
+            // Also write to file for easy debugging
+            try
+            {
+                var debugPath = Path.Combine(Path.GetDirectoryName(workspace.SeedIsoPath) ?? ".", "ssh_key_debug.txt");
+                File.WriteAllText(debugPath, $"Key path: {key.PrivateKeyPath}\nPublic key: {key.PublicKey}\nTimestamp: {DateTimeOffset.UtcNow:O}\n");
+            }
+            catch { /* Ignore debug write failures */ }
+
             var userData = _provisioningScriptBuilder.BuildUserData(new ProvisioningScriptRequest
             {
                 Username = workspace.Username,
@@ -1072,8 +1084,7 @@ namespace RauskuClaw.GUI.ViewModels
                 WebUiBuildCommand = "cd ui-v2 && npm ci && npm run build",
                 DeployWebUiStatic = false,
                 WebUiBuildOutputDir = "ui-v2/dist",
-                EnableHolvi = true,
-                HolviMode = HolviProvisioningMode.Enabled
+                EnableHolvi = true
             });
             var metaData = _provisioningScriptBuilder.BuildMetaData(workspace.Hostname);
             _seedIsoService.CreateSeedIso(workspace.SeedIsoPath, userData, metaData);

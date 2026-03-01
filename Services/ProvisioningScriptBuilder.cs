@@ -11,12 +11,6 @@ namespace RauskuClaw.Services
         string BuildUserData(ProvisioningScriptRequest request);
     }
 
-    public enum HolviProvisioningMode
-    {
-        Disabled,
-        Enabled
-    }
-
     public sealed class ProvisioningScriptBuilder : IProvisioningScriptBuilder
     {
         private static readonly Regex ProvisioningSecretKeyRegex = new("^[A-Z0-9_]+$", RegexOptions.Compiled);
@@ -39,6 +33,10 @@ namespace RauskuClaw.Services
             "INFISICAL_ENCRYPTION_KEY",
             "INFISICAL_AUTH_SECRET",
             "INFISICAL_ENV",
+            "INFISICAL_DB_USER",
+            "INFISICAL_DB_PASSWORD",
+            "INFISICAL_DB_NAME",
+            "INFISICAL_SITE_URL",
             "HOLVI_INFISICAL_MODE",
             "HOLVI_BIND",
             "MAX_BODY_BYTES",
@@ -63,7 +61,6 @@ namespace RauskuClaw.Services
             var escapedBuildCommand = request.WebUiBuildCommand.Trim().Replace("\"", "\\\"");
             var escapedWebUiBuildOutputDir = request.WebUiBuildOutputDir.Trim().Replace("\"", "\\\"");
             var holviEnabledLiteral = request.EnableHolvi ? "1" : "0";
-            var escapedHolviMode = request.HolviMode.ToString();
             var backendProvisionedSecretsSection = BuildProvisionedSecretsSection(request.ProvisioningSecrets, BackendSecretAllowList);
             var holviProvisionedSecretsSection = BuildProvisionedSecretsSection(request.ProvisioningSecrets, HolviSecretAllowList);
 
@@ -113,17 +110,35 @@ users:
     groups: [wheel, docker]
     sudo: [""ALL=(ALL) NOPASSWD:ALL""]
     shell: /bin/bash
+    lock_passwd: false
 ssh_authorized_keys:
   - ""{request.SshPublicKey.Trim()}""
+chpasswd:
+  list: |
+    {request.Username}:tempsalasana123
+  expire: false
 runcmd:
+  # SSH setup - CRITICAL: must be working before anything else
   - |
-    if ! command -v sshd >/dev/null 2>&1; then
+    set -x  # Echo commands for debugging
+    echo ""=== SSH SETUP START ===""
+    # Install openssh if not present
+    if ! pacman -Qi openssh >/dev/null 2>&1; then
+      echo ""Installing openssh...""
       pacman -Sy --noconfirm openssh
+    fi
+    # Verify sshd binary exists
+    if [ ! -x /usr/bin/sshd ]; then
+      echo ""ERROR: /usr/bin/sshd not found after install!""
+      exit 1
     fi
     mkdir -p /etc/ssh/sshd_config.d
     mkdir -p /run/sshd
     mkdir -p /var/log/rauskuclaw
+    # Generate host keys
+    echo ""Generating SSH host keys...""
     ssh-keygen -A
+    # Create sshd config
     cat > /etc/ssh/sshd_config.d/99-rauskuclaw.conf << 'EOF'
     PubkeyAuthentication yes
     PasswordAuthentication no
@@ -131,23 +146,41 @@ runcmd:
     PermitRootLogin prohibit-password
     UsePAM yes
     EOF
-    if ! sshd -t > /var/log/rauskuclaw/sshd_config_test.out 2>&1; then
-      echo ""sshd -t failed, see /var/log/rauskuclaw/sshd_config_test.out""
+    # Test config
+    echo ""Testing sshd config...""
+    if ! /usr/sbin/sshd -t > /var/log/rauskuclaw/sshd_config_test.out 2>&1; then
+      echo ""ERROR: sshd -t failed""
+      cat /var/log/rauskuclaw/sshd_config_test.out
     fi
+    # Enable and start sshd
+    echo ""Enabling sshd service...""
     systemctl enable sshd
-    if ! systemctl restart sshd; then
-      echo ""sshd restart failed, collecting diagnostics...""
-      systemctl status sshd --no-pager -l > /var/log/rauskuclaw/sshd_status.log 2>&1 || true
-      journalctl -u sshd --no-pager -n 160 > /var/log/rauskuclaw/sshd_journal.log 2>&1 || true
-      cat /var/log/rauskuclaw/sshd_status.log || true
-      tail -n 80 /var/log/rauskuclaw/sshd_journal.log || true
+    echo ""Starting sshd service...""
+    systemctl start sshd
+    # Verify sshd is running and listening
+    sleep 2
+    if systemctl is-active --quiet sshd; then
+      echo ""SUCCESS: sshd is running""
+    else
+      echo ""ERROR: sshd failed to start""
+      systemctl status sshd --no-pager -l
+      journalctl -u sshd --no-pager -n 50
     fi
+    # Check port 22
+    echo ""Checking port 22...""
+    ss -ltnp | grep ':22' || echo ""WARNING: Nothing listening on port 22""
+    echo ""=== SSH SETUP END ===""
   # Ensure git exists and deploy/update repository
   - |
     echo ""Repository setup: starting git sync into {escapedRepoTargetDir}""
     if ! command -v git >/dev/null 2>&1; then
       pacman -Sy --noconfirm git
     fi
+    # Set HOME to avoid git warnings about $HOME not set
+    export HOME=/root
+    # Add safe.directory to avoid dubious ownership errors
+    git config --global --add safe.directory ""{escapedRepoTargetDir}""
+    git config --global --add safe.directory '*'
     if [ -d ""{escapedRepoTargetDir}/.git"" ]; then
       cd ""{escapedRepoTargetDir}""
       git fetch --all
@@ -188,7 +221,6 @@ runcmd:
     HOLVI_DIR=""$ROOT_DIR/infra/holvi""
     WORKSPACE_USER=""{escapedUsername}""
     HOLVI_ENABLED=""{holviEnabledLiteral}""
-    HOLVI_MODE=""{escapedHolviMode}""
     HOLVI_COMPOSE_PROFILES=""""
 
     has_compose() {{
@@ -202,7 +234,7 @@ runcmd:
       local env_example=""$dir/.env.example""
       if [ -f ""$env_file"" ]; then
         echo ""Env check: using existing $env_file""
-        return
+        return 0
       fi
 
       if [ -f ""$env_example"" ]; then
@@ -210,6 +242,7 @@ runcmd:
         cp ""$env_example"" ""$env_file""
         echo ""Env check: created $env_file from template""
         ensure_env_permissions ""$env_file""
+        return 0
       else
         echo ""ERROR: Missing required env file: $env_file (and no .env.example found)."" >&2
         return 1
@@ -238,8 +271,11 @@ runcmd:
         echo ""ERROR: env file does not exist: $env_file"" >&2
         return 1
       fi
+      # Escape special sed characters in value (using | as delimiter)
+      local escaped_value
+      escaped_value=""$(printf '%s' ""$value"" | sed 's/[&/\]/\\&/g')""
       if grep -Eq ""^${{key}}="" ""$env_file""; then
-        sed -i ""s|^${{key}}=.*|${{key}}=${{value}}|"" ""$env_file""
+        sed -i ""s|^${{key}}=.*|${{key}}=${{escaped_value}}|"" ""$env_file""
       else
         echo ""${{key}}=${{value}}"" >> ""$env_file""
       fi
@@ -277,11 +313,13 @@ runcmd:
     apply_backend_provisioning_secrets() {{
       local env_file=""$ROOT_DIR/.env""
 {backendProvisionedSecretsSection}
+      return 0
     }}
 
     apply_holvi_provisioning_secrets() {{
       local env_file=""$HOLVI_DIR/.env""
 {holviProvisionedSecretsSection}
+      return 0
     }}
 
     random_hex_32() {{
@@ -313,14 +351,20 @@ runcmd:
           echo ""ERROR: Failed to generate API_KEY for $env_file"" >&2
           return 1
         fi
-        set_env_var ""$env_file"" ""API_KEY"" ""$api_key""
+        if ! set_env_var ""$env_file"" ""API_KEY"" ""$api_key""; then
+          echo ""ERROR: Failed to set API_KEY"" >&2
+          return 1
+        fi
         echo ""Generated API_KEY in $env_file""
       fi
 
       local api_token
       api_token=""$(read_env_var ""$env_file"" ""API_TOKEN"")""
       if is_placeholder_value ""$api_token""; then
-        set_env_var ""$env_file"" ""API_TOKEN"" ""$api_key""
+        if ! set_env_var ""$env_file"" ""API_TOKEN"" ""$api_key""; then
+          echo ""ERROR: Failed to set API_TOKEN"" >&2
+          return 1
+        fi
         echo ""Set API_TOKEN from API_KEY in $env_file""
       fi
 
@@ -332,6 +376,7 @@ runcmd:
       fi
 
       echo ""Env check: API_KEY/API_TOKEN ready in $env_file""
+      return 0
     }}
 
     ensure_holvi_required_env() {{
@@ -339,12 +384,16 @@ runcmd:
       local key=""$1""
       local strategy=""$2""
       echo ""DEBUG: ensure_holvi_required_env key=$key strategy=$strategy""
+      if [ ! -f ""$env_file"" ]; then
+        echo ""ERROR: HOLVI env file missing: $env_file"" >&2
+        return 1
+      fi
       local current
       current=""$(read_env_var ""$env_file"" ""$key"")""
       echo ""DEBUG: current value for $key: '$current'""
       if ! is_placeholder_value ""$current""; then
         echo ""DEBUG: $key has non-placeholder value, skipping""
-        return
+        return 0
       fi
 
       local value=""$current""
@@ -367,14 +416,30 @@ runcmd:
         default_shared_base_url)
           value=""http://host.docker.internal:8088""
           ;;
+        default_central_infisical)
+          value=""http://host.docker.internal:18088""
+          ;;
+        default_local_mode)
+          value=""local""
+          ;;
         default_shared_mode)
           value=""shared""
+          ;;
+        default_infisical)
+          value=""infisical""
+          ;;
+        default_local_site)
+          value=""http://localhost:8088""
           ;;
       esac
 
       if [ -n ""$value"" ]; then
-        set_env_var ""$env_file"" ""$key"" ""$value""
+        if ! set_env_var ""$env_file"" ""$key"" ""$value""; then
+          echo ""ERROR: Failed to set $key in $env_file"" >&2
+          return 1
+        fi
       fi
+      return 0
     }}
 
     configure_backend_for_holvi_mode() {{
@@ -384,42 +449,61 @@ runcmd:
       shared_token=""$(read_env_var ""$holvi_env"" ""PROXY_SHARED_TOKEN"")""
       if is_placeholder_value ""$shared_token""; then
         shared_token=""$(random_hex_32)""
-        set_env_var ""$holvi_env"" ""PROXY_SHARED_TOKEN"" ""$shared_token""
+        if ! set_env_var ""$holvi_env"" ""PROXY_SHARED_TOKEN"" ""$shared_token""; then
+          echo ""ERROR: Failed to set PROXY_SHARED_TOKEN"" >&2
+          return 1
+        fi
         echo ""WARNING: PROXY_SHARED_TOKEN was missing in HOLVI env. Generated random value for synchronization.""
       fi
 
-      set_env_var ""$backend_env"" ""OPENAI_ENABLED"" ""1""
+      if ! set_env_var ""$backend_env"" ""OPENAI_ENABLED"" ""1""; then return 1; fi
       local alias
       alias=""$(read_env_var ""$backend_env"" ""OPENAI_SECRET_ALIAS"")""
       if is_placeholder_value ""$alias""; then
-        set_env_var ""$backend_env"" ""OPENAI_SECRET_ALIAS"" ""sec://openai_api_key""
+        if ! set_env_var ""$backend_env"" ""OPENAI_SECRET_ALIAS"" ""sec://openai_api_key""; then return 1; fi
       fi
-      set_env_var ""$backend_env"" ""HOLVI_BASE_URL"" ""http://holvi-proxy:8099""
-      set_env_var ""$backend_env"" ""HOLVI_PROXY_TOKEN"" ""$shared_token""
+      if ! set_env_var ""$backend_env"" ""HOLVI_BASE_URL"" ""http://holvi-proxy:8099""; then return 1; fi
+      if ! set_env_var ""$backend_env"" ""HOLVI_PROXY_TOKEN"" ""$shared_token""; then return 1; fi
       echo ""HOLVI full mode configured in $backend_env""
+      return 0
     }}
 
     preflight_backend_env_for_dir() {{
       if ! has_compose ""$ROOT_DIR""; then
         echo ""No compose file in $ROOT_DIR, skipping backend preflight.""
-        return
+        return 0
       fi
 
       echo ""Env check (preflight): validating runtime env for backend stack in $ROOT_DIR...""
-      ensure_env_for_dir ""$ROOT_DIR""
-      apply_backend_provisioning_secrets
-      ensure_api_tokens_for_backend
+      if ! ensure_env_for_dir ""$ROOT_DIR""; then
+        echo ""ERROR: ensure_env_for_dir failed for backend"" >&2
+        return 1
+      fi
+      if ! apply_backend_provisioning_secrets; then
+        echo ""ERROR: apply_backend_provisioning_secrets failed"" >&2
+        return 1
+      fi
+      if ! ensure_api_tokens_for_backend; then
+        echo ""ERROR: ensure_api_tokens_for_backend failed"" >&2
+        return 1
+      fi
       if [ ""$HOLVI_ENABLED"" = ""1"" ]; then
-        configure_backend_for_holvi_mode
+        if ! configure_backend_for_holvi_mode; then
+          echo ""ERROR: configure_backend_for_holvi_mode failed"" >&2
+          return 1
+        fi
       fi
       echo ""Env check (preflight): runtime env ready for backend stack in $ROOT_DIR.""
+      return 0
     }}
 
     preflight_holvi_env_for_dir() {{
       if [ ""$HOLVI_ENABLED"" != ""1"" ]; then
-        echo ""HOLVI disabled by wizard (mode=$HOLVI_MODE). Skipping HOLVI env preflight.""
+        echo ""HOLVI disabled by wizard. Skipping HOLVI env preflight.""
         return
       fi
+
+      echo ""DEBUG: preflight_holvi_env_for_dir starting, HOLVI_DIR=$HOLVI_DIR""
 
       if ! has_compose ""$HOLVI_DIR""; then
         echo ""ERROR: HOLVI is enabled but compose file is missing in $HOLVI_DIR"" >&2
@@ -427,22 +511,28 @@ runcmd:
       fi
 
       echo ""@stage|holvi|in_progress|Preparing HOLVI infra env...""
-      ensure_env_for_dir ""$HOLVI_DIR""
-      apply_holvi_provisioning_secrets
-      ensure_holvi_required_env ""PROXY_SHARED_TOKEN"" ""random""
-      ensure_holvi_required_env ""INFISICAL_BASE_URL"" ""default_shared_base_url""
-      ensure_holvi_required_env ""INFISICAL_PROJECT_ID"" ""placeholder_project""
-      ensure_holvi_required_env ""INFISICAL_SERVICE_TOKEN"" ""placeholder_token""
-      ensure_holvi_required_env ""INFISICAL_ENV"" ""default_prod""
-      ensure_holvi_required_env ""HOLVI_INFISICAL_MODE"" ""default_shared_mode""
-      local holvi_infisical_mode
-      holvi_infisical_mode=""$(read_env_var ""$HOLVI_DIR/.env"" ""HOLVI_INFISICAL_MODE"")""
-      if [ ""$holvi_infisical_mode"" = ""local"" ]; then
-        ensure_holvi_required_env ""INFISICAL_ENCRYPTION_KEY"" ""random""
-        ensure_holvi_required_env ""INFISICAL_AUTH_SECRET"" ""random""
-      else
-        echo ""HOLVI shared Infisical mode active. Local Infisical bootstrap keys are optional.""
+      echo ""DEBUG: Calling ensure_env_for_dir...""
+      if ! ensure_env_for_dir ""$HOLVI_DIR""; then
+        echo ""ERROR: ensure_env_for_dir failed for $HOLVI_DIR"" >&2
+        return 1
       fi
+      echo ""DEBUG: ensure_env_for_dir completed""
+
+      echo ""DEBUG: Calling apply_holvi_provisioning_secrets...""
+      if ! apply_holvi_provisioning_secrets; then
+        echo ""ERROR: apply_holvi_provisioning_secrets failed"" >&2
+        return 1
+      fi
+      echo ""DEBUG: apply_holvi_provisioning_secrets completed""
+
+      echo ""DEBUG: Setting HOLVI env vars (shared mode)...""
+      ensure_holvi_required_env ""PROXY_SHARED_TOKEN"" ""random"" || {{ echo ""ERROR: Failed to set PROXY_SHARED_TOKEN"" >&2; return 1; }}
+      ensure_holvi_required_env ""INFISICAL_BASE_URL"" ""default_central_infisical"" || {{ echo ""ERROR: Failed to set INFISICAL_BASE_URL"" >&2; return 1; }}
+      ensure_holvi_required_env ""INFISICAL_PROJECT_ID"" ""placeholder_project"" || {{ echo ""ERROR: Failed to set INFISICAL_PROJECT_ID"" >&2; return 1; }}
+      ensure_holvi_required_env ""INFISICAL_SERVICE_TOKEN"" ""placeholder_token"" || {{ echo ""ERROR: Failed to set INFISICAL_SERVICE_TOKEN"" >&2; return 1; }}
+      ensure_holvi_required_env ""INFISICAL_ENV"" ""default_prod"" || {{ echo ""ERROR: Failed to set INFISICAL_ENV"" >&2; return 1; }}
+      ensure_holvi_required_env ""HOLVI_INFISICAL_MODE"" ""default_shared_mode"" || {{ echo ""ERROR: Failed to set HOLVI_INFISICAL_MODE"" >&2; return 1; }}
+      echo ""HOLVI shared Infisical mode active. Connecting to central Infisical at host.docker.internal:18088.""
       echo ""Env check (preflight): runtime env ready for HOLVI stack in $HOLVI_DIR.""
       echo ""@stage|holvi|success|HOLVI env prepared.""
     }}
@@ -453,26 +543,12 @@ runcmd:
         return
       fi
 
+      # Always use shared mode - connect to central Infisical on HOLVI infra VM
+      HOLVI_COMPOSE_PROFILES=""""
       local holvi_env=""$HOLVI_DIR/.env""
-      local mode
-      mode=""$(read_env_var ""$holvi_env"" ""HOLVI_INFISICAL_MODE"")""
-      if [ -z ""$mode"" ]; then
-        mode=""shared""
-        set_env_var ""$holvi_env"" ""HOLVI_INFISICAL_MODE"" ""$mode""
-      fi
-
-      if [ ""$mode"" = ""local"" ]; then
-        HOLVI_COMPOSE_PROFILES=""local-infisical""
-        local infisical_base_url
-        infisical_base_url=""$(read_env_var ""$holvi_env"" ""INFISICAL_BASE_URL"")""
-        if is_placeholder_value ""$infisical_base_url"" || [ ""$infisical_base_url"" = ""http://host.docker.internal:8088"" ]; then
-          set_env_var ""$holvi_env"" ""INFISICAL_BASE_URL"" ""http://infisical:8080""
-        fi
-        echo ""HOLVI compose mode=local (profile=local-infisical).""
-      else
-        HOLVI_COMPOSE_PROFILES=""""
-        echo ""HOLVI compose mode=shared (external Infisical). INFISICAL_BASE_URL from .env is used.""
-      fi
+      set_env_var ""$holvi_env"" ""HOLVI_INFISICAL_MODE"" ""shared""
+      set_env_var ""$holvi_env"" ""INFISICAL_BASE_URL"" ""http://host.docker.internal:18088""
+      echo ""HOLVI compose mode=shared (external Infisical at host.docker.internal:18088).""
     }}
 
     run_up() {{
@@ -575,7 +651,7 @@ runcmd:
       '[Unit]' \
       'Description=RauskuClaw Docker Stack' \
       'Requires=docker.service' \
-      'After=docker.service' \
+      'After=docker.service cloud-init.target' \
       '' \
       '[Service]' \
       'Type=oneshot' \
@@ -585,20 +661,14 @@ runcmd:
       'ExecStop=/usr/local/bin/rauskuclaw-docker-down' \
       '' \
       '[Install]' \
-      'WantedBy=multi-user.target' \
+      'WantedBy=cloud-init.target' \
       > /etc/systemd/system/rauskuclaw-docker.service
   - systemctl daemon-reload
   - systemctl enable rauskuclaw-docker.service
   - |
+    echo ""Docker stack service enabled. Will start after cloud-init completes on first boot.""
     if command -v docker >/dev/null 2>&1; then
-      if ! systemctl start rauskuclaw-docker.service; then
-        echo ""rauskuclaw-docker.service start failed (non-fatal). Collecting diagnostics...""
-        systemctl status docker --no-pager -l || true
-        systemctl status rauskuclaw-docker.service --no-pager -l || true
-        journalctl -u docker -u rauskuclaw-docker.service --no-pager -n 160 || true
-      fi
-    else
-      echo ""Skipping rauskuclaw-docker.service start because docker is unavailable.""
+      systemctl show rauskuclaw-docker.service --property=WantedBy --property=After || true
     fi
 ";
         }
@@ -663,7 +733,6 @@ runcmd:
         public bool DeployWebUiStatic { get; init; }
         public string WebUiBuildOutputDir { get; init; } = string.Empty;
         public bool EnableHolvi { get; init; }
-        public HolviProvisioningMode HolviMode { get; init; } = HolviProvisioningMode.Disabled;
         public IReadOnlyDictionary<string, string>? ProvisioningSecrets { get; init; }
     }
 }
