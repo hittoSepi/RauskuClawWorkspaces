@@ -128,6 +128,21 @@ namespace RauskuClaw.Services
             CancellationToken ct,
             Action<IProgress<string>?, string>? reportLog)
         {
+            // First wait for rauskuclaw-docker.service to complete - it creates the .env file
+            var serviceReady = await WaitForSystemdServiceAsync(
+                workspace,
+                "rauskuclaw-docker.service",
+                TimeSpan.FromSeconds(120),
+                progress,
+                reportLog,
+                ct);
+
+            if (!serviceReady.Success)
+            {
+                return (false, $"Docker stack service did not complete: {serviceReady.Message}");
+            }
+
+            // Now check for .env file
             var escapedRepoDir = EscapeSingleQuotes(workspace.RepoTargetDir);
             var envPath = $"{escapedRepoDir}/.env";
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(150);
@@ -353,12 +368,16 @@ namespace RauskuClaw.Services
             // System workspaces (like infra VM) need longer timeouts and delays
             var isSystemWorkspace = workspace.IsSystemWorkspace;
             var timeoutSeconds = isSystemWorkspace ? 120 : 35;
-            var initialDelayMs = isSystemWorkspace ? 5000 : 2500;
-            var maxBackoffMs = isSystemWorkspace ? 8000 : 5000;
+            // Longer initial delay for system workspaces - cloud-init needs time
+            var initialDelayMs = isSystemWorkspace ? 15000 : 5000;
+            const int maxBackoffMs = 20000;
+            const int minBackoffMs = 1000;
 
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(timeoutSeconds);
             Exception? lastError = null;
             var attempt = 0;
+            var currentBackoffMs = minBackoffMs;
+            var random = new Random();
 
             await Task.Delay(initialDelayMs, ct);
 
@@ -387,8 +406,14 @@ namespace RauskuClaw.Services
                     }
                 }
 
-                var backoffMs = Math.Min(maxBackoffMs, 1200 + (attempt * 400));
-                await Task.Delay(backoffMs, ct);
+                // Exponential backoff with jitter to avoid PerSourcePenalties
+                // 1s, 2s, 4s, 8s, 16s, 20s (capped) + random jitter 0-500ms
+                var jitterMs = random.Next(0, 500);
+                var delayMs = Math.Min(maxBackoffMs, currentBackoffMs) + jitterMs;
+                await Task.Delay(delayMs, ct);
+
+                // Double the backoff for next iteration (exponential)
+                currentBackoffMs = Math.Min(maxBackoffMs, currentBackoffMs * 2);
             }
 
             return (false, $"SSH became reachable but command channel did not stabilize after {timeoutSeconds}s: {lastError?.Message ?? "timeout"}");
@@ -634,5 +659,45 @@ namespace RauskuClaw.Services
         }
 
         private static string EscapeSingleQuotes(string value) => (value ?? string.Empty).Replace("'", "'\\''");
+
+        private async Task<(bool Success, string Message)> WaitForSystemdServiceAsync(
+            Workspace workspace,
+            string serviceName,
+            TimeSpan timeout,
+            IProgress<string>? progress,
+            Action<IProgress<string>?, string>? reportLog,
+            CancellationToken ct)
+        {
+            var deadline = DateTime.UtcNow + timeout;
+            var attempt = 0;
+            var lastState = "unknown";
+
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                attempt++;
+
+                var probe = await _workspaceSshCommandService.RunSshCommandAsync(
+                    workspace,
+                    $"systemctl is-active '{serviceName}' 2>/dev/null || echo inactive",
+                    ct);
+
+                var state = (probe.Message ?? string.Empty).Trim();
+                if (state.Equals("active", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, $"Service {serviceName} is active.");
+                }
+
+                lastState = state;
+                if (attempt == 1 || attempt % 4 == 0)
+                {
+                    reportLog?.Invoke(progress, $"Waiting for {serviceName} (state={state})...");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            }
+
+            return (false, $"Service {serviceName} did not become active in time (last state={lastState}).");
+        }
     }
 }
