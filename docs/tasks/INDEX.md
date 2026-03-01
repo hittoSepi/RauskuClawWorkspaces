@@ -1,4 +1,4 @@
-# Task Index (001-060)
+# Task Index (001-061)
 
 | Task | Status | Puuttuvat kohdat | Linkki |
 |---|---|---|---|
@@ -62,3 +62,4 @@
 | 058 | Completed | HOLVI setup moved to hidden background infra VM (`system-holvi-infra`), with system-workspace filtering in sidebar and SSH-driven setup orchestration | [058-holvi-background-infra-vm.md](058-holvi-background-infra-vm.md) |
 | 059 | Completed | Dedicated base image (`infra.qcow2`) for HOLVI infra VM with correct SSH key; code updated to use dedicated disk path | [059-holvi-infra-base-image.md](059-holvi-infra-base-image.md) |
 | 060 | Completed | Workspace wizard now always uses shared Infisical mode connecting to central HOLVI infra VM at `host.docker.internal:18088` | [060-workspace-always-shared-infisical.md](060-workspace-always-shared-infisical.md) |
+| 061 | Completed | Fixed VM creation stuck at "Env warmup" by waiting for `rauskuclaw-docker.service` before checking `.env` file | [061-env-warmup-timing-fix.md](061-env-warmup-timing-fix.md) |
