@@ -75,6 +75,31 @@ namespace RauskuClaw.GUI.ViewModels
         private bool _isCustomTemplate = true;
         private int _reviewBackStep = 2;
         private WizardStartupState _startupState = WizardStartupState.Idle;
+        private bool _isHolviConfigured = true;
+        private string _holviConfigMessage = string.Empty;
+
+        public bool IsHolviConfigured
+        {
+            get => _isHolviConfigured;
+            private set
+            {
+                if (_isHolviConfigured == value) return;
+                _isHolviConfigured = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanStart));
+            }
+        }
+
+        public string HolviConfigMessage
+        {
+            get => _holviConfigMessage;
+            private set
+            {
+                if (_holviConfigMessage == value) return;
+                _holviConfigMessage = value;
+                OnPropertyChanged();
+            }
+        }
 
         public WizardViewModel(Settings? settings = null, PortAllocation? suggestedPorts = null)
             : this(new ProvisioningScriptBuilder(), new ProvisioningSecretsService(), settings, suggestedPorts)
@@ -725,6 +750,7 @@ namespace RauskuClaw.GUI.ViewModels
 
                     _reviewBackStep = 0;
                     StepIndex = 3;
+                    _ = Task.Run(CheckHolviConfigurationAsync);
                 }
                 return;
             }
@@ -733,6 +759,7 @@ namespace RauskuClaw.GUI.ViewModels
             {
                 _reviewBackStep = 2;
                 StepIndex = 3;
+                _ = Task.Run(CheckHolviConfigurationAsync);
                 return;
             }
 
@@ -748,6 +775,46 @@ namespace RauskuClaw.GUI.ViewModels
             }
 
             StepIndex--;
+        }
+
+        private async void CheckHolviConfigurationAsync()
+        {
+            try
+            {
+                var requestedKeys = new[]
+                {
+                    "API_KEY",
+                    "API_TOKEN",
+                    "PROXY_SHARED_TOKEN",
+                    "INFISICAL_BASE_URL",
+                    "INFISICAL_PROJECT_ID",
+                    "INFISICAL_SERVICE_TOKEN"
+                };
+                var result = await _provisioningSecretsService.ResolveAsync(requestedKeys, CancellationToken.None);
+
+                if (result.Status == ProvisioningSecretStatus.MissingCredentials)
+                {
+                    IsHolviConfigured = false;
+                    HolviConfigMessage = "HOLVI not configured. Configure credentials in Settings to enable secret management.";
+                }
+                else if (result.Status == ProvisioningSecretStatus.Success || result.CredentialsConfigured)
+                {
+                    IsHolviConfigured = true;
+                    HolviConfigMessage = "HOLVI configured and ready.";
+                }
+                else
+                {
+                    IsHolviConfigured = true; // Allow fallback to local credentials
+                    HolviConfigMessage = $"HOLVI partial: {result.Message}";
+                }
+            }
+            catch (Exception ex)
+            {
+                IsHolviConfigured = false;
+                HolviConfigMessage = $"HOLVI check failed: {ex.Message}";
+            }
+
+            StartCommand.RaiseCanExecuteChanged();
         }
 
         private void EditConfiguration()
@@ -1172,7 +1239,7 @@ namespace RauskuClaw.GUI.ViewModels
             }
         }
 
-        private bool CanStart() => !IsRunning && StepIndex == 3;
+        private bool CanStart() => !IsRunning && StepIndex == 3 && IsHolviConfigured;
 
         private bool CanRetryStart() => !IsRunning && StepIndex == 4 && !StartSucceeded;
 

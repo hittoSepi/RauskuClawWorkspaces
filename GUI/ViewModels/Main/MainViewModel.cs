@@ -987,7 +987,7 @@ namespace RauskuClaw.GUI.ViewModels
             if (existing != null)
             {
                 existing.IsSystemWorkspace = true;
-                existing.AutoStart = false;
+                existing.AutoStart = true;
                 if (existing.Ports == null)
                 {
                     existing.Ports = _portAllocator.AllocatePorts();
@@ -1016,7 +1016,7 @@ namespace RauskuClaw.GUI.ViewModels
                 Name = InfraWorkspaceName,
                 Description = "System HOLVI/Infisical infra VM",
                 IsSystemWorkspace = true,
-                AutoStart = false,
+                AutoStart = true,
                 Username = _appSettings.DefaultUsername,
                 Hostname = "rausku-infra",
                 SshPublicKey = keyResult.PublicKey,

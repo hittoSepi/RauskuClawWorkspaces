@@ -74,6 +74,7 @@ namespace RauskuClaw.GUI.ViewModels
             BrowseVmPathCommand = new RelayCommand(BrowseVmPath);
             UseHostDefaultsCommand = new RelayCommand(UseHostDefaults);
             AutoAssignStartingPortsCommand = new RelayCommand(AutoAssignStartingPorts);
+            ValidateHolviStatusCommand = new RelayCommand(() => _ = ValidateHolviStatusAsync(), () => !IsCheckingHolviStatus);
         }
 
         public Settings CurrentSettings
@@ -277,6 +278,20 @@ namespace RauskuClaw.GUI.ViewModels
             set { _infisicalClientSecret = value; OnPropertyChanged(); }
         }
 
+        private string _holviStatus = "Not checked";
+        public string HolviStatus
+        {
+            get => _holviStatus;
+            private set { _holviStatus = value; OnPropertyChanged(); }
+        }
+
+        private bool _isCheckingHolviStatus;
+        public bool IsCheckingHolviStatus
+        {
+            get => _isCheckingHolviStatus;
+            private set { _isCheckingHolviStatus = value; OnPropertyChanged(); }
+        }
+
 
         public string HolviBaseUrl
         {
@@ -291,6 +306,49 @@ namespace RauskuClaw.GUI.ViewModels
         public ICommand BrowseVmPathCommand { get; }
         public ICommand UseHostDefaultsCommand { get; }
         public ICommand AutoAssignStartingPortsCommand { get; }
+        public ICommand ValidateHolviStatusCommand { get; }
+
+        private async Task ValidateHolviStatusAsync()
+        {
+            if (IsCheckingHolviStatus) return;
+
+            try
+            {
+                IsCheckingHolviStatus = true;
+                HolviStatus = "Checking...";
+
+                // Check if credentials are configured
+                if (string.IsNullOrWhiteSpace(HolviApiKey) && string.IsNullOrWhiteSpace(InfisicalClientId))
+                {
+                    HolviStatus = "Not configured: No credentials set";
+                    return;
+                }
+
+                // Use ProvisioningSecretsService to validate
+                var secretsService = new ProvisioningSecretsService();
+                var result = await secretsService.ResolveAsync(new[] { "API_KEY", "INFISICAL_BASE_URL" }, CancellationToken.None);
+
+                HolviStatus = result.Status switch
+                {
+                    ProvisioningSecretStatus.Success => "Connected: Credentials validated",
+                    ProvisioningSecretStatus.MissingCredentials => "Not configured: Credentials missing",
+                    ProvisioningSecretStatus.PartialSecretSet => $"Partial: Some secrets missing",
+                    ProvisioningSecretStatus.MissingSecret => $"Partial: Secret not found",
+                    ProvisioningSecretStatus.ExpiredSecret => $"Warning: Secret expired",
+                    ProvisioningSecretStatus.AccessDenied => $"Error: Access denied",
+                    ProvisioningSecretStatus.TimeoutOrAuthFailure => $"Error: Connection failed",
+                    _ => $"Unknown: {result.Message}"
+                };
+            }
+            catch (Exception ex)
+            {
+                HolviStatus = $"Error: {ex.Message}";
+            }
+            finally
+            {
+                IsCheckingHolviStatus = false;
+            }
+        }
 
         private void SaveSettings()
         {

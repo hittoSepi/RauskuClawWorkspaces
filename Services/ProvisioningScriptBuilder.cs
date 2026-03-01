@@ -379,6 +379,46 @@ runcmd:
       return 0
     }}
 
+    ensure_api_keys_json_for_backend() {{
+      local env_file=""$ROOT_DIR/.env""
+      if [ ! -f ""$env_file"" ]; then
+        echo ""ERROR: Missing required env file: $env_file"" >&2
+        return 1
+      fi
+
+      local existing_json
+      existing_json=""$(read_env_var ""$env_file"" ""API_KEYS_JSON"")""
+
+      # Skip if already configured with valid JSON (not empty or placeholder)
+      if [ -n ""$existing_json"" ] && ! is_placeholder_value ""$existing_json""; then
+        echo ""Env check: API_KEYS_JSON already configured""
+        return 0
+      fi
+
+      # Generate random keys for admin and read roles
+      local admin_key read_key
+      admin_key=""$(random_hex_32)""
+      read_key=""$(random_hex_32)""
+
+      if [ -z ""$admin_key"" ] || [ -z ""$read_key"" ]; then
+        echo ""ERROR: Failed to generate API keys for JSON"" >&2
+        return 1
+      fi
+
+      # Create proper JSON array (escaped for shell)
+      # Format: [{{""name"":""admin"",""key"":""..."",""role"":""admin""}},{{""name"":""read"",""key"":""..."",""role"":""read""}}]
+      local json_value
+      json_value=""[{{\""name\"":\""admin\"",\""key\"":\""$admin_key\"",\""role\"":\""admin\""}},{{\""name\"":\""read\"",\""key\"":\""$read_key\"",\""role\"":\""read\""}}] ""
+
+      if ! set_env_var ""$env_file"" ""API_KEYS_JSON"" ""$json_value""; then
+        echo ""ERROR: Failed to set API_KEYS_JSON"" >&2
+        return 1
+      fi
+
+      echo ""Generated API_KEYS_JSON with admin and read keys in $env_file""
+      return 0
+    }}
+
     ensure_holvi_required_env() {{
       local env_file=""$HOLVI_DIR/.env""
       local key=""$1""
@@ -485,6 +525,10 @@ runcmd:
       fi
       if ! ensure_api_tokens_for_backend; then
         echo ""ERROR: ensure_api_tokens_for_backend failed"" >&2
+        return 1
+      fi
+      if ! ensure_api_keys_json_for_backend; then
+        echo ""ERROR: ensure_api_keys_json_for_backend failed"" >&2
         return 1
       fi
       if [ ""$HOLVI_ENABLED"" = ""1"" ]; then
